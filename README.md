@@ -1,87 +1,92 @@
 # Social Account Switcher
 
-A Chrome extension (Manifest V3) for people who run more than one Facebook, Instagram or YouTube account. Pick an account in the popup and the open tabs reload as that account. You don't have to log out and back in.
+Switch between your own Facebook, Instagram and YouTube accounts from a Chrome extension popup. Log in on each website yourself; the extension saves a session you can return to later.
 
-> Status: early development (v0.1.0). This version is the project skeleton. It loads and shows a placeholder popup, and it can't switch accounts yet. The design and the build plan are in [`docs/design.md`](docs/design.md). A clickable mockup of the finished popup is in [`mockup/popup.html`](mockup/popup.html).
+![Popup with fictional saved accounts](docs/images/popup.png)
 
-## How it will work
+Version 0.1.0 is in development and has not been published. The screenshot uses fictional accounts. Live account checks and the final privacy review are still required before a release.
 
-- Facebook and Instagram: you log in yourself, then press "Add this account". The extension saves that account's session cookies on your device, encrypted with a master password. Switching puts the saved cookies back and reloads the site's tabs.
-- YouTube: the extension uses Google's built-in multi-account sign-in (`authuser`). It never touches Google cookies, so Gmail and other Google services stay on the account they're already using.
-- It never stores your passwords and never fills in login forms.
-- There's no server and no analytics, and no data leaves your device. See [PRIVACY.md](PRIVACY.md).
+Facebook and Instagram sessions are encrypted on this device with a master password. YouTube uses Google's multi-account sign-in with a saved account index and optional channel ID; it does not replace Google cookies. There is no extension server, analytics or remote code. Account labels and identifiers are stored locally without encryption. See [PRIVACY.md](PRIVACY.md) for the privacy policy and [SECURITY.md](SECURITY.md) for reporting a vulnerability.
 
-## Limits and risks
-
-- A saved session is as good as a password. Pick a strong master password: a short one can be guessed in minutes if someone copies your browser profile (numbers in [design §6](docs/design.md)).
-- Pressing "Log out" on the website kills the saved session. Switch with the extension instead.
-- Platforms can ask you to verify your identity again (a checkpoint) or end saved sessions at any time. When that happens you log in again by hand.
-- Facebook's and Meta's terms don't allow sharing accounts. This tool is for accounts that belong to you.
+Facebook and Instagram are trademarks of Meta Platforms, Inc.; YouTube is a trademark of Google LLC. The marks are not covered by this project’s MIT license. See [logo sources](public/brands/SOURCES.md). This project is not affiliated with, endorsed by or sponsored by Meta or Google.
 
 ## Install
 
-Nothing has been released yet, and the extension isn't on the Chrome Web Store. Once a release is published, download `social-account-switcher-v<version>.zip` from the GitHub Releases page and unzip it. In `chrome://extensions`, turn on Developer mode, then click Load unpacked and pick the unzipped folder.
+Requires Chrome 119 or newer, as declared in the manifest. Automated browser tests use Playwright's bundled Chromium.
 
-Requires Chrome 119 or newer.
+When a release is available, download `social-account-switcher-v<version>.zip` from this repository's Releases page. Unzip it, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select the folder containing `manifest.json`. Keep that folder in place.
+
+To try the development version, follow the build steps below and load `dist/` instead.
+
+## Use
+
+1. Open the popup and set a master password on first use. Sign in to an account on the website yourself, including any verification steps.
+2. Select its platform in the popup and choose **Add the account I'm logged in to**. Give it a label you will recognize. Repeat for your other accounts.
+3. Choose a saved account to switch. Unlock the vault when asked. Use **Update session** after signing in again if a saved session expires; use the edit or delete button beside an account to rename or remove it.
+
+YouTube entries use accounts already signed in through Google. The popup still asks you to unlock when the vault is locked.
+
+## Limits and risks
+
+- Saved session cookies can grant account access. Use a strong, unique master password: someone who copies your browser profile can try to guess it offline. The password is not stored, and there is no recovery. Resetting the vault deletes its saved data.
+- Logging out on a website can invalidate its saved session. A platform may also require another login or a checkpoint. Complete those steps yourself, then update the saved session.
+- Removing a saved entry does not log that account out of the website. Lock the vault when you finish, and protect your browser profile and device.
+- YouTube account indexes can change after logout. Switching checks the resulting account and reports a mismatch. If another YouTube navigation completes just before sign-in finishes, verification can report an expired session; sign in again and choose **Update session**.
+- Use accounts you own and follow each platform's terms. This extension does not bypass login, two-factor authentication or platform restrictions. Real-account YouTube behavior still needs the manual release checks in the [design](docs/design.md).
 
 ## Develop
 
-You need [Bun](https://bun.sh). The exact version is pinned in `package.json` (`packageManager`).
+Install the Bun version pinned by `packageManager` in `package.json`, then run:
 
 ```bash
-bun install                     # install dev dependencies from bun.lock
-bun run dev                     # rebuild dist/ on every change, then reload the extension in chrome://extensions
-bun run check                   # typecheck + lint + unit tests + build + permission check (run before every commit)
+bun install --frozen-lockfile
+bun run build
+bun run check
 bunx playwright install chromium
-bun run e2e                     # load dist/ as an unpacked extension in Chromium and smoke-test it
-bun run zip                     # build release/social-account-switcher-v<version>.zip (+ .sha256)
+bun run e2e
 ```
 
-| Script | What it does |
+Load `dist/` as an unpacked extension. `bun run dev` rebuilds it as files change; reload the extension after a build.
+
+| Command | Purpose |
 |---|---|
-| `typecheck` | `tsc` in strict mode, once for `src/` and once for tests/scripts |
-| `lint` | `biome ci .`, which runs lint and format checks without changing files (`bun run fix` applies fixes) |
-| `test` | `bun test` unit tests with a 90% line and function coverage threshold |
-| `build` | Vite build into `dist/` |
-| `perm:check` | fails if `dist/manifest.json` asks for any permission outside the allow-list, or if the permission table in `PRIVACY.md` doesn't list exactly the allowed permissions |
-| `e2e` | Playwright tests against the built extension |
-| `zip` | build, run the permission checks, search the output for source maps, remote scripts, `eval` and network calls, then write a deterministic zip and its SHA-256 |
+| `bun run check` | Strict TypeScript, lint and browser API boundaries, unit tests with coverage, build and permission checks |
+| `bun run e2e` | Browser tests using an unpacked extension and local fixtures |
+| `bun run icons` | Render the composite SVG to 16, 32, 48 and 128 px PNGs and a light/dark preview |
+| `bun run screenshots` | Render sample popup screenshots without contacting platform websites |
+| `bun run zip` | Build and check a deterministic release zip and SHA-256 file |
+| `bun outdated` | Check dependency freshness; it should have no entries before integration |
+
+The image scripts use the existing Playwright Chromium installation. README images show fictional data from the popup test fixture. The generic encryption footer is omitted because account metadata is unencrypted. They are illustrative screenshots, not evidence of a live account switch.
 
 ### Project layout
 
-```
-src/manifest.json          hand-written manifest (version is filled in from package.json at build time)
-src/background/            service worker
-src/lib/                   pure logic, plus ports.ts: the interfaces for every browser API
-src/popup/                 popup page
-public/_locales/{en,th}/   UI strings (English is the default; Thai translation)
-public/icons/              toolbar and store icons
-tests/unit/                bun test
-tests/e2e/                 Playwright with the unpacked extension
-scripts/                   permission check and release zip
-docs/design.md             design, threat model and build plan
-mockup/                    clickable popup mockup and its screenshots
+```text
+assets/icon.svg             composite icon referencing the supplied platform marks
+src/background/            service worker, platform switching and browser adapter
+src/lib/                   storage, encryption, messages and browser API interfaces
+src/popup/                 popup UI and runtime adapter
+public/_locales/{en,th}/    English and Thai messages
+public/icons/              generated extension icons
+tests/unit/                unit tests and coverage
+tests/e2e/                 unpacked-extension browser tests and popup fixtures
+scripts/                   checks, image generation and release packaging
+docs/design.md             design, threat model and manual release checks
+docs/images/               generated popup screenshots and icon preview
 ```
 
-### Repository rules
+Browser APIs enter through interfaces in `src/lib/ports.ts`. Only the background and popup adapters access the browser global. Lint and packaging checks reject direct network calls and remote code; reviewers must also inspect changes because static checks cannot detect every indirect call. No runtime dependencies ship with the extension.
 
-- The extension asks for `cookies`, `storage` and `scripting`, plus host access to facebook.com, instagram.com and youtube.com. Adding a permission means editing `src/manifest.json`, `scripts/permissions.ts` and `PRIVACY.md` in the same change, or CI fails.
-- Biome rejects `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `alert`, `confirm` and `prompt` in `src/`, and the zip script searches the built files for network calls, `eval` and remote scripts again. Neither check can prove that no network call exists (code like `self['fe' + 'tch']` gets past both), so reviewers still need to look.
-- Only `src/background/chrome-adapter.ts` and `src/popup/runtime.ts` may use the global `chrome`. Everything else gets browser APIs as parameters typed by the interfaces in `src/lib/ports.ts`. The reason is promises: Biome's `noFloatingPromises` catches a missing `await` on a method declared in `ports.ts`, but it doesn't read return types from `@types/chrome` and misses one on `chrome.*` directly. Each adapter function is a one-line pass-through that returns Chrome's promise unchanged or only registers a listener, so the adapters have no promise to drop.
-- Two checks in `bun run lint` enforce the adapter rule outside those two files:
-  - Biome rejects the global names `chrome`, `globalThis`, `self`, `window`, `frames`, `parent` and `top`. That covers `chrome.x`, `globalThis.chrome`, `self['chrome']`, `const { chrome } = window` and aliases such as `const g = globalThis`. DOM code uses `document` and `matchMedia` directly.
-  - `scripts/check-chrome-access.ts` strips comments and types, then fails on any remaining word `chrome`, including a `'chrome'` string. It also catches paths Biome has no rule for, such as `document.defaultView.chrome`.
-  - `tests/lint-fixtures/` holds a sample of each pattern, and `tests/unit/chrome-guardrail.test.ts` checks that both tools reject every bad sample and accept the good ones.
-- These checks catch honest mistakes. They are not a sandbox. A name built at runtime (`self['ch' + 'rome']`), `eval`-like code or a reference smuggled in some other way gets past them, so code review still has to look for that.
-- There are no runtime dependencies and no remote code (code review checks this). Everything that ships is in this repository.
-- Dependencies are kept on their latest versions: `bun outdated` should print nothing before a change is merged. Dependabot opens weekly update PRs for packages and GitHub Actions.
+### Add a language
+
+Copy `public/_locales/en/messages.json` into a new locale directory and translate the message values, preserving keys and placeholders. Add the locale to the `Language` type and language resolver/catalog, and add its choice to the popup settings. Run the locale key/placeholder tests, the full checks and browser tests. Extend the screenshot script if images in that language are needed; adding a directory alone does not add a settings choice.
 
 ## Release
 
-1. Bump `version` in `package.json` and add an entry to `CHANGELOG.md`.
-2. Commit, then tag `v<version>` and push the tag.
-3. The `Release` workflow runs every check, builds the zip and attaches it and its SHA-256 to a GitHub Release.
-4. Upload the zip to the Chrome Web Store by hand.
+1. Finish the manual release checks in [docs/design.md](docs/design.md), including live account verification and privacy review. Update `version` in `package.json` and move the relevant changelog entries into a versioned section.
+2. Run the CI checks and `bun run zip`. Inspect the zip, its icons and the unpacked popup.
+3. Commit, tag `v<version>` and push the tag. The Release workflow checks the tag/version match, runs checks and attaches the zip and checksum to a repository release.
+4. Share the GitHub Release zip and checksum. Distribution is through GitHub Releases.
 
 ## License
 

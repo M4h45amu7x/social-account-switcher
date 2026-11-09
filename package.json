@@ -2,7 +2,7 @@
   "name": "social-account-switcher",
   "version": "0.1.0",
   "private": true,
-  "description": "Chrome extension (MV3) to switch between your own Facebook, Instagram and YouTube accounts — all data stays on your device.",
+  "description": "Chrome extension (MV3) to switch between your own Facebook, Instagram and YouTube accounts \u2014 all data stays on your device.",
   "license": "MIT",
   "type": "module",
   "packageManager": "bun@1.4.4",
@@ -19,7 +19,9 @@
     "e2e": "playwright test",
     "perm:check": "bun scripts/check-permissions.ts",
     "zip": "bun run build && bun scripts/zip.ts",
-    "check": "bun run typecheck && bun run lint && bun run test && bun run build && bun run perm:check"
+    "check": "bun run typecheck && bun run lint && bun run test && bun run build && bun run perm:check",
+    "icons": "bun scripts/icons.ts",
+    "screenshots": "bun scripts/screenshots.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",

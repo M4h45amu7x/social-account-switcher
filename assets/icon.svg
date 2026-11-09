@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <title>Facebook, Instagram and YouTube account switcher</title>
+  <rect x="0.25" y="0.25" width="15.5" height="15.5" rx="3" fill="white" stroke="#c6cbd4" stroke-width="0.5"/>
+  <image href="../public/brands/facebook.svg" x="1" y="1" width="6.75" height="6.75" preserveAspectRatio="xMidYMid meet"/>
+  <image href="../public/brands/instagram.svg" x="8.25" y="1" width="6.75" height="6.75" preserveAspectRatio="xMidYMid meet"/>
+  <image href="../public/brands/youtube.svg" x="3" y="8.1" width="10" height="7.03" preserveAspectRatio="xMidYMid meet"/>
+</svg>
