@@ -1,0 +1,12 @@
+### mutation: theme-boot-key
+### file: public/theme-boot.js
+### sed: s/getItem('theme')/getItem('sam.theme')/
+5c5
+<   const theme = localStorage.getItem('theme');
+---
+>   const theme = localStorage.getItem('sam.theme');
+--- run
+error: expect(received).toBe(expected)
+(fail) public/theme-boot.js > sets data-theme from the cached value before the page paints [0.14ms]
+ 8 pass
+ 1 fail

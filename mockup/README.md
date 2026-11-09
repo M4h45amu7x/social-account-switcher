@@ -17,7 +17,7 @@
 Needs Node and the `playwright` package (not installed in this repo, which only holds the design; the real project uses `@playwright/test`, see docs/design.md section 9).
 
 ```bash
-# 1) playwright is already resolvable from here
+# 1) playwright is installed where node can resolve it (for example in a parent node_modules); otherwise this exits with code 2
 node mockup/e2e/popup.e2e.mjs
 
 # 2) point at a playwright package installed elsewhere

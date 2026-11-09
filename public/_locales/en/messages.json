@@ -17,17 +17,594 @@
   },
   "popupTitle": {
     "message": "Switch account",
-    "description": "Heading at the top of the popup."
+    "description": "Title of the popup document (shown as the tab title if the popup page is opened in a tab)."
   },
-  "popupComingSoon": {
-    "message": "Still in development. This version can't switch accounts yet.",
-    "description": "Placeholder body of the popup until switching ships."
+  "app_title": {
+    "message": "Account Switcher",
+    "description": "Popup header"
   },
-  "popupFooter": {
-    "message": "Stays on this device · v$VERSION$",
-    "description": "Popup footer: privacy note and extension version.",
+  "app_settings": {
+    "message": "Settings",
+    "description": "Popup header"
+  },
+  "app_back": {
+    "message": "Back",
+    "description": "Popup header"
+  },
+  "tabs_aria": {
+    "message": "Platform",
+    "description": "Platform tabs"
+  },
+  "common_cancel": {
+    "message": "Cancel",
+    "description": "Shared button label"
+  },
+  "common_close": {
+    "message": "Close",
+    "description": "Shared button label"
+  },
+  "common_save": {
+    "message": "Save",
+    "description": "Shared button label"
+  },
+  "common_delete": {
+    "message": "Delete",
+    "description": "Shared button label"
+  },
+  "tabs_one": {
+    "message": "$N$ tab",
+    "description": "Platform tabs",
     "placeholders": {
-      "version": { "content": "$1", "example": "0.1.0" }
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
     }
+  },
+  "tabs_other": {
+    "message": "$N$ tabs",
+    "description": "Platform tabs",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "list_label": {
+    "message": "$PLATFORM$ accounts ($N$)",
+    "description": "Account list screen",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "Facebook"
+      },
+      "n": {
+        "content": "$2",
+        "example": "2"
+      }
+    }
+  },
+  "list_hintTap": {
+    "message": "Tap to switch",
+    "description": "Account list screen"
+  },
+  "list_hintYoutube": {
+    "message": "Uses Google's account system",
+    "description": "Account list screen"
+  },
+  "list_add": {
+    "message": "Add the account I'm logged in to",
+    "description": "Account list screen"
+  },
+  "youtube_note": {
+    "message": "YouTube uses Google's own multi-account feature. The extension never touches Google cookies, so Gmail and other Google services stay on their account.",
+    "description": "YouTube account list"
+  },
+  "foot": {
+    "message": "Stays on this device · Encrypted with your master password · Website passwords are never stored",
+    "description": "Popup footer"
+  },
+  "chip_active": {
+    "message": "Active",
+    "description": "Small badge next to an account name"
+  },
+  "chip_relogin": {
+    "message": "Log in again",
+    "description": "Small badge next to an account name"
+  },
+  "used_now": {
+    "message": "Active now",
+    "description": "Last-used line under an account name"
+  },
+  "used_hoursAgo": {
+    "message": "Used $N$ h ago",
+    "description": "Last-used line under an account name",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "used_daysAgo": {
+    "message": "Used $N$ days ago",
+    "description": "Last-used line under an account name",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "used_yesterday": {
+    "message": "Used yesterday",
+    "description": "Last-used line under an account name"
+  },
+  "used_justNow": {
+    "message": "Used just now",
+    "description": "Last-used line under an account name"
+  },
+  "used_updated": {
+    "message": "Updated just now",
+    "description": "Last-used line under an account name"
+  },
+  "sub_google": {
+    "message": "Google account $N$",
+    "description": "Account detail line under the name (YouTube)",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "sub_googleBrand": {
+    "message": "Brand · Google account $N$",
+    "description": "Account detail line under the name (YouTube)",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "row_switchTo": {
+    "message": "Switch to $NAME$",
+    "description": "Account row button or tooltip",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Orange Bakery"
+      }
+    }
+  },
+  "row_activeAria": {
+    "message": "Active: $NAME$",
+    "description": "Account row button or tooltip",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Orange Bakery"
+      }
+    }
+  },
+  "row_rename": {
+    "message": "Rename",
+    "description": "Account row button or tooltip"
+  },
+  "row_renameAria": {
+    "message": "Rename $NAME$",
+    "description": "Account row button or tooltip",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Orange Bakery"
+      }
+    }
+  },
+  "row_delete": {
+    "message": "Delete",
+    "description": "Account row button or tooltip"
+  },
+  "row_deleteAria": {
+    "message": "Delete $NAME$",
+    "description": "Account row button or tooltip",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Orange Bakery"
+      }
+    }
+  },
+  "step_save": {
+    "message": "Saving the current session",
+    "description": "Progress text while switching accounts"
+  },
+  "step_apply": {
+    "message": "Applying the new session",
+    "description": "Progress text while switching accounts"
+  },
+  "step_reload": {
+    "message": "Reloading $TABS$",
+    "description": "Progress text while switching accounts",
+    "placeholders": {
+      "tabs": {
+        "content": "$1",
+        "example": "2 tabs"
+      }
+    }
+  },
+  "step_google": {
+    "message": "Switching the Google account",
+    "description": "Progress text while switching accounts"
+  },
+  "switching_aria": {
+    "message": "Switching",
+    "description": "Screen-reader label while switching"
+  },
+  "toast_switched": {
+    "message": "Switched to [[$NAME$]]",
+    "description": "Toast shown after a switch",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Orange Bakery"
+      }
+    }
+  },
+  "toast_reloaded": {
+    "message": "Reloaded $TABS$",
+    "description": "Toast shown after a switch",
+    "placeholders": {
+      "tabs": {
+        "content": "$1",
+        "example": "2 tabs"
+      }
+    }
+  },
+  "rename_label": {
+    "message": "Account name",
+    "description": "Rename account editor"
+  },
+  "rename_hint": {
+    "message": "Only visible on this device · up to 40 characters",
+    "description": "Rename account editor"
+  },
+  "rename_bad": {
+    "message": "Enter at least 1 character",
+    "description": "Rename account editor"
+  },
+  "delete_title": {
+    "message": "Remove [[“$NAME$”]] from the list?",
+    "description": "Delete account confirmation",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Orange Bakery"
+      }
+    }
+  },
+  "delete_cookie": {
+    "message": "The saved session is erased from this device. Your $PLATFORM$ account is not deleted.",
+    "description": "Delete account confirmation",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "Facebook"
+      }
+    }
+  },
+  "delete_youtube": {
+    "message": "Only this shortcut is removed. Your Google account is untouched.",
+    "description": "Delete account confirmation"
+  },
+  "delete_stillIn": {
+    "message": " · You stay logged in in your tabs",
+    "description": "Delete account confirmation"
+  },
+  "add_notLoggedIn": {
+    "message": "No $PLATFORM$ login found. Open $SITE$, log in in that tab, then press Add again.",
+    "description": "Add account form",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "Facebook"
+      },
+      "site": {
+        "content": "$2",
+        "example": "facebook.com"
+      }
+    }
+  },
+  "add_open": {
+    "message": "Open $SITE$",
+    "description": "Add account form",
+    "placeholders": {
+      "site": {
+        "content": "$1",
+        "example": "facebook.com"
+      }
+    }
+  },
+  "add_found": {
+    "message": "Found a logged-in account",
+    "description": "Add account form"
+  },
+  "add_metaCookie": {
+    "message": "$PLATFORM$ ID ••••$TAIL$ · An encrypted session will be saved on this device",
+    "description": "Add account form",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "Facebook"
+      },
+      "tail": {
+        "content": "$2",
+        "example": "4821"
+      }
+    }
+  },
+  "add_metaYoutube": {
+    "message": "Google account 2 · personal channel",
+    "description": "Add account form"
+  },
+  "add_label": {
+    "message": "Name this account",
+    "description": "Add account form"
+  },
+  "add_placeholder": {
+    "message": "Give it a name, e.g. Shop page",
+    "description": "Add account form"
+  },
+  "add_hint": {
+    "message": "A name only you see. It is used in the list.",
+    "description": "Add account form"
+  },
+  "add_save": {
+    "message": "Save this account",
+    "description": "Add account form"
+  },
+  "add_defaultName": {
+    "message": "$PLATFORM$ $N$",
+    "description": "Add account form",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "Facebook"
+      },
+      "n": {
+        "content": "$2",
+        "example": "2"
+      }
+    }
+  },
+  "empty_title": {
+    "message": "No $PLATFORM$ accounts yet",
+    "description": "Empty list (no accounts yet)",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "Facebook"
+      }
+    }
+  },
+  "empty_step1": {
+    "message": "Open $SITE$ in a tab",
+    "description": "Empty list (no accounts yet)",
+    "placeholders": {
+      "site": {
+        "content": "$1",
+        "example": "facebook.com"
+      }
+    }
+  },
+  "empty_step2": {
+    "message": "Log in to the account yourself",
+    "description": "Empty list (no accounts yet)"
+  },
+  "empty_step3": {
+    "message": "Come back and press [[Add the account I'm logged in to]]",
+    "description": "Empty list (no accounts yet)"
+  },
+  "empty_note": {
+    "message": "Repeat for each account. To change accounts, use this extension instead of “Log out” on the site, or the saved session stops working.",
+    "description": "Empty list (no accounts yet)"
+  },
+  "empty_addShort": {
+    "message": "Add logged-in account",
+    "description": "Empty list (no accounts yet)"
+  },
+  "error_title": {
+    "message": "The session for “$NAME$” has expired",
+    "description": "Expired session error",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Orange Bakery"
+      }
+    }
+  },
+  "error_detail": {
+    "message": "$PLATFORM$ no longer accepts the saved session, for example after a password change or a logout. The previous account was put back, so you can keep working.",
+    "description": "Expired session error",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "Facebook"
+      }
+    }
+  },
+  "error_fix": {
+    "message": "To fix it: log in to “$NAME$” again in the tab, then press [[Update session]].",
+    "description": "Expired session error",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Orange Bakery"
+      }
+    }
+  },
+  "error_openLogin": {
+    "message": "Open login page",
+    "description": "Expired session error"
+  },
+  "error_update": {
+    "message": "Update session",
+    "description": "Expired session error"
+  },
+  "lock_title": {
+    "message": "Enter your master password to unlock",
+    "description": "Lock screen (master password)"
+  },
+  "lock_sub": {
+    "message": "Facebook and Instagram sessions are encrypted. Unlock once and it stays open until you close Chrome.",
+    "description": "Lock screen (master password)"
+  },
+  "lock_label": {
+    "message": "Master password",
+    "description": "Lock screen (master password)"
+  },
+  "lock_placeholder": {
+    "message": "Master password",
+    "description": "Lock screen (master password)"
+  },
+  "lock_show": {
+    "message": "Show password",
+    "description": "Lock screen (master password)"
+  },
+  "lock_hide": {
+    "message": "Hide password",
+    "description": "Lock screen (master password)"
+  },
+  "lock_bad": {
+    "message": "Wrong password. Try again.",
+    "description": "Lock screen (master password)"
+  },
+  "lock_unlock": {
+    "message": "Unlock",
+    "description": "Lock screen (master password)"
+  },
+  "lock_unlocking": {
+    "message": "Unlocking…",
+    "description": "Lock screen (master password)"
+  },
+  "lock_unlocked": {
+    "message": "Unlocked",
+    "description": "Lock screen (master password)"
+  },
+  "lock_tryAgain": {
+    "message": "Try again",
+    "description": "Lock screen (master password)"
+  },
+  "lock_forgot": {
+    "message": "Forgot password?",
+    "description": "Lock screen (master password)"
+  },
+  "wipe_title": {
+    "message": "Forgot your password? You will need to wipe your data",
+    "description": "Forgot-password wipe confirmation"
+  },
+  "wipe_detail": {
+    "message": "There is no way to recover it (there is no server). Every saved Facebook and Instagram session is deleted, and you add your accounts again. Your accounts on the sites are fine. YouTube shortcuts stay.",
+    "description": "Forgot-password wipe confirmation"
+  },
+  "wipe_ok": {
+    "message": "Wipe data",
+    "description": "Forgot-password wipe confirmation"
+  },
+  "settings_title": {
+    "message": "Settings",
+    "description": "Settings page"
+  },
+  "settings_theme": {
+    "message": "Theme",
+    "description": "Settings page"
+  },
+  "settings_themeSystem": {
+    "message": "System",
+    "description": "Settings page"
+  },
+  "settings_themeLight": {
+    "message": "Light",
+    "description": "Settings page"
+  },
+  "settings_themeDark": {
+    "message": "Dark",
+    "description": "Settings page"
+  },
+  "settings_language": {
+    "message": "Language",
+    "description": "Settings page"
+  },
+  "settings_langAuto": {
+    "message": "Auto",
+    "description": "Settings page"
+  },
+  "settings_langEn": {
+    "message": "English",
+    "description": "Settings page"
+  },
+  "settings_langTh": {
+    "message": "ไทย",
+    "description": "Settings page"
+  },
+  "settings_langHint": {
+    "message": "Auto follows the browser language (now: $LANG$).",
+    "description": "Settings page",
+    "placeholders": {
+      "lang": {
+        "content": "$1",
+        "example": "English"
+      }
+    }
+  },
+  "settings_lockTitle": {
+    "message": "Master password",
+    "description": "Settings page"
+  },
+  "settings_lockBtn": {
+    "message": "Lock now",
+    "description": "Settings page"
+  },
+  "settings_lockDesc": {
+    "message": "Asks for the master password again.",
+    "description": "Settings page"
+  },
+  "settings_wipeTitle": {
+    "message": "Saved data",
+    "description": "Settings page"
+  },
+  "settings_wipeDesc": {
+    "message": "Deletes every saved session and account shortcut from this device.",
+    "description": "Settings page"
+  },
+  "settings_wipeBtn": {
+    "message": "Wipe all data…",
+    "description": "Settings page"
+  },
+  "settings_wipeConfirmTitle": {
+    "message": "Wipe everything?",
+    "description": "Settings page"
+  },
+  "settings_wipeConfirmDetail": {
+    "message": "All saved sessions and shortcuts are deleted from this device. This cannot be undone. Your accounts on the sites are not affected.",
+    "description": "Settings page"
+  },
+  "settings_wipeConfirmOk": {
+    "message": "Wipe everything",
+    "description": "Settings page"
+  },
+  "lang_name_en": {
+    "message": "English",
+    "description": "Language name shown in Settings"
+  },
+  "lang_name_th": {
+    "message": "Thai",
+    "description": "Language name shown in Settings"
+  },
+  "lock_hint": {
+    "message": "At least 10 characters.",
+    "description": "Lock screen"
   }
 }

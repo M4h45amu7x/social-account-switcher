@@ -234,7 +234,7 @@ try {
   // ------------------------------------------------------------------ theme: first paint + persistence
   {
     const dark = await open({ colorScheme: 'light' }, () => {
-      try { localStorage.setItem('sam.theme', 'dark'); } catch {}
+      try { localStorage.setItem('theme', 'dark'); } catch {}
       const orig = Element.prototype.setAttribute;
       Element.prototype.setAttribute = function (n, v) {
         if (n === 'data-theme' && window.__themeSetWhen === undefined) window.__themeSetWhen = document.body ? 'after-body' : 'before-body';
@@ -511,14 +511,14 @@ try {
       expect(m, `clip-path is not a circle from 0: ${rv.kf}`);
       expect(Math.abs(Number(m[1]) - cx) < 3 && Math.abs(Number(m[2]) - cy) < 3, `circle starts at ${m[1]},${m[2]} not at the click ${cx},${cy}`);
       await idle();
-      expect((await pg.evaluate(() => localStorage.getItem('sam.theme'))) === 'dark', 'theme not saved');
+      expect((await pg.evaluate(() => localStorage.getItem('theme'))) === 'dark', 'theme not saved');
       await id('s-theme-system').click();
       await pg.waitForFunction(() => !document.documentElement.dataset.theme);
       await idle();
       await id('s-lang-th').click();
       await pg.waitForFunction(() => document.documentElement.lang === 'th');
       await idle();
-      expect((await pg.evaluate(() => localStorage.getItem('sam.lang'))) === 'th', 'language not saved');
+      expect((await pg.evaluate(() => localStorage.getItem('language'))) === 'th', 'language not saved');
       expect(hasThai(await pp.locator('.head h1').innerText()), 'UI did not switch to Thai');
       await id('s-lang-en').click();
       await pg.waitForFunction(() => document.documentElement.lang === 'en');

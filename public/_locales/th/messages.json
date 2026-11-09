@@ -1,16 +1,610 @@
 {
-  "extName": { "message": "สลับบัญชี Social" },
-  "extShortName": { "message": "สลับบัญชี" },
-  "extDescription": {
-    "message": "สลับบัญชี Facebook, Instagram และ YouTube ของคุณเองได้ในคลิกเดียว ข้อมูลทั้งหมดอยู่ในเครื่องนี้"
+  "extName": {
+    "message": "สลับบัญชีโซเชียล",
+    "description": "Extension name shown in Chrome and the Web Store. Max 45 characters."
   },
-  "actionTitle": { "message": "สลับบัญชี" },
-  "popupTitle": { "message": "สลับบัญชี" },
-  "popupComingSoon": { "message": "กำลังพัฒนา รุ่นนี้ยังสลับบัญชีไม่ได้" },
-  "popupFooter": {
-    "message": "ข้อมูลอยู่ในเครื่องนี้เท่านั้น · v$VERSION$",
+  "extShortName": {
+    "message": "สลับบัญชี",
+    "description": "Short name used where space is tight. Max 12 characters is recommended."
+  },
+  "extDescription": {
+    "message": "สลับบัญชี Facebook, Instagram และ YouTube ของคุณเองได้ในคลิกเดียว ข้อมูลทั้งหมดเก็บไว้ในเครื่องนี้",
+    "description": "Web Store / chrome://extensions description. Max 132 characters."
+  },
+  "actionTitle": {
+    "message": "สลับบัญชี",
+    "description": "Tooltip of the toolbar icon."
+  },
+  "popupTitle": {
+    "message": "สลับบัญชี",
+    "description": "Title of the popup document (shown as the tab title if the popup page is opened in a tab)."
+  },
+  "app_title": {
+    "message": "สลับบัญชี",
+    "description": "Popup header"
+  },
+  "app_settings": {
+    "message": "ตั้งค่า",
+    "description": "Popup header"
+  },
+  "app_back": {
+    "message": "กลับ",
+    "description": "Popup header"
+  },
+  "tabs_aria": {
+    "message": "แพลตฟอร์ม",
+    "description": "Platform tabs"
+  },
+  "common_cancel": {
+    "message": "ยกเลิก",
+    "description": "Shared button label"
+  },
+  "common_close": {
+    "message": "ปิด",
+    "description": "Shared button label"
+  },
+  "common_save": {
+    "message": "บันทึก",
+    "description": "Shared button label"
+  },
+  "common_delete": {
+    "message": "ลบ",
+    "description": "Shared button label"
+  },
+  "tabs_one": {
+    "message": "$N$ แท็บ",
+    "description": "Platform tabs",
     "placeholders": {
-      "version": { "content": "$1", "example": "0.1.0" }
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
     }
+  },
+  "tabs_other": {
+    "message": "$N$ แท็บ",
+    "description": "Platform tabs",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "list_label": {
+    "message": "บัญชี $PLATFORM$ ($N$)",
+    "description": "Account list screen",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "Facebook"
+      },
+      "n": {
+        "content": "$2",
+        "example": "2"
+      }
+    }
+  },
+  "list_hintTap": {
+    "message": "แตะเพื่อสลับ",
+    "description": "Account list screen"
+  },
+  "list_hintYoutube": {
+    "message": "ผ่านระบบบัญชีของ Google",
+    "description": "Account list screen"
+  },
+  "list_add": {
+    "message": "เพิ่มบัญชีที่ login อยู่ตอนนี้",
+    "description": "Account list screen"
+  },
+  "youtube_note": {
+    "message": "YouTube ใช้ระบบหลายบัญชีของ Google — extension ไม่แตะ cookie ของ Google ทำให้ Gmail และบริการอื่นไม่เปลี่ยนบัญชีตาม",
+    "description": "YouTube account list"
+  },
+  "foot": {
+    "message": "อยู่ในเครื่องนี้เท่านั้น · เข้ารหัสด้วยรหัสผ่านหลัก · ไม่เก็บรหัสผ่านเว็บ",
+    "description": "Popup footer"
+  },
+  "chip_active": {
+    "message": "ใช้อยู่",
+    "description": "Small badge next to an account name"
+  },
+  "chip_relogin": {
+    "message": "ต้อง login ใหม่",
+    "description": "Small badge next to an account name"
+  },
+  "used_now": {
+    "message": "ใช้อยู่ตอนนี้",
+    "description": "Last-used line under an account name"
+  },
+  "used_hoursAgo": {
+    "message": "ใช้เมื่อ $N$ ชม. ก่อน",
+    "description": "Last-used line under an account name",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "used_daysAgo": {
+    "message": "ใช้เมื่อ $N$ วันก่อน",
+    "description": "Last-used line under an account name",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "used_yesterday": {
+    "message": "ใช้เมื่อวาน",
+    "description": "Last-used line under an account name"
+  },
+  "used_justNow": {
+    "message": "ใช้เมื่อครู่",
+    "description": "Last-used line under an account name"
+  },
+  "used_updated": {
+    "message": "อัปเดตเมื่อครู่",
+    "description": "Last-used line under an account name"
+  },
+  "sub_google": {
+    "message": "บัญชี Google ที่ $N$",
+    "description": "Account detail line under the name (YouTube)",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "sub_googleBrand": {
+    "message": "Brand · บัญชี Google ที่ $N$",
+    "description": "Account detail line under the name (YouTube)",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "row_switchTo": {
+    "message": "สลับเป็น $NAME$",
+    "description": "Account row button or tooltip",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Orange Bakery"
+      }
+    }
+  },
+  "row_activeAria": {
+    "message": "ใช้อยู่: $NAME$",
+    "description": "Account row button or tooltip",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Orange Bakery"
+      }
+    }
+  },
+  "row_rename": {
+    "message": "เปลี่ยนชื่อ",
+    "description": "Account row button or tooltip"
+  },
+  "row_renameAria": {
+    "message": "เปลี่ยนชื่อ $NAME$",
+    "description": "Account row button or tooltip",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Orange Bakery"
+      }
+    }
+  },
+  "row_delete": {
+    "message": "ลบ",
+    "description": "Account row button or tooltip"
+  },
+  "row_deleteAria": {
+    "message": "ลบ $NAME$",
+    "description": "Account row button or tooltip",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Orange Bakery"
+      }
+    }
+  },
+  "step_save": {
+    "message": "เก็บ session บัญชีเดิม",
+    "description": "Progress text while switching accounts"
+  },
+  "step_apply": {
+    "message": "ใส่ session บัญชีใหม่",
+    "description": "Progress text while switching accounts"
+  },
+  "step_reload": {
+    "message": "รีโหลด $TABS$",
+    "description": "Progress text while switching accounts",
+    "placeholders": {
+      "tabs": {
+        "content": "$1",
+        "example": "2 tabs"
+      }
+    }
+  },
+  "step_google": {
+    "message": "เปลี่ยนบัญชี Google",
+    "description": "Progress text while switching accounts"
+  },
+  "switching_aria": {
+    "message": "กำลังสลับ",
+    "description": "Screen-reader label while switching"
+  },
+  "toast_switched": {
+    "message": "สลับเป็น [[$NAME$]] แล้ว",
+    "description": "Toast shown after a switch",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Orange Bakery"
+      }
+    }
+  },
+  "toast_reloaded": {
+    "message": "รีโหลด $TABS$ แล้ว",
+    "description": "Toast shown after a switch",
+    "placeholders": {
+      "tabs": {
+        "content": "$1",
+        "example": "2 tabs"
+      }
+    }
+  },
+  "rename_label": {
+    "message": "ชื่อบัญชี",
+    "description": "Rename account editor"
+  },
+  "rename_hint": {
+    "message": "ชื่อนี้เห็นแค่ในเครื่องนี้ · สูงสุด 40 ตัวอักษร",
+    "description": "Rename account editor"
+  },
+  "rename_bad": {
+    "message": "ตั้งชื่ออย่างน้อย 1 ตัวอักษร",
+    "description": "Rename account editor"
+  },
+  "delete_title": {
+    "message": "ลบ [[“$NAME$”]] ออกจากรายการ?",
+    "description": "Delete account confirmation",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Orange Bakery"
+      }
+    }
+  },
+  "delete_cookie": {
+    "message": "session ที่เก็บไว้ในเครื่องจะหายไป บัญชีบน $PLATFORM$ ไม่ถูกลบ",
+    "description": "Delete account confirmation",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "Facebook"
+      }
+    }
+  },
+  "delete_youtube": {
+    "message": "ลบแค่ทางลัดในเครื่องนี้ บัญชี Google ไม่ได้รับผลกระทบ",
+    "description": "Delete account confirmation"
+  },
+  "delete_stillIn": {
+    "message": " · คุณยังคง login อยู่ในแท็บ",
+    "description": "Delete account confirmation"
+  },
+  "add_notLoggedIn": {
+    "message": "ยังไม่พบบัญชีที่ login ใน $PLATFORM$ — เปิด $SITE$ แล้ว login ในแท็บก่อน จากนั้นกดเพิ่มอีกครั้ง",
+    "description": "Add account form",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "Facebook"
+      },
+      "site": {
+        "content": "$2",
+        "example": "facebook.com"
+      }
+    }
+  },
+  "add_open": {
+    "message": "เปิด $SITE$",
+    "description": "Add account form",
+    "placeholders": {
+      "site": {
+        "content": "$1",
+        "example": "facebook.com"
+      }
+    }
+  },
+  "add_found": {
+    "message": "พบบัญชีที่ login อยู่",
+    "description": "Add account form"
+  },
+  "add_metaCookie": {
+    "message": "$PLATFORM$ ID ••••$TAIL$ · จะเก็บ session แบบเข้ารหัสในเครื่องนี้",
+    "description": "Add account form",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "Facebook"
+      },
+      "tail": {
+        "content": "$2",
+        "example": "4821"
+      }
+    }
+  },
+  "add_metaYoutube": {
+    "message": "บัญชี Google ลำดับ 2 · ช่องส่วนตัว",
+    "description": "Add account form"
+  },
+  "add_label": {
+    "message": "ตั้งชื่อบัญชี",
+    "description": "Add account form"
+  },
+  "add_placeholder": {
+    "message": "ตั้งชื่อ เช่น เพจร้าน",
+    "description": "Add account form"
+  },
+  "add_hint": {
+    "message": "ชื่อที่คุณตั้งเอง ใช้แสดงในรายการ",
+    "description": "Add account form"
+  },
+  "add_save": {
+    "message": "บันทึกบัญชีนี้",
+    "description": "Add account form"
+  },
+  "add_defaultName": {
+    "message": "$PLATFORM$ $N$",
+    "description": "Add account form",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "Facebook"
+      },
+      "n": {
+        "content": "$2",
+        "example": "2"
+      }
+    }
+  },
+  "empty_title": {
+    "message": "ยังไม่มีบัญชี $PLATFORM$",
+    "description": "Empty list (no accounts yet)",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "Facebook"
+      }
+    }
+  },
+  "empty_step1": {
+    "message": "เปิด $SITE$ ในแท็บ",
+    "description": "Empty list (no accounts yet)",
+    "placeholders": {
+      "site": {
+        "content": "$1",
+        "example": "facebook.com"
+      }
+    }
+  },
+  "empty_step2": {
+    "message": "login บัญชีที่ต้องการด้วยตัวเอง",
+    "description": "Empty list (no accounts yet)"
+  },
+  "empty_step3": {
+    "message": "กลับมากด [[เพิ่มบัญชีที่ login อยู่ตอนนี้]]",
+    "description": "Empty list (no accounts yet)"
+  },
+  "empty_note": {
+    "message": "ทำซ้ำกับแต่ละบัญชี — สลับไปบัญชีอื่นผ่าน extension นี้แทนการกด “ออกจากระบบ” บนเว็บ ไม่งั้น session ที่เก็บไว้จะใช้ไม่ได้",
+    "description": "Empty list (no accounts yet)"
+  },
+  "empty_addShort": {
+    "message": "เพิ่มบัญชีที่ login อยู่",
+    "description": "Empty list (no accounts yet)"
+  },
+  "error_title": {
+    "message": "session ของ “$NAME$” หมดอายุ",
+    "description": "Expired session error",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Orange Bakery"
+      }
+    }
+  },
+  "error_detail": {
+    "message": "$PLATFORM$ ไม่รับ session ที่เก็บไว้แล้ว (เช่น เปลี่ยนรหัสผ่าน หรือกดออกจากระบบ) — ระบบสลับกลับมาเป็นบัญชีเดิมให้แล้ว คุณยังใช้งานต่อได้",
+    "description": "Expired session error",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "Facebook"
+      }
+    }
+  },
+  "error_fix": {
+    "message": "วิธีแก้: login “$NAME$” ใหม่ในแท็บด้วยตัวเอง แล้วกด [[อัปเดต session]]",
+    "description": "Expired session error",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Orange Bakery"
+      }
+    }
+  },
+  "error_openLogin": {
+    "message": "เปิดหน้า login",
+    "description": "Expired session error"
+  },
+  "error_update": {
+    "message": "อัปเดต session",
+    "description": "Expired session error"
+  },
+  "lock_title": {
+    "message": "ใส่รหัสผ่านหลักเพื่อปลดล็อก",
+    "description": "Lock screen (master password)"
+  },
+  "lock_sub": {
+    "message": "session ของ Facebook / Instagram เข้ารหัสอยู่ · ปลดล็อกครั้งเดียวใช้ได้จนปิด Chrome",
+    "description": "Lock screen (master password)"
+  },
+  "lock_label": {
+    "message": "รหัสผ่านหลัก",
+    "description": "Lock screen (master password)"
+  },
+  "lock_placeholder": {
+    "message": "รหัสผ่านหลัก",
+    "description": "Lock screen (master password)"
+  },
+  "lock_show": {
+    "message": "แสดงรหัสผ่าน",
+    "description": "Lock screen (master password)"
+  },
+  "lock_hide": {
+    "message": "ซ่อนรหัสผ่าน",
+    "description": "Lock screen (master password)"
+  },
+  "lock_bad": {
+    "message": "รหัสผ่านไม่ถูกต้อง ลองอีกครั้ง",
+    "description": "Lock screen (master password)"
+  },
+  "lock_unlock": {
+    "message": "ปลดล็อก",
+    "description": "Lock screen (master password)"
+  },
+  "lock_unlocking": {
+    "message": "กำลังปลดล็อก…",
+    "description": "Lock screen (master password)"
+  },
+  "lock_unlocked": {
+    "message": "ปลดล็อกแล้ว",
+    "description": "Lock screen (master password)"
+  },
+  "lock_tryAgain": {
+    "message": "ลองอีกครั้ง",
+    "description": "Lock screen (master password)"
+  },
+  "lock_forgot": {
+    "message": "ลืมรหัสผ่าน?",
+    "description": "Lock screen (master password)"
+  },
+  "wipe_title": {
+    "message": "ลืมรหัสผ่าน = ต้องล้างข้อมูล",
+    "description": "Forgot-password wipe confirmation"
+  },
+  "wipe_detail": {
+    "message": "กู้รหัสผ่านไม่ได้ (ไม่มี server) — session ของ Facebook / Instagram ที่เก็บไว้ทั้งหมดจะถูกลบ แล้วค่อย login เพิ่มบัญชีใหม่ · บัญชีบนเว็บไม่เสียหาย · ทางลัด YouTube ยังอยู่",
+    "description": "Forgot-password wipe confirmation"
+  },
+  "wipe_ok": {
+    "message": "ล้างข้อมูล",
+    "description": "Forgot-password wipe confirmation"
+  },
+  "settings_title": {
+    "message": "ตั้งค่า",
+    "description": "Settings page"
+  },
+  "settings_theme": {
+    "message": "ธีม",
+    "description": "Settings page"
+  },
+  "settings_themeSystem": {
+    "message": "ตามระบบ",
+    "description": "Settings page"
+  },
+  "settings_themeLight": {
+    "message": "สว่าง",
+    "description": "Settings page"
+  },
+  "settings_themeDark": {
+    "message": "มืด",
+    "description": "Settings page"
+  },
+  "settings_language": {
+    "message": "ภาษา",
+    "description": "Settings page"
+  },
+  "settings_langAuto": {
+    "message": "อัตโนมัติ",
+    "description": "Settings page"
+  },
+  "settings_langEn": {
+    "message": "English",
+    "description": "Settings page"
+  },
+  "settings_langTh": {
+    "message": "ไทย",
+    "description": "Settings page"
+  },
+  "settings_langHint": {
+    "message": "อัตโนมัติ = ตามภาษาของเบราว์เซอร์ (ตอนนี้: $LANG$)",
+    "description": "Settings page",
+    "placeholders": {
+      "lang": {
+        "content": "$1",
+        "example": "English"
+      }
+    }
+  },
+  "settings_lockTitle": {
+    "message": "รหัสผ่านหลัก",
+    "description": "Settings page"
+  },
+  "settings_lockBtn": {
+    "message": "ล็อกตอนนี้",
+    "description": "Settings page"
+  },
+  "settings_lockDesc": {
+    "message": "ต้องใส่รหัสผ่านหลักอีกครั้ง",
+    "description": "Settings page"
+  },
+  "settings_wipeTitle": {
+    "message": "ข้อมูลที่เก็บไว้",
+    "description": "Settings page"
+  },
+  "settings_wipeDesc": {
+    "message": "ลบ session และทางลัดบัญชีทั้งหมดออกจากเครื่องนี้",
+    "description": "Settings page"
+  },
+  "settings_wipeBtn": {
+    "message": "ล้างข้อมูลทั้งหมด…",
+    "description": "Settings page"
+  },
+  "settings_wipeConfirmTitle": {
+    "message": "ล้างข้อมูลทั้งหมดใช่ไหม?",
+    "description": "Settings page"
+  },
+  "settings_wipeConfirmDetail": {
+    "message": "session และทางลัดที่เก็บไว้ทั้งหมดจะหายไปจากเครื่องนี้ กู้คืนไม่ได้ บัญชีบนเว็บไม่ได้รับผลกระทบ",
+    "description": "Settings page"
+  },
+  "settings_wipeConfirmOk": {
+    "message": "ล้างทั้งหมด",
+    "description": "Settings page"
+  },
+  "lang_name_en": {
+    "message": "อังกฤษ",
+    "description": "Language name shown in Settings"
+  },
+  "lang_name_th": {
+    "message": "ไทย",
+    "description": "Language name shown in Settings"
+  },
+  "lock_hint": {
+    "message": "อย่างน้อย 10 ตัวอักษร",
+    "description": "Lock screen"
   }
 }

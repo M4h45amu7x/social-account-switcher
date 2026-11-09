@@ -1,10 +1,17 @@
-import { extensionVersion, i18nApi } from './runtime';
-import { renderPopup } from './view';
+import { mountPopup } from './app';
+import { i18nApi } from './runtime';
 
-document.documentElement.lang = i18nApi.getUILanguage();
-document.title = i18nApi.getMessage('popupTitle');
+function localCache(): Storage | null {
+  try {
+    return localStorage;
+  } catch {
+    return null;
+  }
+}
 
 const root = document.getElementById('app');
 if (root) {
-  renderPopup(root, { version: extensionVersion() }, (key, subs) => i18nApi.getMessage(key, subs));
+  // B5a draws and navigates only. B5b passes `onEffect` to send each effect to the service worker and
+  // feeds the answers back with app.dispatch({ type: 'platform-loaded' | 'switch-done' | ... }).
+  mountPopup({ root, cache: localCache(), uiLanguage: i18nApi.getUILanguage() });
 }

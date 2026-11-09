@@ -49,7 +49,6 @@ Object.assign(globalThis, {
 const { hardenSessionStorage, start, workerDeps, youtubeNotWired } = await import(
   '../../src/background/service-worker'
 );
-const { renderPopup } = await import('../../src/popup/view');
 const adapter = await import('../../src/background/chrome-adapter');
 
 test('hardenSessionStorage restricts storage.session to trusted contexts', async () => {
@@ -96,21 +95,13 @@ test('the chrome adapter passes calls straight through to chrome.*', async () =>
   expect(setAccessLevel).toHaveBeenCalledWith({ accessLevel: 'TRUSTED_CONTEXTS' });
 });
 
-test('popup renders every string through the translator', () => {
-  const root = document.createElement('main');
-  const seen: string[] = [];
-  renderPopup(root, { version: '1.2.3' }, (key, subs) => {
-    seen.push(key);
-    return `[${key}${subs ? `:${subs.join(',')}` : ''}]`;
-  });
-  expect(root.querySelector('h1')?.textContent).toBe('[popupTitle]');
-  expect(root.querySelector('.foot')?.textContent).toBe('[popupFooter:1.2.3]');
-  expect(seen).toEqual(['popupTitle', 'popupComingSoon', 'popupFooter']);
-});
-
 test('popup html points at the module entry', () => {
   const html = readFileSync(new URL('../../src/popup/index.html', import.meta.url), 'utf8');
   expect(html).toContain('<script type="module" src="./main.ts">');
+  // the theme boot script is classic and comes before the stylesheet, so first paint has the right colours
+  const boot = html.indexOf('<script src="/theme-boot.js"></script>');
+  expect(boot).toBeGreaterThan(-1);
+  expect(boot).toBeLessThan(html.indexOf('rel="stylesheet"'));
 });
 
 test('every other adapter function is a straight pass-through', async () => {

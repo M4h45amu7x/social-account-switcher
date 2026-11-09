@@ -261,7 +261,7 @@ type SessionMap = Record<string /*accountId*/, {
 }>;
 ```
 
-`chrome.storage.session` (browser memory, not written to disk, gone when Chrome closes, values must be JSON)
+`chrome.storage.session` (browser memory, not written to disk, gone when Chrome closes or when the extension is reloaded, updated or disabled, values must be JSON)
 
 ```ts
 interface SessionArea {
@@ -300,7 +300,7 @@ Proposed design: master password + WebCrypto
    - Unlock: derive (extractable), `exportKey('raw')`, base64, store in `storage.session.vaultKey`, then drop the extractable key straight away.
    - Use (every time the worker needs to decrypt or encrypt): read `vaultKey`, `importKey('raw', …, extractable: false, ['encrypt','decrypt'])` to get a non-extractable `CryptoKey`, used in the worker's memory (it may be cached in a variable until the worker is stopped).
    - Lock: delete `vaultKey` and clear the cache. Closing Chrome wipes `storage.session`, so that locks it automatically.
-   - Result: one unlock lasts until Chrome closes or the user presses Lock now, even if the worker is stopped and woken many times.
+   - Result: one unlock lasts until Chrome closes, the extension is reloaded, updated or disabled, or the user presses Lock now, even if the worker is stopped and woken many times.
 5. After 5 wrong passwords there is a 30-second delay per attempt. To be straight about it: **this delay lives inside the extension, so it only stops someone guessing at the keyboard. It does nothing against offline guessing on a stolen copy of `storage.local`.** The only things that slow offline guessing are the password length and the PBKDF2 round count.
 
 YouTube holds no secret (only authuser / pageid), so switching it needs no unlock.
@@ -317,7 +317,7 @@ Assumption: hashcat mode 10900 (PBKDF2-HMAC-SHA256) on a GTX 1080 Ti (a 2017 car
 | 10 random characters, a to z and 0 to 9 | 36^10 ≈ 3.7×10^15 | about 47,000 years | about 4,700 years |
 | 4 random words from a 7,776-word list | 7776^4 ≈ 3.7×10^15 | about 47,000 years | about 4,700 years |
 
-(Calculation: candidates ÷ guesses per second, for example `106 / 2450 ≈ 408 s`.)
+(Calculation: candidates ÷ guesses per second, for example `10^6 / 2450 ≈ 408 s`.)
 
 | Trade-off | Effect |
 |---|---|
@@ -381,8 +381,14 @@ social-account-switcher/
 │  │  └─ result.ts             # type Result<T, E>, never throw across a message boundary
 │  └─ popup/
 │     ├─ index.html  popup.css # taken from mockup/popup.html (same CSS tokens, theme tokens and motion tokens)
-│     ├─ main.ts               # render + events, talks to the worker only through messages.ts
+│     ├─ main.ts               # mounts the popup (B5a: draws and navigates; B5b adds the worker messages)
+│     ├─ app.ts                # glue: state ⇄ reducer ⇄ DOM, wraps each redraw in a view transition
+│     ├─ controller.ts         # pure reducer (state, action) → next state + motion mode + effects for the worker
+│     ├─ state.ts              # the popup's own view types (PopupState, AccountView) and screenOf()
 │     ├─ view.ts               # pure render functions (state → DOM), testable with happy-dom
+│     ├─ html.ts               # escaping html`` builder: the one place that decides what is markup
+│     ├─ samples.ts            # sample data (the mockup's fake accounts) for tests and the e2e page only
+│     ├─ e2e/                  # e2e page that opens the real code on a sample state (built only by tests/e2e/vite.e2e.config.ts)
 │     ├─ runtime.ts            # the other file allowed to touch `chrome` (i18n + manifest version pass-throughs)
 │     ├─ i18n.ts               # t(), language resolution, plural and [[bold]] helpers (section 10)
 │     ├─ theme.ts              # apply / save the theme, keep the first-paint cache (section 11)
@@ -465,16 +471,18 @@ export function switchAccount(deps: Deps, platform: Platform, accountId: string,
 // popup/i18n.ts (section 10)
 export type MessageKey = keyof typeof import('../../public/_locales/en/messages.json');
 export function resolveLanguage(pref: LanguagePref, uiLanguage: string): 'en' | 'th';
-export function createTranslator(lang: 'en' | 'th'): (key: MessageKey, params?: Record<string, string | number>) => string;
+export function createTranslator(lang: 'en' | 'th'): Translator;   // text(key, params) · html(key, params) · count('tabs', n)
+// both catalogs are imported at build time (resolveJsonModule), so a language picked in Settings works without a fetch
 
 // popup/theme.ts (section 11)
-export function applyTheme(doc: Document, pref: ThemePref): void;           // sets or removes data-theme
-export function cacheTheme(storage: Storage, pref: ThemePref): void;        // localStorage mirror for first paint
+export function applyTheme(root: HTMLElement, pref: ThemePref): void;      // sets or removes data-theme
+export function writeThemeCache(cache: ThemeCache | null, pref: ThemePref): void;  // localStorage mirror under the key `theme`, for first paint
+export function reconcileTheme(root: HTMLElement, cache: ThemeCache | null, stored: ThemePref): ThemePref;  // the stored setting wins
 
 // popup/motion.ts (section 12)
 export type MotionMode = 'theme' | 'tab' | 'list' | 'status' | 'expand' | 'page' | 'toast' | 'lang' | 'none';
-export function transition(mode: MotionMode, update: () => void, opts?: { dir?: 1 | -1 }): ViewTransition | null;
-export function circleReveal(x: number, y: number, update: () => void): void;
+export function runTransition(mode: MotionMode, update: () => void, opts?: { dir?: 1 | -1 }): ViewTransition | null;
+export function circleReveal(x: number, y: number, update: () => void): ViewTransition | null;
 
 // lib/messages.ts: the popup may send only these types, and the worker always answers with a Result
 export type Request =
@@ -612,7 +620,7 @@ Reasoning: this extension holds session cookies (worth a password), so every bui
     "dev": "vite build --watch --mode development",
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json && tsc -p tests/tsconfig.json",
-    "lint": "biome ci .",
+    "lint": "biome ci . && bun scripts/check-chrome-access.ts",
     "fix": "biome check --write .",
     "test": "bun test tests/unit",
     "e2e": "playwright test",
@@ -716,9 +724,9 @@ Every user-facing string lives in `public/_locales/<lang>/messages.json`, in Chr
 - The Chrome Web Store reads the same folders for the localized listing.
 
 ### 10.3 Key and message rules
-- Keys use only letters, digits and `_` (Chrome requires it), in `camelCase`/`snake_case` groups such as `list_label`, `error_title`, `settings_theme`. (The mockup writes them with dots, `list.label`, for readability; the real key replaces each dot with `_`. The mockup's table is the content to copy into the real files.)
+- Keys use only letters, digits and `_` (Chrome requires it), in `camelCase`/`snake_case` groups such as `list_label`, `error_title`, `settings_theme`. (The mockup writes them with dots, `list.label`, for readability; the real key replaces each dot with `_`. B5a generated `public/_locales/{en,th}/messages.json` from the mockup's tables that way: 109 keys per language, with the mockup's seed names and its "Mockup password" hint left out. The real lock hint is `lock_hint`.)
 - Each entry has a `message` and a `description` for translators, as B1 already does. Placeholders use Chrome's form: `"message": "Switched to $NAME$"` with `"placeholders": { "name": { "content": "$1" } }`. Both languages must declare the same placeholders; `tests/unit/locales.test.ts` checks it, together with the same key set.
-- Plurals: Chrome messages have no plural syntax. A count word has two keys (`nTabs_one`, `nTabs_other`) and `i18n.ts` picks one with `Intl.PluralRules(lang)`. Thai has one form, so both keys can hold the same text.
+- Plurals: Chrome messages have no plural syntax. A count word has two keys (`tabs_one`, `tabs_other`, built in B5a) and `i18n.ts` picks one with `Intl.PluralRules(lang)`. Thai has one form, so both keys can hold the same text.
 - Emphasis: a message may wrap a word in `[[…]]`. `i18n.ts` escapes all parameters and the text first, then turns `[[x]]` into `<b>x</b>`, so a user-typed name can never inject markup. No other markup is allowed in messages.
 - User-typed data (account names) is never translated and is always escaped.
 

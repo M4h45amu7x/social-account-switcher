@@ -1,22 +1,105 @@
-/* Design tokens follow mockup/popup.html — the full popup arrives in card B5. */
+/* Popup styles. The tokens, components and motion rules are lifted from mockup/popup.html (docs/design.md
+   sections 7, 11 and 12). Every colour is a token; dark tokens live under :root[data-theme="dark"] and under
+   the prefers-color-scheme query (System = no data-theme attribute). */
 :root {
-  --font:
-    "IBM Plex Sans Thai", "Noto Sans Thai", "Sukhumvit Set", "Leelawadee UI", system-ui, sans-serif;
-  --bg: #ffffff;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-th:
+    "IBM Plex Sans Thai", "Noto Sans Thai", "Sukhumvit Set", "Leelawadee UI", "Tahoma", system-ui,
+    sans-serif;
+  --bg: #eef0f3;
+  --surface: #ffffff;
   --surface-2: #f5f6f8;
   --text: #16181d;
   --text-2: #5b6170;
   --line: #e3e5ea;
-  color-scheme: light dark;
+  --focus: #1a56d6;
+  --ok: #12805c;
+  --ok-bg: #e7f6ef;
+  --err: #b42a18;
+  --err-bg: #fdecea;
+  --warn-bg: #fff6e0;
+  --warn: #8a5a00;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 8px 24px rgba(16, 24, 40, 0.1);
+  --fb: #145fcc;
+  --fb-soft: #e7f0fe;
+  --ig: #be1660;
+  --ig-soft: #fce8f1;
+  --yt: #c8190f;
+  --yt-soft: #fde9e8;
+  color-scheme: light;
+  /* text and icons drawn on a filled accent / error / focus / ok background (WCAG AA, checked by tests/e2e/contrast.spec.ts) */
+  --field-line: #838a99;
+  --on-accent: #ffffff;
+  --on-err: #ffffff;
+  --on-focus: #ffffff;
+  --on-ok: #ffffff;
+
+  /* Motion tokens. Every animation below reads these, nothing hard-codes a duration. */
+  --motion-scale: 1; /* the GIF recorder raises this to slow things down */
+  --dur-fast: calc(120ms * var(--motion-scale));
+  --dur-base: calc(240ms * var(--motion-scale));
+  --dur-slow: calc(420ms * var(--motion-scale));
+  --dur-reveal: calc(560ms * var(--motion-scale)); /* Circle Reveal */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 }
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #171a1f;
+  :root:not([data-theme="light"]) {
+    --bg: #0e1013;
+    --surface: #171a1f;
     --surface-2: #1f232a;
     --text: #eceef2;
     --text-2: #9aa1ae;
     --line: #2b3039;
+    --focus: #6d97ff;
+    --ok: #4cc391;
+    --ok-bg: #12301f;
+    --err: #ff7a66;
+    --err-bg: #3a1714;
+    --warn-bg: #352a10;
+    --warn: #f2c35b;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.45);
+    --fb: #4b95ff;
+    --fb-soft: #16253d;
+    --ig: #ff5ea0;
+    --ig-soft: #3a1a2a;
+    --yt: #ff5a4f;
+    --yt-soft: #3a1918;
+    color-scheme: dark;
+    --field-line: #727a8c;
+    --on-accent: #0b0d10;
+    --on-err: #14080a;
+    --on-focus: #0b0d10;
+    --on-ok: #0b0d10;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1013;
+  --surface: #171a1f;
+  --surface-2: #1f232a;
+  --text: #eceef2;
+  --text-2: #9aa1ae;
+  --line: #2b3039;
+  --focus: #6d97ff;
+  --ok: #4cc391;
+  --ok-bg: #12301f;
+  --err: #ff7a66;
+  --err-bg: #3a1714;
+  --warn-bg: #352a10;
+  --warn: #f2c35b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --fb: #4b95ff;
+  --fb-soft: #16253d;
+  --ig: #ff5ea0;
+  --ig-soft: #3a1a2a;
+  --yt: #ff5a4f;
+  --yt-soft: #3a1918;
+  color-scheme: dark;
+  --field-line: #727a8c;
+  --on-accent: #0b0d10;
+  --on-err: #14080a;
+  --on-focus: #0b0d10;
+  --on-ok: #0b0d10;
 }
 * {
   box-sizing: border-box;
@@ -26,27 +109,931 @@ body {
   margin: 0;
 }
 body {
-  width: 360px;
-  min-height: 240px;
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text);
   font: 14px / 1.45 var(--font);
+  width: 360px;
 }
+:lang(th) {
+  font-family: var(--font-th);
+  line-height: 1.55;
+}
+button {
+  font: inherit;
+  color: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---------- popup (this becomes the real extension UI) ---------- */
 .popup {
-  padding: 16px;
+  --accent: var(--fb);
+  --accent-soft: var(--fb-soft);
+  width: 360px;
+  min-height: 520px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
 }
-.popup h1 {
+.popup[data-platform="instagram"] {
+  --accent: var(--ig);
+  --accent-soft: var(--ig-soft);
+}
+.popup[data-platform="youtube"] {
+  --accent: var(--yt);
+  --accent-soft: var(--yt-soft);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 10px;
+}
+.logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--fb), var(--ig) 55%, var(--yt));
+  color: #fff;
+  flex: none;
+}
+.head h1 {
   font-size: 15px;
-  margin: 0 0 8px;
-}
-.popup p {
   margin: 0;
-  color: var(--text-2);
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
 }
-.foot {
-  margin-top: 16px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--text-2);
+  flex: none;
+}
+.icon-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.icon-btn.danger:hover {
+  color: var(--err);
+}
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  background: transparent;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0 12px;
+  padding: 4px;
+  background: var(--surface-2);
+  border-radius: 10px;
+}
+.tab {
+  position: relative;
+  border: 0;
+  background: transparent;
+  border-radius: 7px;
+  padding: 7px 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  min-width: 0;
+}
+.tab > :not(.pill) {
+  position: relative;
+  z-index: 1;
+}
+.tab .pill {
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  z-index: 0;
+}
+.tab[aria-selected="true"] {
+  color: var(--text);
+  font-weight: 600;
+}
+.tab .mark {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.tab .count {
+  font-size: 10.5px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--line);
+  color: var(--text-2);
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 8px;
+}
+.section-label {
+  font-size: 12px;
+  color: var(--text-2);
+  margin: 4px 4px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.section-label span {
+  overflow-wrap: anywhere;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  min-height: 58px;
+}
+.row.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.row .main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.row .main:disabled {
+  cursor: default;
+}
+.row:not(.active):not(.editing):not(.confirm):hover {
+  border-color: var(--text-2);
+}
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex: none;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--on-accent);
+  background: var(--accent);
+  position: relative;
+}
+.avatar .pf {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+}
+.avatar .pf svg {
+  width: 12px;
+  height: 12px;
+}
+.who {
+  min-width: 0;
+  flex: 1;
+}
+.who .name {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.who .name .nm {
+  unicode-bidi: isolate;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.who .name .chip {
+  flex: none;
+}
+.who .sub {
+  font-size: 12px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.chip {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 0 7px;
+  line-height: 17px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.chip.on {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.chip.bad {
+  background: var(--err-bg);
+  color: var(--err);
+}
+
+/* right-hand slot of a row: actions -> spinner -> result badge (the "status button" morph) */
+.slot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: none;
+  min-height: 32px;
+}
+.actions {
+  display: flex;
+  gap: 0;
+}
+.flash {
+  width: 24px;
+  height: 24px;
+  margin: 0 6px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+.flash.ok {
+  background: var(--ok);
+  color: var(--on-ok);
+}
+.flash.bad {
+  background: var(--err);
+  color: var(--on-err);
+}
+
+.row.busy {
+  border-color: var(--accent);
+}
+.row.busy .who .sub {
+  color: var(--accent);
+}
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+  flex: none;
+  margin: 0 7px;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.steps {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.steps i {
+  height: 3px;
+  flex: 1;
+  border-radius: 2px;
+  background: var(--line);
+  transition: background-color var(--dur-base) var(--ease-out);
+}
+.steps i.done {
+  background: var(--accent);
+}
+.list.dim .row:not(.busy) {
+  opacity: 0.5;
+}
+
+.row.editing {
+  border-color: var(--focus);
+}
+.edit {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.edit input {
+  width: 100%;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--field-line);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.edit .hint {
   font-size: 11px;
   color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.edit .hint.bad {
+  color: var(--err);
+}
+.btns {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.btn {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+.btn:hover {
+  background: var(--surface-2);
+}
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.btn.primary:hover {
+  filter: brightness(1.05);
+}
+.btn.danger {
+  background: var(--err);
+  border-color: var(--err);
+  color: var(--on-err);
+}
+.btn.ghost {
+  border-color: transparent;
+  background: transparent;
+}
+.btn.outline-danger {
+  border-color: var(--err);
+  color: var(--err);
+  background: transparent;
+}
+
+.row.confirm {
+  border-color: var(--err);
+  background: var(--err-bg);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px;
+}
+.row.confirm p {
+  margin: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.row.confirm p small {
+  display: block;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.add {
+  margin-top: 2px;
+  border: 1px dashed var(--line);
+  background: transparent;
+  border-radius: 10px;
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--accent);
+  font-weight: 600;
+  text-align: center;
+}
+.add:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.add:disabled {
+  opacity: 0.4;
+  cursor: default;
+  background: transparent;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.panel.add-form {
+  border-color: var(--accent);
+}
+.panel .ttl {
+  font-weight: 600;
+  font-size: 13px;
+}
+.panel .meta {
+  font-size: 12px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.note {
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 13px;
+  display: flex;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.note.warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.note.err {
+  background: var(--err-bg);
+  color: var(--err);
+  flex-direction: column;
+}
+.note.err .t {
+  font-weight: 600;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.note.err .d {
+  color: var(--text);
+  font-size: 12px;
+}
+.note.info {
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 18px 12px 6px;
+  gap: 10px;
+}
+.empty .big {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--accent-soft);
+  display: grid;
+  place-items: center;
+}
+.empty .big svg {
+  width: 28px;
+  height: 28px;
+}
+.empty h2 {
+  font-size: 15px;
+  margin: 0;
+}
+.empty ol {
+  text-align: left;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--text-2);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.empty .row-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.foot {
+  padding: 8px 16px 12px;
+  font-size: 11px;
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-top: 1px solid var(--line);
+}
+.foot svg {
+  flex: none;
+}
+
+.toast {
+  margin: 0 12px 8px;
+  background: var(--text);
+  color: var(--surface);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  box-shadow: var(--shadow);
+}
+.toast .ok {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--ok);
+  color: var(--on-ok);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.toast b {
+  font-weight: 600;
+}
+.toast .tx {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.toast .tx small {
+  font-size: 11.5px;
+  opacity: 0.8;
+}
+
+.lock {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+.lock .big {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  display: grid;
+  place-items: center;
+}
+.pw {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 280px;
+  border: 1px solid var(--field-line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  padding: 0 4px 0 12px;
+}
+.pw:focus-within {
+  border-color: var(--focus);
+}
+.pw.bad {
+  border-color: var(--err);
+}
+.pw input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: 15px var(--font);
+  padding: 11px 0;
+  outline: none;
+}
+.pw .icon-btn {
+  flex: none;
+}
+.lock .wipe {
+  width: 100%;
+  max-width: 300px;
+  text-align: left;
+}
+.lock .wipe .btn {
+  min-width: 0;
+  padding: 5px 12px;
+}
+.lock .hint {
+  font-size: 12px;
+  color: var(--text-2);
+  min-height: 18px;
+  overflow-wrap: anywhere;
+}
+.lock .hint.bad {
+  color: var(--err);
+}
+.lock .btn {
+  min-width: 160px;
+  padding: 8px 12px;
+}
+.lock .btn.primary {
+  background: var(--focus);
+  color: var(--on-focus);
+  border-color: var(--focus);
+}
+
+/* status button: idle -> loading -> success / error */
+.sbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.sbtn .spinner {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: currentColor;
+}
+.lock .btn.primary.is-ok {
+  background: var(--ok);
+  color: var(--on-ok);
+  border-color: var(--ok);
+}
+.lock .btn.primary.is-err {
+  background: var(--err);
+  color: var(--on-err);
+  border-color: var(--err);
+}
+
+/* settings page */
+.settings {
+  gap: 10px;
+}
+.set-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.set-card h2 {
+  font-size: 13px;
+  margin: 0;
+}
+.set-card p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.seg {
+  display: flex;
+  gap: 4px;
+  background: var(--surface-2);
+  border-radius: 9px;
+  padding: 3px;
+}
+.seg button {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 7px;
+  padding: 6px 4px;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+.seg button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+.set-card.danger {
+  border-color: var(--err);
+}
+.set-card.confirm {
+  background: var(--err-bg);
+}
+.set-card .btn {
+  align-self: flex-start;
+}
+
+.edit input::placeholder,
+.pw input::placeholder {
+  color: var(--text-2);
+  opacity: 1;
+}
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.btn.small {
+  font-size: 12px;
+}
+.btns.end {
+  align-self: flex-end;
+}
+
+/* =====================================================================
+   MOTION (View Transitions API). Six transitions, one set of tokens.
+   JS (motion section) sets <html data-vt="..."> for the length of a transition and names the elements.
+   1 theme  - Circle Reveal: the new theme grows from the click point (the clip-path is animated in JS)
+   2 tab    - the pill glides to the chosen tab, the panel slides sideways
+   3 list   - add = pop in, remove = fade out, the others glide into place (also covers re-ordering)
+   4 status - slot/button morph: idle -> loading -> success or error
+   5 expand - rename editor, delete confirm and the wipe confirm open and close in place; settings page slides
+   6 toast  - slides up on arrival, slides down on exit
+   No support or prefers-reduced-motion: reduce -> JS skips the transition and the DOM just changes.
+   ===================================================================== */
+:root::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(*) {
+  animation-duration: var(--dur-base);
+  animation-timing-function: var(--ease-out);
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+:root[data-vt="lang"]::view-transition-new(root) {
+  animation: vt-fade-in var(--dur-base) var(--ease-out) both;
+}
+
+/* 2 tab + page: the panel slides, direction comes from --vt-dir (1 = forward, -1 = back) */
+:root[data-vt="tab"]::view-transition-old(panel),
+:root[data-vt="page"]::view-transition-old(panel) {
+  animation: vt-slide-out var(--dur-base) var(--ease-in-out) both;
+}
+:root[data-vt="tab"]::view-transition-new(panel),
+:root[data-vt="page"]::view-transition-new(panel) {
+  animation: vt-slide-in var(--dur-slow) var(--ease-out) both;
+}
+:root[data-vt="tab"]::view-transition-group(pill) {
+  animation-duration: var(--dur-slow);
+  animation-timing-function: var(--ease-out);
+}
+
+/* 3 list: rows with only a "new" side pop in, rows with only an "old" side fade out */
+:root[data-vt="list"]::view-transition-new(.row):only-child {
+  animation: vt-pop-in var(--dur-slow) var(--ease-out) both;
+}
+:root[data-vt="list"]::view-transition-old(.row):only-child {
+  animation: vt-fade-out var(--dur-base) var(--ease-in-out) both;
+}
+::view-transition-old(.row):not(:only-child),
+::view-transition-new(.row):not(:only-child) {
+  height: 100%;
+}
+
+/* 5 expand: the group resizes; old and new bodies cross-fade quickly */
+:root[data-vt="expand"]::view-transition-group(.row) {
+  animation-duration: var(--dur-slow);
+}
+:root[data-vt="expand"]::view-transition-old(.row) {
+  animation: vt-fade-out var(--dur-fast) linear both;
+}
+:root[data-vt="expand"]::view-transition-new(.row) {
+  animation: vt-fade-in var(--dur-base) var(--ease-out) both;
+}
+:root[data-vt="expand"]::view-transition-group(card) {
+  animation-duration: var(--dur-slow);
+}
+
+/* 4 status: the slot / button box resizes while the old and new faces cross-fade */
+:root[data-vt="status"]::view-transition-group(.slot),
+:root[data-vt="status"]::view-transition-group(sbtn) {
+  animation-duration: var(--dur-slow);
+  animation-timing-function: var(--ease-in-out);
+}
+:root[data-vt="status"]::view-transition-old(.slot),
+:root[data-vt="status"]::view-transition-old(sbtn) {
+  animation: vt-fade-out var(--dur-base) linear both;
+}
+:root[data-vt="status"]::view-transition-new(.slot),
+:root[data-vt="status"]::view-transition-new(sbtn) {
+  animation: vt-fade-in var(--dur-base) linear both;
+}
+
+/* 6 toast */
+::view-transition-new(toast):only-child {
+  animation: vt-toast-in var(--dur-slow) var(--ease-out) both;
+}
+::view-transition-old(toast):only-child {
+  animation: vt-toast-out var(--dur-base) var(--ease-in-out) both;
+}
+
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes vt-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+@keyframes vt-slide-out {
+  to {
+    opacity: 0;
+    transform: translateX(calc(var(--vt-dir, 1) * -28px));
+  }
+}
+@keyframes vt-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--vt-dir, 1) * 28px));
+  }
+}
+@keyframes vt-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+@keyframes vt-toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No movement at all. Spinner becomes a still ring, the label still says "Switching...". */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+  .spinner {
+    animation: none;
+    border-top-color: var(--accent);
+    border-right-color: var(--accent);
+  }
+  .sbtn .spinner {
+    border-top-color: currentColor;
+    border-right-color: currentColor;
+  }
+  .steps i {
+    transition: none;
+  }
 }

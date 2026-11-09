@@ -1,0 +1,20 @@
+### mutation: escape
+### file: src/popup/html.ts
+### sed: s/return String(value).replace(\/\[&<>"'\]\/g, (c) => ENTITIES\[c\] ?? c);/return String(value);/
+20c20
+<   return String(value).replace(/[&<>"']/g, (c) => ENTITIES[c] ?? c);
+---
+>   return String(value);
+--- run
+error: expect(received).toBe(expected)
+(fail) html builder > escapes interpolated text, including quotes [0.24ms]
+error: expect(received).toBe(expected)
+(fail) html builder > raw and nested html are not escaped twice [0.04ms]
+error: expect(received).toBe(expected)
+(fail) html builder > false, null and undefined print nothing; arrays are joined [0.03ms]
+error: expect(received).toBeNull()
+                  onerror: [Getter/Setter],
+                  onfullscreenerror: [Getter/Setter],
+                  onpointerlockerror: [Getter/Setter],
+                  onfullscreenerror: [Getter/Setter],
+                  onwebkitfullscreenerror: [Getter/Setter],

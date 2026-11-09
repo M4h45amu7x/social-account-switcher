@@ -1,0 +1,13 @@
+### mutation: .row min-height 58px -> 40px (popup.css)
+276c276
+<   min-height: 58px;
+---
+>   min-height: 40px;
+--- e2e (list states only)
+  1) tests/e2e/popup-states.spec.ts:134:7 › every state × language × theme › list · en: renders, fits 360px, matches the mockup in light and dark 
+    Error: list.en.light differs from the mockup
+    Expected: <= 0.01
+    Received:    0.056324786324786325
+    > 193 |           expect(ratio, `${state}.${lang}.${theme} differs from the mockup`).toBeLessThanOrEqual(
+  1 failed
+  1 passed (3.2s)

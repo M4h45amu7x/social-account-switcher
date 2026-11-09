@@ -18,13 +18,16 @@ test('extension loads unpacked: service worker starts and popup renders without 
   });
 
   await page.goto(`chrome-extension://${extensionId}/popup/index.html`);
-  const title = await page.evaluate(() => chrome.i18n.getMessage('popupTitle'));
-  expect(title).not.toBe('');
-  await expect(page.locator('h1')).toHaveText(title);
+  // nothing is stored yet, so the real popup opens on the empty Facebook screen
+  const heading = await page.evaluate(() => chrome.i18n.getMessage('app_title'));
+  expect(heading).not.toBe('');
+  await expect(page.locator('h1')).toHaveText(heading);
+  expect(await page.title()).toBe(await page.evaluate(() => chrome.i18n.getMessage('popupTitle')));
+  await expect(page.getByTestId('popup')).toHaveAttribute('data-state', 'empty');
+  await expect(page.getByTestId('empty')).toBeVisible();
 
   const manifest = await page.evaluate(() => chrome.runtime.getManifest());
   expect(manifest.manifest_version).toBe(3);
-  await expect(page.locator('.foot')).toContainText(`v${manifest.version}`);
 
   expect(problems).toEqual([]);
 });
@@ -41,7 +44,8 @@ test.describe('Thai UI', () => {
     ) as Record<string, { message: string }>;
     const page = await context.newPage();
     await page.goto(`chrome-extension://${extensionId}/popup/index.html`);
-    await expect(page.locator('h1')).toHaveText(th.popupTitle?.message ?? '');
+    await expect(page.locator('h1')).toHaveText(th.app_title?.message ?? '');
+    await expect(page.getByTestId('empty')).toContainText('ยังไม่มีบัญชี Facebook');
     expect(await page.evaluate(() => document.documentElement.lang)).toMatch(/^th/);
   });
 });

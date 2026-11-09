@@ -6,5 +6,3 @@ export const i18nApi: I18nApi = {
   getMessage: (key, substitutions) => chrome.i18n.getMessage(key, substitutions),
   getUILanguage: () => chrome.i18n.getUILanguage(),
 };
-
-export const extensionVersion = (): string => chrome.runtime.getManifest().version;
