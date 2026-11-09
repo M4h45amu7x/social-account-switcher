@@ -1,30 +1,41 @@
-# mockup — popup ของ extension สลับบัญชี
+# mockup: popup of the account switcher (v2)
 
-- `popup.html` — เปิดใน browser ได้เลย (ดับเบิลคลิก/ลากเข้า Chrome) ข้อมูลปลอมทั้งหมด ไม่เรียก API ของ extension ไม่ใช้เน็ต
-  แผง "ตัวควบคุม mockup" ด้านข้างใช้กระโดดไปแต่ละสถานะ + สลับธีม · รหัสผ่านหลักของ mockup: `orange-cat-2026`
-- `shots/` — ภาพทุกสถานะ (`01…12-*` = ลำดับ flow ที่ e2e คลิก, `light-*` / `dark-*` = ทุกสถานะทั้งสองธีม)
-- `e2e/popup.e2e.mjs` — Playwright คลิกผ่านทุกสถานะ ถ่ายภาพลง `shots/` และเขียน `e2e/e2e.log` (path ใน log เป็น path จากราก repo)
+- `popup.html` opens in any browser (double-click or drag it into Chrome). Everything is fake data. It calls no extension API and uses no network.
+  The "Mockup controls" panel jumps to any state and switches theme and language. Master password in the mockup: `orange-cat-2026`.
+- Language: English (default) or Thai, from Settings (gear icon) or the panel. `Auto` follows the browser language.
+  The strings are one table per language in the script (`I18N.en`, `I18N.th`). In the extension they become `public/_locales/{en,th}/messages.json`.
+- Theme: System, Light or Dark. Switching runs a Circle Reveal from the click point. The saved theme is applied before the first paint.
+- Motion: six View Transitions animations (theme reveal, tab pill and panel slide, animated list, status morph, expand and collapse, toast). All durations come from `--dur-*` tokens. `prefers-reduced-motion: reduce` turns every animation off, and a browser without View Transitions changes the DOM at once. Details: `docs/design.md` section 12.
+- `shots/<lang>-<theme>-<state>.png`: every state (15) in both languages (`en`, `th`) and both themes (`light`, `dark`).
+- `media/*.gif`: `theme-switch` (Circle Reveal), `switch-account` (tabs, spinner, success, toast), `delete-account` (confirm, fade out, glide, pop in). Recorded slowed down (`--motion-scale`).
+- `e2e/popup.e2e.mjs`: Playwright run over every state and flow in both languages, plus layout overflow, contrast, reduced motion and no-View-Transitions checks. It writes `shots/` and `e2e/e2e.log`.
+- `e2e/e2e.before.log`: the same script run against the v1 mockup (before this change), kept as the failing run.
+- `e2e/record.mjs`: records the GIFs (needs `ffmpeg`).
 
-## รัน e2e
+## Run the e2e
 
-ต้องมี Node และแพ็กเกจ `playwright` (ไม่ได้ติดตั้งใน repo นี้ เพราะ repo นี้มีแค่แบบ — ตัวจริงใช้ `@playwright/test` ตาม docs/design.md ข้อ 9)
+Needs Node and the `playwright` package (not installed in this repo, which only holds the design; the real project uses `@playwright/test`, see docs/design.md section 9).
 
 ```bash
-# 1) ถ้ามี playwright ติดตั้งให้ require เจออยู่แล้ว (เช่น NODE_PATH หรือ node_modules ข้างบน) รันได้เลย
+# 1) playwright is already resolvable from here
 node mockup/e2e/popup.e2e.mjs
 
-# 2) ถ้าไม่มี: ชี้ไปที่แพ็กเกจ playwright ที่ติดตั้งไว้ที่อื่น
+# 2) point at a playwright package installed elsewhere
 PLAYWRIGHT_MODULE=/path/to/node_modules/playwright node mockup/e2e/popup.e2e.mjs
 
-# 3) ถ้า browser ของ playwright ตัวนั้นยังไม่ได้ติดตั้ง (revision ไม่ตรง) ชี้ไปที่ chrome/chromium ที่มี
+# 3) the browser that playwright wants is not installed: point at any chrome/chromium
 PLAYWRIGHT_MODULE=/path/to/node_modules/playwright \
 CHROMIUM_PATH=~/.cache/ms-playwright/chromium-<rev>/chrome-linux64/chrome \
 node mockup/e2e/popup.e2e.mjs
 ```
 
-| ตัวแปร | ต้องตั้งเมื่อ | ค่า |
+| Variable | Set it when | Value |
 |---|---|---|
-| `PLAYWRIGHT_MODULE` | `require('playwright')` หาไม่เจอ | path ของโฟลเดอร์แพ็กเกจ `playwright` |
-| `CHROMIUM_PATH` | browser ที่ playwright ตัวนั้นต้องการยังไม่ได้ติดตั้ง | ไฟล์ chrome/chromium ที่รันได้ |
+| `PLAYWRIGHT_MODULE` | `require('playwright')` is not found | path of the `playwright` package folder |
+| `CHROMIUM_PATH` | the browser build that playwright needs is not installed | a chrome/chromium executable |
+| `POPUP_HTML` | you want to test another file (for example the v1 mockup) | path of an html file |
+| `E2E_SHOTS=0` | you do not want `shots/` rewritten | `0` |
+| `E2E_LOG` | you want the log somewhere else | file path |
+| `E2E_TIMEOUT` | the default 6000 ms per action is too long or too short | milliseconds |
 
-ผล: exit 0 = ผ่านทุกข้อ · exit 1 = มีข้อล้ม (ดู `FAIL` ใน log) · exit 2 = หา playwright ไม่เจอ
+Result: exit 0 = every check passed, exit 1 = at least one failed (see `FAIL` in the log), exit 2 = playwright not found.

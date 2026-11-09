@@ -1,147 +1,155 @@
-# สเปก: Chrome Extension สลับบัญชี Facebook / Instagram / YouTube
+# Spec: Chrome extension to switch Facebook / Instagram / YouTube accounts
 
-> สถานะ: ออกแบบ (การ์ด t-504) · ยังไม่มีโค้ด extension จริง
-> mockup ที่คลิกได้: `mockup/popup.html` · ภาพทุกสถานะ: `mockup/shots/` · e2e: `mockup/e2e/` (วิธีรัน + ตัวแปรที่ต้องตั้ง: `mockup/README.md`)
+> Status: design v2 (cards t-504 and t-513). The extension code is being built in cards B1 to B7 (section 8.4).
+> Clickable mockup: `mockup/popup.html` · screenshots of every state, in both languages and both themes: `mockup/shots/` · GIFs: `mockup/media/` · e2e: `mockup/e2e/` (how to run it and the variables it needs: `mockup/README.md`)
+> Everything in this repository is written in English. Thai exists only as a UI language (section 10).
 
-**สรุป 30 วินาที**
-- FB / IG: สลับด้วยการ swap ชุด cookie ของ session (ไม่แตะ cookie ของเครื่อง) เก็บในเครื่องแบบเข้ารหัสด้วยรหัสผ่านหลัก (≥ 10 ตัวอักษร)
-- YouTube: **ไม่ swap cookie** ใช้ระบบหลายบัญชีของ Google (`authuser` / `pageid`) เพราะ cookie อยู่บน google.com ถ้า swap ไป Gmail ก็เปลี่ยนบัญชีตาม
-- permission: `cookies`, `storage`, `scripting` + host 3 domain (ไม่ขอ google.com) · ไม่มี server ไม่ส่งข้อมูลออก ไม่เก็บรหัสผ่าน
-- สร้างจริง: Bun + Vite + TypeScript strict, Biome, `bun test` + Playwright, GitHub Actions, zip สำหรับ Web Store, dependency ล่าสุดทุกตัว — แบ่งเป็น 7 การ์ด (ข้อ 8.4)
+30-second summary
+- FB / IG: switching swaps the session cookies of that site (device cookies stay). Sessions are stored on the device, encrypted with a master password of at least 10 characters.
+- YouTube: no cookie swap. It uses Google's own multi-account feature (`authuser` / `pageid`), because the login cookies live on google.com and swapping them would also change the account in Gmail.
+- Permissions: `cookies`, `storage`, `scripting`, plus three host patterns (no google.com). No server, nothing leaves the device, no website password is stored.
+- UI: English and Thai (more can be added), theme System / Light / Dark, and small animations built on the View Transitions API (sections 10, 11, 12). No UI library, no runtime dependency.
+- Build: Bun, Vite, TypeScript strict, Biome, `bun test` + Playwright, GitHub Actions, a zip for the Web Store, newest version of every dependency. Seven cards (section 8.4).
 
 ---
 
-## 1. เป้าหมาย + ขอบเขต
+## 1. Goals and scope
 
-**เป้าหมาย:** คนที่มีหลายบัญชีบน Facebook, Instagram หรือ YouTube สลับบัญชีได้ในคลิกเดียวจาก popup ไม่ต้อง logout แล้ว login ใหม่ ข้อมูลทั้งหมดอยู่ในเครื่องผู้ใช้
+Goal: someone with several Facebook, Instagram or YouTube accounts switches between them in one click from a popup, without logging out and back in. All data stays on the user's machine.
 
-| ทำ (v1) | ไม่ทำ |
+| In scope (v1) | Out of scope |
 |---|---|
-| 3 แพลตฟอร์ม: Facebook, Instagram, YouTube แยกแท็บละรายการ | แพลตฟอร์มอื่น (TikTok, X, Messenger.com, Threads) |
-| ผู้ใช้ login เองด้วยมือ แล้วกด "เพิ่มบัญชีนี้" | **เก็บรหัสผ่าน / กรอก login อัตโนมัติ / ผ่าน 2FA ให้** |
-| สลับ, เปลี่ยนชื่อ, ลบ, อัปเดต session ที่หมดอายุ | ดึงรูปโปรไฟล์ / ชื่อจริงจากแพลตฟอร์ม (ใช้ชื่อที่ผู้ใช้ตั้ง + ตัวอักษรย่อ) |
-| ล็อกข้อมูลด้วยรหัสผ่านหลัก (เข้ารหัส WebCrypto) | server, sync ข้ามเครื่อง, analytics, ส่งข้อมูลออกนอกเครื่อง |
-| UI ภาษาไทย popup กว้าง 360px โหมดสว่าง/มืด | เปิดหลายบัญชีพร้อมกันในหลายแท็บ (นั่นคือ Chrome Profile ไม่ใช่งานนี้) |
-| Manifest V3 | export/import ข้อมูล (ไว้คิดในรุ่นถัดไป เพราะเท่ากับย้ายรหัสผ่าน) |
+| 3 platforms: Facebook, Instagram, YouTube, one tab each | Other platforms (TikTok, X, Messenger.com, Threads) |
+| The user logs in by hand, then presses "Add the account I'm logged in to" | Storing passwords, auto-filling logins, getting past 2FA |
+| Switch, rename, remove, refresh an expired session | Fetching profile pictures or real names from the platform (we use the name the user types, plus initials) |
+| Lock the data with a master password (WebCrypto) | A server, sync between machines, analytics, sending data off the device |
+| UI in English and Thai, 360 px wide popup, light and dark theme, short animations | Several accounts open side by side in different tabs (that is what Chrome Profiles are for) |
+| Manifest V3 | Export / import (later, because it amounts to moving passwords around) |
 
-**ข้อสังเกตเรื่องขอบเขต:** "ทั้งเบราว์เซอร์ใช้ได้ทีละบัญชีต่อแพลตฟอร์ม" เพราะ cookie เป็นของทั้งโปรไฟล์ Chrome สลับแล้วทุกแท็บของแพลตฟอร์มนั้นเปลี่ยนตาม (ระบบจะรีโหลดให้)
+A limit worth knowing: **one browser can be on only one account per platform at a time**. Cookies belong to the whole Chrome profile, so after a switch every tab of that platform changes (the extension reloads them).
 
 ---
 
 ## 2. User flow
 
-### 2.1 เพิ่มบัญชี
-1. ผู้ใช้เปิด facebook.com / instagram.com / youtube.com แล้ว login เองตามปกติ (รวม 2FA)
-2. เปิด popup → อยู่แท็บแพลตฟอร์มนั้น → กด **"+ เพิ่มบัญชีที่ login อยู่ตอนนี้"**
-3. extension ตรวจว่ามี session จริง (FB: `c_user`, IG: `ds_user_id`, YT: อ่าน session index ของ Google) ถ้าบัญชีนี้มีอยู่แล้วในรายการ → บอกว่า "มีแล้ว" แล้วเสนอ **อัปเดต session** แทน
-4. ช่องตั้งชื่อขึ้นมาแบบ inline (ค่าเริ่มต้น เช่น "Facebook 3") → กดบันทึก
-5. ครั้งแรกที่บันทึก FB/IG จะให้ตั้งรหัสผ่านหลัก (ดูข้อ 6) แล้วบัญชีนี้กลายเป็น "ใช้อยู่"
+### 2.1 Add an account
+1. The user opens facebook.com / instagram.com / youtube.com and logs in as usual, 2FA included.
+2. They open the popup, stay on that platform's tab and press "Add the account I'm logged in to".
+3. The extension checks for a real session (FB: `c_user`, IG: `ds_user_id`, YT: the Google session index). If this account is already in the list it says so and offers to update the session instead.
+4. A name field opens inline (default such as "Facebook 3"). The user saves.
+5. The first time an FB/IG account is saved, the user sets the master password (section 6). The new account becomes the active one.
 
-### 2.2 สลับบัญชี
-1. เปิด popup → เลือกแพลตฟอร์ม → กดแถวบัญชีเป้าหมาย
-2. ถ้าล็อกอยู่ (FB/IG) → ใส่รหัสผ่านหลักก่อน
-3. แถวนั้นแสดง "กำลังสลับ…" เป็นขั้น (เก็บ session เดิม → ใส่ session ใหม่ → รีโหลด N แท็บ) ปุ่มอื่นของแพลตฟอร์มนั้นถูกปิดไว้กันกดซ้ำ
-4. สำเร็จ → toast "สลับเป็น ‘…’ แล้ว · รีโหลด N แท็บ" และป้าย "ใช้อยู่" ย้ายไปแถวใหม่
-5. ล้มเหลว → แถบ error ค้างไว้ พร้อมทางแก้ (ดู 2.5)
+### 2.2 Switch
+1. Open the popup, pick the platform, press the row of the target account.
+2. If the data is locked (FB/IG), the master password comes first.
+3. The row shows progress in steps (save the current session, apply the new one, reload N tabs). The other controls of that platform are disabled so nothing can be pressed twice.
+4. On success a toast says "Switched to '…'" with "Reloaded N tabs", and the "Active" badge moves to the new row.
+5. On failure an error bar stays on screen with a way forward (2.5).
 
-### 2.3 เปลี่ยนชื่อ
-กดไอคอนดินสอ → ชื่อกลายเป็นช่องพิมพ์ในแถวเดิม → Enter/บันทึก หรือ Esc/ยกเลิก (ชื่อว่างไม่ได้, ยาวสุด 40 ตัวอักษร) เปลี่ยนแค่ชื่อในเครื่อง ไม่แตะแพลตฟอร์ม
+### 2.3 Rename
+Press the pencil. The name becomes an input in the same row. Enter or Save keeps it, Esc or Cancel drops it. An empty name is refused, 40 characters at most. Only the local name changes; nothing is sent to the platform.
 
-### 2.4 ลบ
-กดไอคอนถังขยะ → แถวกลายเป็นกล่องยืนยันสีแดง **ในหน้า popup** ("ลบ ‘…’ ? session ที่เก็บไว้จะหายไป บัญชีบนแพลตฟอร์มไม่ถูกลบ") → [ยกเลิก] [ลบ]
-**ห้ามใช้ `alert/confirm` ของ browser** · ลบบัญชีที่ "ใช้อยู่" ได้ แค่ลบสำเนาในเครื่อง ไม่ logout ผู้ใช้
+### 2.4 Remove
+Press the trash can. The row turns into a red confirmation box inside the popup: "Remove '…' from the list? The saved session is erased from this device. Your account on the platform is not deleted." with [Cancel] [Delete].
+**Never use the browser's `alert` / `confirm`.** Removing the active account is allowed; it only deletes the local copy and does not log the user out.
 
-### 2.5 กรณียังไม่ login / session ใช้ไม่ได้
-- **ยังไม่มีบัญชีเลย:** หน้าว่างพร้อมขั้นตอน 3 ข้อ (เปิดเว็บ → login เอง → กดเพิ่ม) และปุ่ม "เปิด facebook.com"
-- **กดเพิ่มแต่ไม่ได้ login อยู่:** ข้อความ inline "ยังไม่พบการ login ใน Facebook — login ในแท็บก่อนแล้วกดอีกครั้ง"
-- **สลับแล้ว session หมดอายุ / ถูก logout ฝั่ง server:** แถบ error "session ของ ‘…’ หมดอายุ" + ปุ่ม [เปิดหน้า login] [อัปเดต session] — ผู้ใช้ login บัญชีนั้นใหม่ด้วยมือ แล้วกด "อัปเดต session" เพื่อเก็บชุดใหม่ทับ แถวนั้นติดป้าย "ต้อง login ใหม่" จนกว่าจะอัปเดต
-- **session ปัจจุบันยังไม่ได้บันทึก:** ก่อนสลับเตือน inline "บัญชีที่ใช้อยู่ตอนนี้ยังไม่ได้บันทึก ถ้าสลับจะหลุด login" → [บันทึกก่อน] [สลับเลย]
+### 2.5 Not logged in, or the session is unusable
+- No accounts yet: an empty page with three steps (open the site, log in yourself, press Add) and an "Open facebook.com" button.
+- Add pressed while not logged in: an inline message: "No Facebook login found. Open facebook.com, log in in that tab, then press Add again."
+- The session expired, or the server logged it out, after a switch: an error bar, "The session for '…' has expired", with [Open login page] [Update session]. The user logs in to that account by hand and presses "Update session" to store the new session over the old one. The row carries a "Log in again" badge until then.
+- The current session is not saved: before switching, an inline warning: "The account you're using now isn't saved. If you switch, you'll be logged out of it." with [Save first] [Switch anyway].
+- After "Forgot password?": any earlier "wrong password" message disappears when the wipe confirmation opens (it would be stale there).
+
+### 2.6 Settings
+The gear icon in the popup header opens a Settings page (it slides in, section 12). It holds four things: Theme (System / Light / Dark), Language (Auto / English / ไทย), Lock now, and Wipe all data (an inline confirmation, then every saved session and shortcut is deleted). Settings are described in sections 10 and 11.
 
 ---
 
-## 3. กลไกสลับ (แยกทีละแพลตฟอร์ม)
+## 3. How switching works (per platform)
 
-### 3.0 แกนกลางที่ FB และ IG ใช้ร่วมกัน (swap ชุด cookie)
+### 3.0 The core shared by FB and IG (cookie swap)
 
 ```
 switch(platform, targetId):
-  0. ล็อกแพลตฟอร์มนี้ (กันกดซ้ำ) + เขียน journal { from, to, backup } ลง storage.session
-  1. snapshot = cookies.getAll({ domain }) → กรองเอาเฉพาะ "cookie ของ session" (ไม่เอา cookie ของเครื่อง)
-     ถ้า snapshot เป็นของบัญชีที่มีในรายการ → เข้ารหัสแล้วเก็บทับของเดิม (session ล่าสุดเสมอ)
-  2. ลบ cookie ของ session ทั้งหมดของ domain นั้น (cookies.remove ทีละตัว ใช้ url ที่สร้างจาก secure+domain+path)
-  3. ถอดรหัส cookie ของบัญชีเป้าหมาย → cookies.set ทีละตัว
-     (host-only cookie ห้ามใส่ field domain; ตัวที่ expirationDate ผ่านไปแล้วข้ามไป)
-  4. tabs.query({ url: host pattern }) → tabs.reload ทุกแท็บ
-  5. ตรวจผล: รอแท็บแรกโหลดเสร็จ แล้วอ่าน cookie ระบุตัวตนอีกครั้ง
-     ตรง targetId → สำเร็จ · หายไป/เป็นคนอื่น → ติดป้าย expired + แจ้ง error
-  6. ลบ journal, ปลดล็อก
-  ถ้า service worker ตายกลางทาง (MV3 ปิดตัวเองได้) → ตอนตื่นถ้าเจอ journal ค้าง ให้ใส่ backup กลับ
+  0. Take the busy lock for this platform (blocks double presses).
+  1. snapshot = cookies.getAll({ domain }), keep only the "session cookies" (not device cookies).
+  2. Encrypt the snapshot and write the journal { platform, fromId, toId, backup } to storage.session.
+     (The journal is written AFTER the snapshot, because the backup is the snapshot.)
+  3. If the snapshot belongs to an account in the list, save it over the stored one (the latest session wins).
+  4. Remove every session cookie of that domain (cookies.remove one by one, with a url built from secure + domain + path).
+  5. Decrypt the target account's cookies and cookies.set them one by one.
+     (A host-only cookie must not get a domain field; cookies whose expirationDate has passed are skipped.)
+  6. tabs.query({ url: host pattern }) and tabs.reload on every tab.
+  7. Verify: wait for the first tab to finish loading, then read the identity cookie again.
+     It matches targetId: success. Missing or someone else: mark the account expired, put the backup back, report an error.
+  8. Delete the journal and release the busy lock.
+  If the service worker dies halfway (MV3 may stop it at any time): on wake-up, a leftover journal means "put the backup back".
 ```
 
-**ทำไมไม่ swap cookie ของเครื่อง (device cookie):** แพลตฟอร์มใช้ cookie อย่าง `datr`, `mid` จำว่า "เครื่องนี้เคยเห็นแล้ว" ถ้าเปลี่ยนทุกครั้งที่สลับ จะดูเหมือน login จากเครื่องใหม่ตลอด และโดน checkpoint บ่อยขึ้น จึงใช้แบบ **"เก็บทุกตัวยกเว้นรายการ device cookie"** (denylist) แทนการระบุชื่อ cookie session ตรงๆ เพราะชื่อ cookie session เปลี่ยนได้โดยไม่บอก แต่ device cookie นิ่งกว่า
+Why device cookies are not swapped: platforms use cookies such as `datr` and `mid` to remember "this machine has been seen before". If they changed on every switch, each switch would look like a login from a new machine and checkpoints would appear more often. So the rule is "keep every cookie except the device-cookie list" (a denylist) instead of naming the session cookies. Session cookie names can change without notice; device cookies change much less.
 
-**ไม่มีการเรียกเน็ตเอง:** การตรวจผลดูจาก cookie หลังแท็บรีโหลดเท่านั้น extension ไม่ยิง request ไปแพลตฟอร์มเอง
+The extension makes no network calls of its own. Verification reads cookies after the tab reloads. It never sends a request to the platform.
 
 ### 3.1 Facebook
 
-| เรื่อง | รายละเอียด |
+| Topic | Detail |
 |---|---|
-| domain | `.facebook.com` (รวม `www.`, `web.`, `m.`) — host pattern `*://*.facebook.com/*` |
-| cookie ระบุตัวตน | `c_user` = user ID (ใช้จับคู่บัญชี) |
-| cookie session สำคัญ | `c_user`, `xs` (ตัวหลัก, httpOnly), `fr`, `presence`, `spin`, `usida` ฯลฯ — เก็บทุกตัวที่ไม่อยู่ใน denylist |
-| device cookie (ไม่ swap) | `datr`, `sb`, `locale`, `wd`, `dpr` |
-| ระบบสลับในตัว | มี "สลับโปรไฟล์" สำหรับเพจ/โปรไฟล์ที่ผูกกับบัญชีเดียวกัน (กรณีนี้ **ไม่ต้องใช้ extension**) และ "บัญชีที่จำไว้" ในหน้า login แต่บัญชีแยกกันมักต้องใส่รหัสผ่านใหม่และต้อง logout ก่อน |
-| ทำไม extension ยังมีประโยชน์ | สลับบัญชีส่วนตัวที่ **แยกกันจริง** ได้คลิกเดียว ไม่ต้อง logout (logout ฝั่ง FB = ทำลาย session ที่เก็บไว้ด้วย) ไม่ต้องพิมพ์รหัสผ่าน/2FA ซ้ำ |
+| Domain | `.facebook.com` (including `www.`, `web.`, `m.`), host pattern `*://*.facebook.com/*` |
+| Identity cookie | `c_user` = user ID (used to match accounts) |
+| Main session cookies | `c_user`, `xs` (the key one, httpOnly), `fr`, `presence`, `spin`, `usida` and so on. Every cookie not on the denylist is kept. |
+| Device cookies (not swapped) | `datr`, `sb`, `locale`, `wd`, `dpr` |
+| Built-in switching | Facebook can switch between pages or profiles tied to one account (no extension needed for that) and keeps "remembered accounts" on the login page. Separate personal accounts usually need the password again and a logout first. |
+| Why the extension still helps | It switches truly separate personal accounts in one click, with no logout (a Facebook logout destroys the stored session too) and no password or 2FA typing. |
 
-ข้อควรระวัง FB: messenger.com ใช้ cookie แยก (นอกขอบเขต — เปิดค้างไว้จะยังเป็นบัญชีเดิม) · ห้ามกด "ออกจากระบบ" บนเว็บ FB ถ้าอยากเก็บ session ไว้ใช้ต่อ (บอกในหน้าว่าง + tooltip)
+Watch out: messenger.com uses separate cookies (out of scope; a Messenger tab left open stays on the old account). Do not press "Log out" on facebook.com if you want to keep the stored session (the empty page and a tooltip say so).
 
 ### 3.2 Instagram
 
-| เรื่อง | รายละเอียด |
+| Topic | Detail |
 |---|---|
-| domain | `.instagram.com` — host pattern `*://*.instagram.com/*` |
-| cookie ระบุตัวตน | `ds_user_id` = user ID |
-| cookie session สำคัญ | `sessionid` (ตัวหลัก, httpOnly), `ds_user_id`, `csrftoken`, `rur`, `shbid`, `shbts` |
-| device cookie (ไม่ swap) | `mid`, `ig_did`, `ig_nrcb`, `datr` |
-| ระบบสลับในตัว | เว็บ IG มี "สลับบัญชี" และเพิ่มได้หลายบัญชี; บัญชีที่ผูกใน Accounts Center สลับได้โดยไม่ใส่รหัสผ่าน แต่บัญชีที่ไม่ได้ผูก มักต้อง login ใหม่ และการจำบัญชีบนเว็บหลุดบ่อยกว่าในแอป |
-| ทำไม extension ยังมีประโยชน์ | สลับบัญชีที่ **ไม่อยากผูก Accounts Center** (เช่น บัญชีลูกค้า แยกตัวตนกัน) ได้คลิกเดียว และใช้ UI เดียวกับ FB/YT |
+| Domain | `.instagram.com`, host pattern `*://*.instagram.com/*` |
+| Identity cookie | `ds_user_id` = user ID |
+| Main session cookies | `sessionid` (the key one, httpOnly), `ds_user_id`, `csrftoken`, `rur`, `shbid`, `shbts` |
+| Device cookies (not swapped) | `mid`, `ig_did`, `ig_nrcb`, `datr` |
+| Built-in switching | The Instagram web app can switch accounts and hold several. Accounts linked in Accounts Center switch without a password. Unlinked ones usually need a fresh login, and remembered accounts on the web drop out more often than in the app. |
+| Why the extension still helps | It switches accounts you do not want to link in Accounts Center (for example client accounts that must stay separate) in one click, with the same UI as FB and YT. |
 
-ข้อควรระวัง IG: เปลี่ยน `csrftoken` ไม่ตรงกับ `sessionid` = request แรกพัง จึงต้อง swap คู่กันเสมอ (ซึ่ง denylist ทำให้อยู่แล้ว)
+Watch out: a `csrftoken` that does not match the `sessionid` breaks the first request, so the two must always be swapped together (the denylist already guarantees it).
 
-### 3.3 YouTube — **เลือก: ใช้ Google multi-login ไม่ swap cookie**
+### 3.3 YouTube. Decision: use Google multi-login, do not swap cookies
 
-**ปัญหาของการ swap cookie บน YouTube:** login YouTube = login Google cookie หลัก (`SID`, `HSID`, `SSID`, `APISID`, `SAPISID`, `__Secure-1PSID`, `__Secure-3PSID`, `__Secure-1PSIDTS`…) อยู่บน **`.google.com`** และ `accounts.google.com` (`LSID`, `__Host-GAPS`) แล้ว YouTube ได้สำเนาบน `.youtube.com` อีกชุด (รวม `LOGIN_INFO`)
+Why swapping cookies fails on YouTube: a YouTube login is a Google login. The main cookies (`SID`, `HSID`, `SSID`, `APISID`, `SAPISID`, `__Secure-1PSID`, `__Secure-3PSID`, `__Secure-1PSIDTS` and others) live on `.google.com` and on `accounts.google.com` (`LSID`, `__Host-GAPS`). YouTube gets a second copy on `.youtube.com` (including `LOGIN_INFO`).
 
-| | A) swap cookie แบบ FB/IG | **B) Google multi-login (เลือก)** |
+| | A) cookie swap like FB/IG | B) Google multi-login (chosen) |
 |---|---|---|
-| permission | ต้องขอ `*.google.com` + `*.youtube.com` (+ `accounts.google.com`) | แค่ `*.youtube.com` |
-| กระทบบริการอื่น | **ใช่** — Gmail, Drive, Calendar, Meet ที่เปิดอยู่จะเปลี่ยนบัญชีหรือหลุด login ทั้งหมด | ไม่กระทบ — Google เป็นคนจัดการ ทุกบัญชี login พร้อมกันอยู่แล้ว |
-| ความเสถียร | ต่ำ — Chrome ผูก session Google กับเครื่อง (Device Bound Session Credentials / `__Secure-1PSIDTS` หมุนเปลี่ยนตลอด) cookie ที่เก็บไว้เก่าเร็ว และ Google ตรวจจับ cookie ที่ถูกนำกลับมาใช้แล้วสั่ง login ใหม่ | สูง — เป็นฟีเจอร์ทางการของ Google |
-| ความเสี่ยงความปลอดภัย | เก็บ cookie ของ **ทั้งบัญชี Google** (เท่ากับรหัสผ่าน Gmail) ในเครื่อง | ไม่เก็บ secret ใดๆ ของ Google เลย |
-| ข้อจำกัด | — | ทุกบัญชีต้อง login ค้างไว้ในชุดเดียวกัน (สูงสุด ~10 บัญชี) · บัญชีลำดับแรก (authuser=0) ยังเป็นค่าเริ่มต้นของบริการ Google อื่น |
+| Permission | Needs `*.google.com` + `*.youtube.com` (+ `accounts.google.com`) | Only `*.youtube.com` |
+| Effect on other services | Yes. Open Gmail, Drive, Calendar or Meet tabs change account or get logged out. | None. Google does the switching, and every account is already logged in together. |
+| Stability | Low. Chrome binds Google sessions to the device (Device Bound Session Credentials, and `__Secure-1PSIDTS` keeps rotating), so stored cookies go stale fast, and Google detects replayed cookies and forces a new login. | High. It is an official Google feature. |
+| Security risk | We would store cookies for the whole Google account (equal to the Gmail password) on disk. | We store no Google secret at all. |
+| Limit | None | Every account must stay logged in inside one browser profile (up to about 10). The first account (authuser=0) remains the default for other Google services. |
 
-**เหตุผลที่เลือก B:** ถ้าใช้ A การสลับช่อง YouTube จะไปเปลี่ยนบัญชี Gmail ที่ทำงานอยู่ด้วย ซึ่งผู้ใช้ไม่ได้คาดไว้และอันตราย ต้องขอสิทธิ์ cookie ของ google.com ทั้งหมด (สิทธิ์ใหญ่สุดที่ขอได้) และพังง่ายเพราะ DBSC ส่วน B ได้ผลแบบเดียวกันในคลิกเดียว โดยไม่ต้องถือ secret และขอสิทธิ์น้อยกว่า
+Why B: with A, changing the YouTube channel would also change the Gmail account the user is working in, which they do not expect and which can be dangerous. It needs the broadest cookie permission we could ask for, and it breaks easily because of DBSC. B gives the same result in one click, holds no secret and asks for less.
 
-**กลไก B:**
-- **เพิ่ม:** ผู้ใช้เลือกบัญชี/ช่องที่ต้องการบน YouTube เอง (เมนูรูปโปรไฟล์ → สลับบัญชี) → กด "เพิ่มบัญชีนี้" → extension อ่าน `ytcfg` ของหน้า (`SESSION_INDEX` = authuser, `DELEGATED_SESSION_ID` = pageid ของ Brand Account/ช่อง) ผ่าน `scripting.executeScript({ world: 'MAIN' })` บนแท็บ youtube.com ที่เปิดอยู่ แล้วเก็บแค่ตัวเลข 2 ตัวนี้ + ชื่อที่ผู้ใช้ตั้ง
-- **สลับ:** สั่งแท็บ YouTube ที่ active (หรือเปิดใหม่ถ้าไม่มี) ไปที่
-  `https://www.youtube.com/signin?action_handle_signin=true&authuser=<N>&pageid=<P>&next=<path เดิม>`
-  (บัญชีส่วนตัวไม่มี pageid ก็ตัดออก) แล้วรีโหลดแท็บ YouTube อื่น
-- **ตรวจผล:** อ่าน `ytcfg` อีกครั้งหลังโหลดเสร็จ ถ้า authuser/pageid ไม่ตรง = บัญชีนั้นหลุดจาก Google แล้ว → error "บัญชี Google ลำดับที่ N ไม่ได้ login อยู่ — เพิ่มบัญชีใน Google ก่อน"
-- **กรณีขอบ:** ผู้ใช้ logout บัญชี Google ตัวหนึ่ง → ลำดับ authuser ของบัญชีที่เหลือ **เลื่อน** จึงต้องเก็บ "อีเมลที่ปิดบางส่วน" ไม่ได้ (ไม่ดึงข้อมูลส่วนตัว) — ใช้วิธีตรวจผลหลังสลับ ถ้าไม่ตรงให้ผู้ใช้กด "อัปเดต" ใหม่ · รูปแบบ URL `signin?…pageid` ต้องยืนยันอีกครั้งตอนสร้างจริง (เทสต์ข้อ 19 ใน 8.3)
+How B works:
+- Add: the user chooses the account or channel on YouTube themselves (profile menu, Switch account), then presses "Add". The extension reads the page's `ytcfg` (`SESSION_INDEX` = authuser, `DELEGATED_SESSION_ID` = the pageid of a Brand Account or channel) with `scripting.executeScript({ world: 'MAIN' })` on an open youtube.com tab, and stores just those two numbers plus the name the user gave.
+- Switch: point the active YouTube tab (or a new one if there is none) at
+  `https://www.youtube.com/signin?action_handle_signin=true&authuser=<N>&pageid=<P>&next=<original path>`
+  (drop `pageid` for a personal account), then reload the other YouTube tabs.
+- Verify: read `ytcfg` again after loading. If authuser or pageid do not match, that account has dropped out of Google, and the error says "Google account N isn't logged in. Add it in Google first."
+- Edge case: if the user logs one Google account out, the authuser numbers of the others shift. We cannot keep a masked email to detect that (we pull no personal data), so we verify after each switch and, on a mismatch, ask the user to press "Update" again. The exact `signin?…pageid` URL must be confirmed once more when the code is written (manual check 24 in 8.3).
 
-### 3.4 กรณีขอบ (ใช้กับทุกแพลตฟอร์มที่ swap cookie)
+### 3.4 Edge cases (every platform that swaps cookies)
 
-| กรณี | อาการ | การจัดการ |
+| Case | Symptom | Handling |
 |---|---|---|
-| session หมดอายุ | cookie ที่เก็บไว้ `expirationDate` ผ่านไปแล้ว หรือแพลตฟอร์มลบ cookie ทิ้งตอนโหลด | ก่อนสลับเช็ค expiry ถ้าหมดแล้วไม่ต้องลอง แจ้ง error ทันที · หลังโหลดเช็คผล (ขั้น 5) |
-| ถูก logout ฝั่ง server | เปลี่ยนรหัสผ่าน, "ออกจากระบบทุกอุปกรณ์", กด logout บนเว็บ | cookie ใส่ได้แต่ server ไม่รับ → ขั้น 5 จับได้ → ติด "ต้อง login ใหม่" + ใส่ backup ของบัญชีเดิมกลับให้ ผู้ใช้ไม่หลุดทั้งคู่ |
-| 2FA / checkpoint | หลังสลับ แพลตฟอร์มพาไปหน้า checkpoint/ยืนยันตัวตน | ถือว่าสลับสำเร็จแต่ต้องทำต่อเอง (แจ้ง "แพลตฟอร์มขอยืนยันตัวตน ทำในแท็บให้เสร็จแล้วกด อัปเดต session") ไม่พยายามข้ามให้ |
-| แท็บเปิดค้างหลายแท็บ | แท็บเก่าถือ state บัญชีเดิม (เช่น ร่างโพสต์) | รีโหลดทุกแท็บของ domain · ก่อนสลับถ้ามี > 1 แท็บ บอกใน popup "จะรีโหลด 3 แท็บ" · ถ้ามีแท็บกำลังพิมพ์อยู่ (ตรวจไม่ได้แน่ชัด) ยอมรับว่าร่างอาจหาย — บอกใน FAQ |
-| กดสลับซ้ำ/สองแพลตฟอร์มพร้อมกัน | race | ล็อกต่อแพลตฟอร์ม (FB กับ IG สลับพร้อมกันได้เพราะ domain ไม่ทับกัน) |
-| service worker ถูกปิดกลางทาง | cookie ครึ่งๆ | journal ใน `storage.session` → ตอนเริ่มทำงานใหม่ใส่ backup กลับ |
-| Incognito | cookie store แยก | v1 ไม่รองรับ (`incognito: "not_allowed"`) |
-| partitioned cookie (CHIPS) | `getAll` ไม่คืนถ้าไม่ระบุ partitionKey | ใช้ `getAll({ domain, partitionKey: {} })` เพื่อเอาทุก partition (เป็นเหตุผลของ `minimum_chrome_version`; พฤติกรรมของ `{}` ต้องพิสูจน์ในการ์ด B2) แล้วเก็บ partitionKey ไว้ตอน set |
+| Session expired | The stored cookie's `expirationDate` has passed, or the platform deletes the cookie on load | Check expiry before switching. If it has passed, do not try; report the error right away. After loading, verify (step 7). |
+| Logged out on the server | Password change, "log out of all devices", logout on the web | The cookies go in but the server rejects them. Step 7 catches it, the account gets "Log in again", and the previous account's backup is put back. The user is not logged out of either. |
+| 2FA / checkpoint | After a switch the platform sends the user to a checkpoint or identity check | Count the switch as done, but the user must finish it ("The platform wants to verify you. Finish it in the tab, then press Update session."). We never try to get past it. |
+| Many tabs open | An old tab holds the previous account's state (a draft post, for example) | Reload every tab of that domain. If more than one tab is open, the popup says "Reloading 3 tabs" beforehand. A tab in the middle of typing cannot be detected reliably, so a draft may be lost, and the FAQ says so. |
+| Double press / two platforms at once | Race | One lock per platform (FB and IG can switch at the same time because their domains do not overlap). |
+| Service worker stopped midway | Half-applied cookies | Journal in `storage.session`. On the next start the backup is put back. |
+| Incognito | Separate cookie store | Not supported in v1 (`incognito: "not_allowed"`). |
+| Partitioned cookies (CHIPS) | `getAll` leaves them out unless a partitionKey is given | Use `getAll({ domain, partitionKey: {} })` to get every partition (the reason for `minimum_chrome_version`; the behaviour of `{}` must be proven in card B2), and keep the partitionKey when setting. |
 
 ---
 
@@ -150,10 +158,17 @@ switch(platform, targetId):
 ```json
 {
   "manifest_version": 3,
-  "name": "สลับบัญชี Social",
-  "version": "<จาก package.json ตอน build>",
-  "minimum_chrome_version": "<ตัวแรกที่ cookies API รองรับ partitionKey — ตรวจเอกสารตอน B1>",
-  "action": { "default_popup": "popup.html" },
+  "name": "__MSG_extName__",
+  "short_name": "__MSG_extShortName__",
+  "description": "__MSG_extDescription__",
+  "version": "<from package.json at build time>",
+  "default_locale": "en",
+  "minimum_chrome_version": "119",
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_title": "__MSG_actionTitle__",
+    "default_icon": { "16": "icons/16.png", "32": "icons/32.png" }
+  },
   "background": { "service_worker": "service-worker.js", "type": "module" },
   "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
   "permissions": ["cookies", "storage", "scripting"],
@@ -165,56 +180,68 @@ switch(platform, targetId):
   "incognito": "not_allowed"
 }
 ```
-ไม่ใส่ `content_security_policy` — ใช้ค่าเริ่มต้นของ MV3 ซึ่งห้ามสคริปต์ภายนอกและ `eval` อยู่แล้ว
+This is what card B1 built (`src/manifest.json`). The strings come from `public/_locales/{en,th}/messages.json` through `__MSG_…__` (section 10). `version` is written into `dist/manifest.json` by a small Vite plugin. There is no `content_security_policy` entry: the MV3 default already forbids remote scripts and `eval`.
 
-| permission | ใช้ทำอะไร | ทำไมจำเป็น |
+`minimum_chrome_version` is 119 in B1. Card B2 must confirm it against the real behaviour of `cookies.getAll({ partitionKey: {} })`, and raise it if that needs a newer Chrome. The popup's motion code (section 12) uses View Transitions, which Chrome has had since 111, so 119 is enough; `view-transition-class` (Chrome 125) is an enhancement, not a requirement.
+
+| Permission | What it is for | Why it is needed |
 |---|---|---|
-| `cookies` | อ่าน/ลบ/ใส่ cookie ของ FB, IG | หัวใจของการสลับ; อ่านได้แค่ domain ใน host_permissions |
-| `storage` | `storage.local` เก็บรายการบัญชี+ข้อมูลเข้ารหัส (ไม่มีกุญแจ) · `storage.session` (หน่วยความจำ) เก็บกุญแจที่ปลดล็อกแล้ว (raw base64) + journal | ไม่มีที่อื่นให้เก็บ; ไม่ใช้ `storage.sync` (จะส่งขึ้น cloud ของ Google = ผิดหลักข้อมูลอยู่ในเครื่อง) |
-| `scripting` | อ่าน `ytcfg` (authuser/pageid) บนหน้า YouTube | ใช้เฉพาะ YouTube; ไม่ต้องใช้ content script ถาวร |
-| host `*.facebook.com`, `*.instagram.com` | ให้ `cookies` เข้าถึง domain + `tabs.query({url})` หาแท็บไปรีโหลด | จำกัดแค่ 2 domain |
-| host `*.youtube.com` | `scripting` + หา/นำทางแท็บ YouTube | **ไม่ขอ `*.google.com`** เพราะเลือกทาง B |
+| `cookies` | Read / remove / set the FB and IG cookies | The heart of switching. It can only reach the domains in host_permissions. |
+| `storage` | `storage.local` holds the account list, settings and the encrypted data (never the key). `storage.session` (memory) holds the unlocked key (raw, base64) and the journal. | There is nowhere else to keep them. `storage.sync` is not used: it would upload to Google's cloud, which breaks "data stays on the device". |
+| `scripting` | Read `ytcfg` (authuser / pageid) on a YouTube page | YouTube only. No permanent content script. |
+| host `*.facebook.com`, `*.instagram.com` | Lets `cookies` reach the domain, and lets `tabs.query({url})` find tabs to reload | Limited to those two domains. |
+| host `*.youtube.com` | `scripting`, and finding or navigating YouTube tabs | `*.google.com` is not requested, because we chose B. |
 
-**ที่ตั้งใจไม่ขอ:** `tabs` (host_permissions พอให้ query แท็บของ 3 domain), `<all_urls>`, `webRequest`, `alarms`, `identity`, `unlimitedStorage`, `storage.sync` · ไม่มี remote code, ไม่มี `externally_connectable`
+Deliberately not requested: `tabs` (host_permissions are enough to query tabs of the three domains), `<all_urls>`, `webRequest`, `alarms`, `identity`, `unlimitedStorage`, `storage.sync`. No remote code, no `externally_connectable`. Theme, language and animation need no permission.
 
 ---
 
 ## 5. Data model
 
-**`chrome.storage.local`** (อยู่บนดิสก์)
+`chrome.storage.local` (on disk)
 
 ```ts
 type Platform = 'facebook' | 'instagram' | 'youtube';
+type ThemePref = 'system' | 'light' | 'dark';
+type LanguagePref = 'auto' | 'en' | 'th';
 
 interface StoreV1 {
   schemaVersion: 1;
-  accounts: Account[];                       // metadata — ไม่ใช่ความลับ แสดงได้แม้ล็อกอยู่
-  active: Record<Platform, string | null>;   // accountId ที่ใช้อยู่
-  vault: Vault | null;                       // null = ยังไม่ตั้งรหัสผ่านหลัก / ยังไม่มีบัญชี FB/IG
+  accounts: Account[];                       // metadata, not secret, shown even while locked
+  active: Record<Platform, string | null>;   // accountId currently in use
+  vault: Vault | null;                       // null = no master password yet / no FB or IG account yet
+  settings: Settings;                        // not secret, readable while locked (sections 10 and 11)
+}
+
+interface Settings {
+  theme: ThemePref;          // default 'system'
+  language: LanguagePref;    // default 'auto'
 }
 
 interface Account {
-  id: string;                 // uuid ของ extension เอง
+  id: string;                 // the extension's own uuid
   platform: Platform;
-  label: string;              // ชื่อที่ผู้ใช้ตั้ง 1–40 ตัวอักษร
-  initials: string;           // คำนวณจาก label ไว้แสดงในวงกลม
-  platformUserId?: string;    // FB c_user / IG ds_user_id (ใช้จับคู่ + กันเพิ่มซ้ำ)
-  youtube?: { authuser: number; pageid?: string };   // เฉพาะ YouTube — ไม่มี cookie
+  label: string;              // the name the user chose, 1 to 40 characters
+  initials: string;           // computed from label, shown in the circle
+  platformUserId?: string;    // FB c_user / IG ds_user_id (used to match and to stop duplicates)
+  youtube?: { authuser: number; pageid?: string };   // YouTube only, no cookies
   status: 'ok' | 'expired' | 'checkpoint';
   createdAt: number;
   lastUsedAt: number | null;
   sessionCapturedAt: number | null;
 }
 
-interface Vault {             // ก้อนเข้ารหัสก้อนเดียว
+interface Vault {             // one encrypted blob
   kdf: { name: 'PBKDF2'; hash: 'SHA-256'; iterations: 600000; salt: string /*b64 16B*/ };
-  iv: string;                 // b64 12B, สุ่มใหม่ทุกครั้งที่เขียน
+  iv: string;                 // b64 12B, new random value on every write
   ciphertext: string;         // AES-GCM( JSON<SessionMap> )
-  check: string;              // AES-GCM ของค่าคงที่ ไว้ตรวจรหัสผ่านผิด/ถูกโดยไม่ถอดทั้งก้อน
+  check: string;              // AES-GCM of a constant, to tell a wrong password from a right one without decrypting the whole blob
 }
 ```
 
-**ข้างใน vault (หลังถอดรหัส)**
+`settings` is created with its defaults the first time the store is read. It is plain data: no migration is needed because v1 has not shipped. An unknown value in `theme` or `language` is treated as the default.
+
+Inside the vault (after decryption)
 
 ```ts
 type SessionMap = Record<string /*accountId*/, {
@@ -223,124 +250,141 @@ type SessionMap = Record<string /*accountId*/, {
     name: string; value: string; domain: string; path: string;
     hostOnly: boolean; secure: boolean; httpOnly: boolean;
     sameSite: 'no_restriction' | 'lax' | 'strict' | 'unspecified';
-    expirationDate?: number;  // ไม่มี = session cookie
+    expirationDate?: number;  // missing = session cookie
     partitionKey?: { topLevelSite?: string };
   }>;
 }>;
 ```
 
-**`chrome.storage.session`** (อยู่ในหน่วยความจำของ browser ไม่ลงดิสก์ · หายเมื่อปิด Chrome · ค่าต้องเป็น JSON)
+`chrome.storage.session` (browser memory, not written to disk, gone when Chrome closes, values must be JSON)
 
 ```ts
 interface SessionArea {
-  vaultKey?: string;          // raw AES-256 key แบบ base64 (32 ไบต์) — มีอยู่ = ปลดล็อกแล้ว
-  journal?: { platform: Platform; fromId: string | null; toId: string; backup: string /* AES-GCM ของ cookie เดิม */ };
+  vaultKey?: string;          // raw AES-256 key as base64 (32 bytes). Present = unlocked.
+  journal?: { platform: Platform; fromId: string | null; toId: string; backup: string /* AES-GCM of the previous cookies */ };
 }
 ```
-- access level คงเป็น `TRUSTED_CONTEXTS` (ค่าเริ่มต้น — content script อ่านไม่ได้) และ SW เรียก `setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' })` ซ้ำตอนเริ่ม เพื่อกันใครไปเปลี่ยน
-- **กุญแจห้ามลง `storage.local` / IndexedDB / ไฟล์ใดๆ บนดิสก์** — มีที่เดียวคือ `storage.session`
-- `backup` ใน journal เข้ารหัสด้วยกุญแจเดียวกัน (journal ไม่เคยถือ cookie แบบ plaintext)
+- The access level stays `TRUSTED_CONTEXTS` (the default: content scripts cannot read it), and the service worker calls `setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' })` again at start so nobody changes it.
+- **The key never goes into `storage.local`, IndexedDB or any file on disk.** `storage.session` is the only place.
+- The journal `backup` is encrypted with the same key (the journal never holds plain cookies).
+
+`localStorage` of the popup page (a cache, not a store). One key, `theme`, mirrors `settings.theme` so `public/theme-boot.js` can read it synchronously before the first paint (section 11). `storage.local` stays the source of truth. If they disagree when the popup loads, `storage.local` wins and the cache is rewritten. It holds nothing secret and the extension works if it is empty or cleared.
 
 ---
 
-## 6. ความปลอดภัย
+## 6. Security
 
-**หลักคิด:** cookie session ของ FB/IG มีค่า **เท่ากับรหัสผ่าน + 2FA** ใครได้ไปใช้บัญชีได้ทันที และสำเนาของเราใน `storage.local` (LevelDB ไฟล์ธรรมดา) อ่อนกว่า cookie ที่ Chrome เก็บเอง (Chrome เข้ารหัสด้วย keyring ของระบบ) — จึง **เข้ารหัสเป็นค่าบังคับ**
+Reasoning: FB/IG session cookies are worth as much as the password plus 2FA. Whoever gets them can use the account at once. Our copy in `storage.local` (a plain LevelDB file) is weaker than the cookie Chrome keeps itself (Chrome encrypts that with the system keyring), so **encryption is mandatory**.
 
-**แบบที่เสนอ: รหัสผ่านหลัก + WebCrypto**
-1. ครั้งแรกที่เพิ่มบัญชี FB/IG ให้ตั้ง **รหัสผ่านหลัก อย่างน้อย 10 ตัวอักษร** (แนะนำวลี 4 คำขึ้นไป เช่น "แมวส้ม กินข้าว ริมคลอง ตอนบ่าย") — **ไม่มีตัวเลือก PIN** เหตุผลอยู่ในตารางตัวเลขด้านล่าง · ช่องกรอกมีปุ่มแสดง/ซ่อน · ไม่ตรวจกับรายการรหัสผ่านยอดนิยม (ต้องมี dependency/รายการใหญ่) แต่ปฏิเสธรหัสที่เป็นอักษรซ้ำตัวเดียวหรือเลขเรียง
-2. `PBKDF2(รหัสผ่าน, salt สุ่ม 16B, 600,000 รอบ, SHA-256)` → `deriveKey` เป็น AES-GCM 256 บิต **แบบ extractable** (ใช้ครั้งเดียวตอนปลดล็อกเพื่อ export)
-3. session ทั้งหมดเข้ารหัสเป็นก้อนเดียว (`Vault`) iv 12B สุ่มใหม่ทุกครั้งที่เขียน
-4. **วงจรของกุญแจ** (MV3 service worker ถูกปิดเมื่อว่าง ตัวแปรใน SW จึงหายได้ทุกเมื่อ):
-   - ปลดล็อก: derive (extractable) → `exportKey('raw')` → base64 → `storage.session.vaultKey` → ทิ้งตัวแปร extractable ทันที
-   - ใช้งาน (ทุกครั้งที่ SW ต้องถอด/เข้ารหัส): อ่าน `vaultKey` → `importKey('raw', …, extractable: false, ['encrypt','decrypt'])` → ได้ `CryptoKey` **non-extractable** ใช้ในหน่วยความจำของ SW (cache ในตัวแปรได้จน SW ถูกปิด)
-   - ล็อก: ลบ `vaultKey` + ล้าง cache · ปิด Chrome = `storage.session` หายเอง → ล็อกอัตโนมัติ
-   - ผล: ปลดล็อกครั้งเดียวใช้ได้จนปิด Chrome หรือกดล็อกเอง แม้ SW ถูกปิด/ตื่นใหม่หลายรอบ
-5. ใส่รหัสผ่านผิด 5 ครั้ง → หน่วง 30 วินาทีต่อครั้ง — **บอกตรงๆ: การหน่วงนี้อยู่ใน extension จึงกันได้แค่คนที่นั่งเดาหน้าเครื่อง กันการเดาออฟไลน์จากไฟล์ `storage.local` ที่ถูกขโมยไปไม่ได้เลย** สิ่งที่กันการเดาออฟไลน์มีแค่ความยาวของรหัสผ่าน × จำนวนรอบ PBKDF2
+Proposed design: master password + WebCrypto
+1. The first time an FB/IG account is added, the user sets a master password of at least 10 characters (a phrase of four or more words is recommended, for example "orange cat river lunch bell"). There is **no PIN option**; the reason is in the numbers table below. The field has a show/hide button. We do not check against a list of popular passwords (that needs a dependency or a big list), but we refuse a password that is one repeated character or a run of digits.
+2. `PBKDF2(password, random 16 B salt, 600,000 rounds, SHA-256)`, then `deriveKey` into an AES-GCM 256-bit key, extractable (used once at unlock, to export it).
+3. All sessions are encrypted as one blob (`Vault`) with a 12 B iv that is new on every write.
+4. Key life cycle (an MV3 service worker is stopped when idle, so variables inside it can vanish at any time):
+   - Unlock: derive (extractable), `exportKey('raw')`, base64, store in `storage.session.vaultKey`, then drop the extractable key straight away.
+   - Use (every time the worker needs to decrypt or encrypt): read `vaultKey`, `importKey('raw', …, extractable: false, ['encrypt','decrypt'])` to get a non-extractable `CryptoKey`, used in the worker's memory (it may be cached in a variable until the worker is stopped).
+   - Lock: delete `vaultKey` and clear the cache. Closing Chrome wipes `storage.session`, so that locks it automatically.
+   - Result: one unlock lasts until Chrome closes or the user presses Lock now, even if the worker is stopped and woken many times.
+5. After 5 wrong passwords there is a 30-second delay per attempt. To be straight about it: **this delay lives inside the extension, so it only stops someone guessing at the keyboard. It does nothing against offline guessing on a stolen copy of `storage.local`.** The only things that slow offline guessing are the password length and the PBKDF2 round count.
 
-**YouTube ไม่มี secret** (เก็บแค่ authuser/pageid) จึงสลับได้โดยไม่ต้องปลดล็อก
+YouTube holds no secret (only authuser / pageid), so switching it needs no unlock.
 
-**ตัวเลขการเดาออฟไลน์ (ถ้าไฟล์ถูกขโมย)**
+Offline guessing numbers (if the file is stolen)
 
-สมมติฐาน: hashcat mode 10900 (PBKDF2-HMAC-SHA256) บน GTX 1080 Ti (การ์ดปี 2017) ≈ 1.47 MH/s ที่ 999 รอบ (ที่มา: ผล benchmark hashcat ของ 1080 Ti ที่เผยแพร่ เช่น techearl.com/hashcat-benchmarks-nvidia-geforce-gtx-1080-ti) → ที่ 600,000 รอบ ≈ **2,450 ครั้ง/วินาที ต่อการ์ด** · ผู้โจมตีจริงอาจมีการ์ดใหม่หรือหลายใบ จึงคิดอีกกรณีที่ **เร็วกว่า 10 เท่า (≈ 24,500 ครั้ง/วินาที)** — ตัวเลขด้านล่างคือเวลา "เดาครบทุกแบบ" (เฉลี่ยเจอครึ่งหนึ่งของนี้)
+Assumption: hashcat mode 10900 (PBKDF2-HMAC-SHA256) on a GTX 1080 Ti (a 2017 card) is about 1.47 MH/s at 999 rounds (source: published hashcat benchmarks for the 1080 Ti, for example techearl.com/hashcat-benchmarks-nvidia-geforce-gtx-1080-ti). At 600,000 rounds that is about 2,450 guesses per second per card. A real attacker may have newer or several cards, so the table adds a case that is 10 times faster (about 24,500 per second). The times are for trying every candidate; on average the password is found after half of that.
 
-| รหัส | จำนวนแบบ | 1080 Ti 1 ใบ | เร็วกว่า 10 เท่า |
+| Password | Candidates | One 1080 Ti | 10 times faster |
 |---|---|---|---|
-| PIN 6 หลัก | 10^6 | **~7 นาที (408 วินาที)** | ~41 วินาที |
-| รหัสจากรายการคำ/รหัสยอดนิยม | ~10^9 | ~4.7 วัน | ~11 ชั่วโมง |
-| 10 ตัว สุ่ม a–z เท่านั้น | 26^10 ≈ 1.4×10^14 | ~1,800 ปี | ~180 ปี |
-| 10 ตัว สุ่ม a–z + 0–9 | 36^10 ≈ 3.7×10^15 | ~47,000 ปี | ~4,700 ปี |
-| วลี 4 คำสุ่มจากรายการ 7,776 คำ | 7776^4 ≈ 3.7×10^15 | ~47,000 ปี | ~4,700 ปี |
+| 6-digit PIN | 10^6 | about 7 minutes (408 s) | about 41 s |
+| Word list / popular passwords | about 10^9 | about 4.7 days | about 11 hours |
+| 10 random characters, a to z only | 26^10 ≈ 1.4×10^14 | about 1,800 years | about 180 years |
+| 10 random characters, a to z and 0 to 9 | 36^10 ≈ 3.7×10^15 | about 47,000 years | about 4,700 years |
+| 4 random words from a 7,776-word list | 7776^4 ≈ 3.7×10^15 | about 47,000 years | about 4,700 years |
 
-(คำนวณ: จำนวนแบบ ÷ ครั้งต่อวินาที — เช่น `10**6 / 2450 ≈ 408 วินาที`)
+(Calculation: candidates ÷ guesses per second, for example `106 / 2450 ≈ 408 s`.)
 
-| ข้อแลกเปลี่ยน | ผล |
+| Trade-off | Effect |
 |---|---|
-| บังคับรหัสผ่าน ≥ 10 ตัว แทน PIN | พิมพ์ยาวขึ้นวันละครั้ง (ตอนเปิด Chrome) แลกกับ: PIN 6 หลักถูกถอดได้ในไม่กี่นาทีถ้าไฟล์หลุด ซึ่งเท่ากับยกบัญชี FB/IG ให้ทันที |
-| รหัสผ่านที่คนตั้งเองมักไม่สุ่ม | ตัวเลข "ปี" ข้างบนใช้ได้เฉพาะรหัสที่สุ่มจริง · รหัสที่เป็นคำ/รูปแบบยอดนิยมตกไปอยู่แถว "~10^9" (ชั่วโมงถึงวัน) → UI แนะนำวลีหลายคำ และ README/PRIVACY บอกเรื่องนี้ตรงๆ |
-| ลืมรหัสผ่านหลัก | กู้ไม่ได้ (ไม่มี server) → "ล้างข้อมูลทั้งหมด" แล้ว login เพิ่มบัญชีใหม่ — บัญชีบนแพลตฟอร์มไม่เสียหาย แค่ต้อง login ใหม่ |
-| กุญแจ raw อยู่ใน `storage.session` ระหว่างปลดล็อก | อยู่ในหน่วยความจำของ browser เท่านั้น (ไม่ลงดิสก์) context ของ extension เองอ่านได้ — ยอมรับ เพราะเป็นทางเดียวที่ทำให้ "ปลดล็อกครั้งเดียว" ใช้ได้กับ SW ที่ถูกปิดบ่อย · มัลแวร์ที่อ่านหน่วยความจำ Chrome ได้ ก็ขโมย cookie ของ Chrome ได้ตรงๆ อยู่แล้ว |
-| ไม่เข้ารหัส metadata (ชื่อบัญชี) | แสดงรายการได้แม้ล็อก ใช้ง่ายกว่า; ชื่อที่ผู้ใช้ตั้งไม่ใช่ความลับระดับเดียวกับ cookie |
+| Require 10+ characters instead of a PIN | A longer thing to type once a day (when Chrome starts). In return: a 6-digit PIN falls in minutes if the file leaks, which hands over the FB/IG accounts. |
+| People rarely pick random passwords | The "years" above only hold for truly random passwords. A password made of words or common patterns lands on the "about 10^9" row (hours to days). So the UI recommends a multi-word phrase, and README and PRIVACY say this plainly. |
+| Forgotten master password | It cannot be recovered (there is no server). Use "Wipe all data", then log in and add the accounts again. The accounts on the platforms are fine; they only need a new login. |
+| The raw key sits in `storage.session` while unlocked | It lives in browser memory only (never on disk), and the extension's own contexts can read it. Accepted, because it is the only way "unlock once" works with a service worker that stops often. Malware that can read Chrome's memory can already steal Chrome's own cookies directly. |
+| Metadata (account names) is not encrypted | The list shows even while locked, which is easier to use. A name the user chose is not secret at the level of a cookie. |
+| Settings (theme, language) are not encrypted | They hold nothing sensitive and the lock screen needs them. |
 
-**กฎที่ห้ามละเมิดในโค้ดจริง:** ไม่มี `fetch`/`XMLHttpRequest` ไปที่ใดเลยนอกจากที่หน้าเว็บโหลดเอง · ไม่ log ค่า cookie ใน console · CSP ของ extension ค่าเริ่มต้น (ไม่มี `unsafe-eval`, ไม่โหลดสคริปต์ภายนอก, ไม่โหลดฟอนต์จากเน็ต) · ไม่มี analytics
+Rules the real code must never break: no `fetch` / `XMLHttpRequest` to anywhere except what a web page loads itself · never log a cookie value to the console · the default extension CSP (no `unsafe-eval`, no external scripts, no fonts from the network) · no analytics. The popup also has no inline script or style attribute that needs `unsafe-inline`: the first-paint theme script is a separate file (section 11).
 
 ---
 
-## 7. ความเสี่ยง
+## 7. Risks
 
-| ความเสี่ยง | โอกาส | ผล | ลดความเสี่ยงอย่างไร |
+| Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| **นโยบายแพลตฟอร์ม** — Meta ห้ามใช้วิธีอัตโนมัติเข้าถึงบริการ / ห้ามแชร์บัญชี | กลาง | บัญชีถูกจำกัด/ระงับ | ไม่ทำอะไรอัตโนมัตินอกจากใส่ cookie ของผู้ใช้เองที่ได้จากการ login ด้วยมือ บนเครื่องเดิม · ไม่ยิง request เอง · บอกผู้ใช้ชัดว่าใช้กับบัญชีตัวเองเท่านั้น ไม่ใช่เครื่องมือแชร์บัญชี |
-| **Chrome Web Store** — extension ที่จัดการ cookie ต้องแจ้ง privacy ชัด | กลาง | ไม่ผ่านรีวิว | privacy policy ระบุ "ข้อมูลอยู่ในเครื่อง ไม่ส่งออก" + ขอ permission น้อยที่สุด + ไม่มี remote code |
-| **โดน checkpoint / บังคับ login ใหม่** | กลาง–สูง (บัญชีใหม่, สลับถี่) | ต้องยืนยันตัวตน เสียเวลา | ไม่ swap device cookie (denylist) · ไม่สลับวนถี่ๆ · จับ checkpoint ได้แล้วบอกผู้ใช้ ไม่พยายามข้าม |
-| **session ถูกยกเลิก** (เปลี่ยนรหัส, logout ทุกเครื่อง, กด logout บนเว็บ, หมดอายุ ~90 วัน+) | สูงในระยะยาว | สลับไม่ได้ ต้อง login ใหม่ | ตรวจผลทุกครั้ง + ใส่ backup กลับ + ปุ่ม "อัปเดต session" · เก็บ session ล่าสุดทับทุกครั้งที่สลับออก (ขั้น 1) จึงสดอยู่เสมอ |
-| **แพลตฟอร์มเปลี่ยนชื่อ cookie / ผูก session กับเครื่องแบบ DBSC** | กลาง (Google ทำแล้ว, Meta อาจตาม) | กลไก swap ใช้ไม่ได้ | denylist ทนต่อชื่อใหม่ · YouTube ไม่ swap อยู่แล้ว · แยกโค้ดต่อแพลตฟอร์ม (`platforms/*.js`) ปิดทีละตัวได้ |
-| **ข้อมูลรั่วจากเครื่อง** | ต่ำ | ยึดบัญชีได้ | เข้ารหัสบังคับ (ข้อ 6) |
-| **ผู้ใช้เข้าใจผิดว่าแท็บอื่นยังเป็นบัญชีเดิม** | กลาง | โพสต์ผิดบัญชี | รีโหลดทุกแท็บ + toast บอกชื่อบัญชีใหม่ + badge ตัวอักษรย่อบนไอคอน extension (v1.1) |
+| Platform policy. Meta forbids automated access to its services and account sharing. | Medium | Account limited or suspended | The extension only puts back the user's own cookies, obtained by a manual login on the same machine. It sends no requests of its own. It says plainly that it is for your own accounts and not a tool for sharing accounts. |
+| Chrome Web Store. An extension that handles cookies must explain privacy clearly. | Medium | Review fails | The privacy policy says "data stays on the device, nothing leaves", asks for the fewest permissions, and has no remote code. |
+| Checkpoints / forced re-login | Medium to high (new accounts, frequent switching) | The user has to verify, which costs time | Device cookies are not swapped (denylist). No rapid cycling. A checkpoint is detected and reported, never bypassed. |
+| Session revoked (password change, logout everywhere, logout on the web, expiry after about 90 days) | High over time | Switching fails, a new login is needed | Verify every time, put the backup back, and offer "Update session". The latest session is saved over the old one on every switch away (step 3), so it stays fresh. |
+| The platform renames cookies or binds sessions to the device (DBSC) | Medium (Google already did, Meta may follow) | The swap mechanism stops working | The denylist copes with new names. YouTube does not swap anyway. Code is split per platform (`platforms/*.ts`) so one can be switched off alone. |
+| Data leaks from the machine | Low | Accounts taken over | Mandatory encryption (section 6). |
+| The user thinks other tabs still show the old account | Medium | A post goes out under the wrong account | Reload every tab, a toast names the new account, and an initials badge on the extension icon (v1.1). |
+| A motion or theme bug makes the popup unusable | Low | The user cannot switch | Animation is an enhancement: with no support, or with reduced motion, the DOM just changes (section 12). Theme falls back to System. Neither blocks any action. |
 
 ---
 
-## 8. โครงไฟล์ตัวจริง + สัญญาของแต่ละโมดูล + เทสต์ + การแบ่งการ์ด
+## 8. Real file layout, module contracts, tests and cards
 
-> ผู้ใช้จะสร้างจริงทันทีหลัง QC ผ่าน และจะ publish ลง git repo — ข้อนี้กับข้อ 9 ต้องพอให้สร้างตามได้โดยไม่ต้องตัดสินใจใหม่
+> The user builds this for real right after QC passes and will publish it to a git repo. This section and section 9 must be enough to build from without making new decisions. Card B1 (t-512) has already built the skeleton; names below match it.
 
-### 8.1 โครงไฟล์ (repo ใหม่ ชื่อแนะนำ `social-account-switcher`)
+### 8.1 File layout (new repo, suggested name `social-account-switcher`)
 
 ```
 social-account-switcher/
 ├─ src/
-│  ├─ manifest.json            # เขียนมือ (ดูข้อ 4 + 9.2) — version ถูกเขียนทับจาก package.json ตอน build
+│  ├─ manifest.json            # written by hand (section 4); version is overwritten from package.json at build
 │  ├─ background/
-│  │  ├─ service-worker.ts     # entry: ลงทะเบียน onMessage, onStartup → recoverJournal()
-│  │  ├─ switcher.ts           # switchAccount() ตามขั้น 0–6 ข้อ 3.0, ล็อกต่อแพลตฟอร์ม
-│  │  ├─ journal.ts            # write/clear/recover ใน storage.session
-│  │  ├─ keyring.ts            # กุญแจใน storage.session (export raw ↔ import non-extractable)
+│  │  ├─ service-worker.ts     # entry: register onMessage, onStartup → recoverJournal()
+│  │  ├─ chrome-adapter.ts     # one of the TWO files allowed to touch the `chrome` global
+│  │  ├─ switcher.ts           # switchAccount(), steps 0 to 8 of 3.0, a lock per platform
+│  │  ├─ journal.ts            # write / clear / recover in storage.session
+│  │  ├─ keyring.ts            # key in storage.session (export raw ↔ import non-extractable)
 │  │  └─ platforms/
-│  │     ├─ types.ts           # interface CookiePlatform / YoutubePlatform
+│  │     ├─ types.ts           # interfaces CookiePlatform / YoutubePlatform
 │  │     ├─ facebook.ts
 │  │     ├─ instagram.ts
 │  │     └─ youtube.ts
 │  ├─ lib/
-│  │  ├─ cookies.ts            # snapshot / clear / restore — ไม่มี state
+│  │  ├─ ports.ts              # interfaces for every browser API we use (CookiesApi, LocalStorageApi, TabsApi, I18nApi, …)
+│  │  ├─ cookies.ts            # snapshot / clear / restore, no state
 │  │  ├─ vault.ts              # PBKDF2 + AES-GCM
-│  │  ├─ store.ts              # schema v1, migrate(), CRUD บัญชี
-│  │  ├─ messages.ts           # ชนิดข้อความ popup ⇄ SW (discriminated union)
-│  │  └─ result.ts             # type Result<T, E> — ห้าม throw ข้ามขอบ message
+│  │  ├─ store.ts              # schema v1, migrate(), account CRUD, settings
+│  │  ├─ messages.ts           # popup ⇄ service worker message types (discriminated union)
+│  │  └─ result.ts             # type Result<T, E>, never throw across a message boundary
 │  └─ popup/
-│     ├─ index.html  popup.css  # ยกจาก mockup/popup.html (CSS token เดิม)
-│     ├─ main.ts               # render + event, คุยกับ SW ผ่าน messages.ts เท่านั้น
-│     └─ view.ts               # ฟังก์ชัน render ล้วน (state → DOM) ทดสอบได้ด้วย happy-dom
-├─ public/icons/16.png 32.png 48.png 128.png
+│     ├─ index.html  popup.css # taken from mockup/popup.html (same CSS tokens, theme tokens and motion tokens)
+│     ├─ main.ts               # render + events, talks to the worker only through messages.ts
+│     ├─ view.ts               # pure render functions (state → DOM), testable with happy-dom
+│     ├─ runtime.ts            # the other file allowed to touch `chrome` (i18n + manifest version pass-throughs)
+│     ├─ i18n.ts               # t(), language resolution, plural and [[bold]] helpers (section 10)
+│     ├─ theme.ts              # apply / save the theme, keep the first-paint cache (section 11)
+│     └─ motion.ts             # transition(mode, update), circleReveal(), reduced-motion check (section 12)
+├─ public/
+│  ├─ _locales/en/messages.json   _locales/th/messages.json   # the single source of every UI string
+│  ├─ theme-boot.js                                            # 10 lines, classic script, applies the cached theme before first paint
+│  └─ icons/16.png 32.png 48.png 128.png
 ├─ tests/
-│  ├─ fakes/chrome.ts          # chrome.cookies/storage/tabs/scripting ปลอม แบบ in-memory
-│  ├─ setup.ts                # preload ของ bun test (ลง happy-dom ให้เทสต์ view)
-│  ├─ unit/*.test.ts           # bun test
+│  ├─ fakes/chrome.ts          # in-memory fake of chrome.cookies / storage / tabs / scripting / i18n
+│  ├─ setup.ts                 # bun test preload (registers happy-dom for the view tests)
+│  ├─ lint-fixtures/           # good and bad samples that prove the Biome guardrails still fire
+│  ├─ unit/*.test.ts           # bun test (locales.test.ts already exists from B1)
 │  └─ e2e/
 │     ├─ fixtures.ts           # launchPersistentContext + --load-extension
-│     ├─ fake-sites/server.ts  # https localhost เลียน FB/IG (ตั้ง/ตรวจ cookie)
+│     ├─ fake-sites/server.ts  # https localhost imitating FB/IG (sets and checks cookies)
 │     └─ *.spec.ts
-├─ scripts/zip.ts              # สร้าง zip สำหรับ Chrome Web Store (ข้อ 9.7)
-├─ scripts/check-permissions.ts # manifest ต้องตรงรายการอนุญาต
+├─ scripts/
+│  ├─ zip.ts                   # builds the Web Store zip (9.7)
+│  ├─ check-permissions.ts     # manifest must match the allow-list
+│  ├─ permissions.ts           # the allow-list + checkManifest / checkPrivacyPolicy
+│  └─ check-chrome-access.ts   # second guard: `chrome` may appear only in the two adapter files (chrome-access.ts holds the logic)
 ├─ .github/workflows/ci.yml  release.yml   .github/dependabot.yml
 ├─ docs/design.md  docs/store-listing.md
 ├─ README.md  PRIVACY.md  LICENSE  CHANGELOG.md  SECURITY.md
@@ -348,11 +392,19 @@ social-account-switcher/
 ├─ biome.json  .editorconfig  .gitignore
 ```
 
-### 8.2 สัญญาของโมดูล (เขียนตามนี้)
+### 8.2 Module contracts (write it this way)
 
 ```ts
 // lib/result.ts
 export type Result<T, E extends string = string> = { ok: true; value: T } | { ok: false; error: E };
+
+// lib/ports.ts: every browser API the logic needs, as an interface.
+// Every async method is typed as returning a Promise so Biome's noFloatingPromises can see a missing `await`.
+export interface I18nApi {
+  getMessage(key: string, substitutions?: string[]): string;
+  getUILanguage(): string;            // chrome.i18n.getUILanguage()
+}
+// (SessionStorageApi, LifecycleApi exist from B1; B2 and later add CookiesApi, LocalStorageApi, TabsApi, ScriptingApi)
 
 // background/platforms/types.ts
 export interface CookiePlatform {
@@ -361,28 +413,28 @@ export interface CookiePlatform {
   cookieDomain: string;                  // 'facebook.com'
   tabPatterns: string[];                 // ['*://*.facebook.com/*']
   idCookie: string;                      // 'c_user' | 'ds_user_id'
-  deviceCookies: ReadonlySet<string>;    // denylist ข้อ 3.1/3.2
+  deviceCookies: ReadonlySet<string>;    // the denylist from 3.1 / 3.2
   loginUrl: string;
   isCheckpointUrl(url: string): boolean; // /checkpoint/, /challenge/
 }
 
-// lib/cookies.ts — ทุกฟังก์ชันรับ chrome.cookies เป็น parameter (inject ได้ในเทสต์)
+// lib/cookies.ts: every function takes the cookies port as a parameter (injectable in tests)
 export function snapshot(api: CookiesApi, p: CookiePlatform): Promise<StoredCookie[]>;
-export function clear(api: CookiesApi, p: CookiePlatform): Promise<number>;        // คืนจำนวนที่ลบ
+export function clear(api: CookiesApi, p: CookiePlatform): Promise<number>;        // returns how many were removed
 export function restore(api: CookiesApi, cookies: StoredCookie[], now: number): Promise<Result<number, 'all_expired'>>;
 export function currentUserId(api: CookiesApi, p: CookiePlatform): Promise<string | null>;
 
-// lib/vault.ts — กุญแจที่ใช้งานเป็น non-extractable เสมอ; ตัว extractable มีชีวิตแค่ใน unlock/createVault
-export function validatePassword(pw: string): Result<void, 'too_short' | 'too_simple'>;   // ≥ 10 ตัว, ไม่ซ้ำตัวเดียว/เรียง
+// lib/vault.ts: the working key is always non-extractable; the extractable one lives only inside unlock/createVault
+export function validatePassword(pw: string): Result<void, 'too_short' | 'too_simple'>;   // ≥ 10 chars, not one repeated char or a run
 export function createVault(pw: string, data: SessionMap): Promise<{ vault: Vault; rawKeyB64: string }>;
 export function unlock(pw: string, vault: Vault): Promise<Result<string /* rawKeyB64 */, 'wrong_password'>>;
 export function importSessionKey(rawKeyB64: string): Promise<CryptoKey>;  // importKey(raw, extractable=false)
 export function readVault(key: CryptoKey, vault: Vault): Promise<SessionMap>;
-export function writeVault(key: CryptoKey, vault: Vault, data: SessionMap): Promise<Vault>; // iv ใหม่ทุกครั้ง
+export function writeVault(key: CryptoKey, vault: Vault, data: SessionMap): Promise<Vault>; // new iv every time
 
-// background/keyring.ts — ที่เดียวที่แตะ storage.session.vaultKey
+// background/keyring.ts: the only place that touches storage.session.vaultKey
 export function storeKey(session: StorageArea, rawKeyB64: string): Promise<void>;
-export function getKey(session: StorageArea): Promise<CryptoKey | null>;  // null = ล็อกอยู่; cache ในตัวแปรจน SW ถูกปิด
+export function getKey(session: StorageArea): Promise<CryptoKey | null>;  // null = locked; cached in a variable until the worker stops
 export function lock(session: StorageArea): Promise<void>;
 
 // background/switcher.ts
@@ -390,11 +442,26 @@ export type SwitchError = 'locked' | 'busy' | 'expired' | 'checkpoint' | 'not_fo
 export function switchAccount(deps: Deps, platform: Platform, accountId: string,
   opts?: { force?: boolean }): Promise<Result<{ reloadedTabs: number }, SwitchError>>;
 
-// lib/messages.ts — popup ส่งได้แค่ชนิดนี้, SW ตอบ Result เสมอ
+// popup/i18n.ts (section 10)
+export type MessageKey = keyof typeof import('../../public/_locales/en/messages.json');
+export function resolveLanguage(pref: LanguagePref, uiLanguage: string): 'en' | 'th';
+export function createTranslator(lang: 'en' | 'th'): (key: MessageKey, params?: Record<string, string | number>) => string;
+
+// popup/theme.ts (section 11)
+export function applyTheme(doc: Document, pref: ThemePref): void;           // sets or removes data-theme
+export function cacheTheme(storage: Storage, pref: ThemePref): void;        // localStorage mirror for first paint
+
+// popup/motion.ts (section 12)
+export type MotionMode = 'theme' | 'tab' | 'list' | 'status' | 'expand' | 'page' | 'toast' | 'lang' | 'none';
+export function transition(mode: MotionMode, update: () => void, opts?: { dir?: 1 | -1 }): ViewTransition | null;
+export function circleReveal(x: number, y: number, update: () => void): void;
+
+// lib/messages.ts: the popup may send only these types, and the worker always answers with a Result
 export type Request =
   | { type: 'state.get' }
   | { type: 'vault.unlock'; password: string } | { type: 'vault.lock' } | { type: 'vault.setup'; password: string }
-  | { type: 'vault.wipe' }   // ลืมรหัสผ่าน = ล้างข้อมูลทั้งหมด (ยืนยัน inline ใน popup)
+  | { type: 'vault.wipe' }   // "Wipe all data" and "Forgot password" (confirmed inline in the popup)
+  | { type: 'settings.set'; theme?: ThemePref; language?: LanguagePref }
   | { type: 'account.addCurrent'; platform: Platform; label: string }
   | { type: 'account.updateSession'; accountId: string }
   | { type: 'account.rename'; accountId: string; label: string }
@@ -402,109 +469,122 @@ export type Request =
   | { type: 'account.switch'; accountId: string; force?: boolean };
 ```
 
-**กติกาโค้ด:** ทุกฟังก์ชันใน `lib/` และ `switcher.ts` รับ dependency (`chrome.*`, `now()`, `crypto`) ผ่าน parameter → เทสต์ได้โดยไม่ต้อง mock global · SW ตรวจ `sender.id === chrome.runtime.id` และตรวจรูปข้อความทุกครั้งก่อนทำ · popup ไม่แตะ `chrome.cookies` ตรงๆ
+Code rules:
+- Every function in `lib/` and `switcher.ts` takes its dependencies (the ports, `now()`, `crypto`) as parameters, so it can be tested without mocking globals.
+- Only two files may use the `chrome` global: `src/background/chrome-adapter.ts` and `src/popup/runtime.ts`. They are thin pass-throughs. Biome (`noRestrictedGlobals`, section 9.5) and `scripts/check-chrome-access.ts` both enforce it.
+- The worker checks `sender.id === chrome.runtime.id` and the shape of each message before acting. The popup never touches `chrome.cookies` directly.
+- `window`, `self`, `globalThis`, `frames`, `parent` and `top` are banned in `src/` too, so the motion and theme code uses `document` and `matchMedia` directly.
 
-### 8.3 เทสต์ที่ต้องผ่าน
+### 8.3 Tests that must pass
 
-**unit (`bun test` + `tests/fakes/chrome.ts`, coverage ของ `lib/` + `background/` ≥ 90% บรรทัด)**
-1. `snapshot` กรอง device cookie ออกตาม denylist ของแต่ละแพลตฟอร์ม และไม่แตะ domain อื่น
-2. `restore` ไม่ใส่ `domain` ให้ host-only cookie, ข้ามตัวที่หมดอายุ (ทั้งหมดหมด → `all_expired`), คง `partitionKey`, `sameSite` ถูกตัว
-3. `clear` สร้าง url ถูก (`https`/`http` ตาม secure + domain + path) และลบครบรวม partitioned
-4. `vault`: เข้ารหัส→ถอดได้ค่าเดิม · รหัสผ่านผิด → `wrong_password` · iv ไม่ซ้ำ 1,000 รอบ · ciphertext ไม่มีค่า cookie เป็น plaintext · `validatePassword` ปฏิเสธ < 10 ตัว/ซ้ำ/เรียง · `importSessionKey` คืน key ที่ `extractable === false`
-4b. `keyring`: กุญแจถูกเขียนลง `storage.session` เท่านั้น (fake ของ `storage.local` ต้องไม่มีคีย์ใดที่มีค่ากุญแจ) · SW "ตื่นใหม่" (ล้าง cache) แล้ว `getKey` ยังได้ key · `lock` แล้วได้ null · journal backup ไม่มี cookie แบบ plaintext
-5. `switcher`: ลำดับ snapshot → save → clear → restore → reload ถูก · กดซ้ำระหว่างทำ → `busy` · FB+IG พร้อมกันได้
-6. `switcher`: ผลตรวจไม่ตรง → ใส่ backup กลับ + status `expired` · เจอ URL checkpoint → `checkpoint`
-7. journal ค้าง → ตอน SW เริ่มใหม่ rollback แล้วล้าง journal
-8. `youtube`: URL ถูกทั้งมี/ไม่มี pageid · `next` เก็บ path เดิม · encode ถูก
-9. `store`: เพิ่มบัญชีซ้ำ (platformUserId เดิม) → `duplicate` · ชื่อว่าง/ยาวเกิน 40 ถูกปฏิเสธ · migrate จาก schema ไม่รู้จัก → ไม่ลบข้อมูล
-10. `messages`: ข้อความผิดรูป / sender ไม่ใช่ extension → ถูกปฏิเสธ
-11. `popup/view.ts`: render ทุกสถานะใน happy-dom (ว่าง/มีบัญชี/กำลังสลับ/สำเร็จ/error/เปลี่ยนชื่อ/ยืนยันลบ/ล็อก)
+unit (`bun test` + `tests/fakes/chrome.ts`, coverage of `lib/` and `background/` ≥ 90% of lines)
+1. `snapshot` drops device cookies by each platform's denylist and never touches another domain.
+2. `restore` leaves `domain` off host-only cookies, skips expired ones (all expired → `all_expired`), keeps `partitionKey`, and sets `sameSite` correctly.
+3. `clear` builds the right url (`https`/`http` by secure + domain + path) and removes everything, partitioned cookies included.
+4. `vault`: encrypt then decrypt gives the same data · a wrong password gives `wrong_password` · iv never repeats over 1,000 rounds · the ciphertext contains no cookie value in plain text · `validatePassword` refuses < 10 characters, repeats and runs · `importSessionKey` returns a key with `extractable === false`.
+4b. `keyring`: the key is written to `storage.session` only (the fake `storage.local` must hold no key with the key's value) · after a simulated worker restart (cache cleared) `getKey` still returns a key · after `lock` it returns null · the journal backup holds no plain cookie.
+5. `switcher`: the order is snapshot → journal → save → clear → restore → reload → verify · a press during a switch gives `busy` · FB and IG can run together · the journal is written after the snapshot exists (a crash between steps 1 and 2 must leave no journal that points at a missing backup).
+6. `switcher`: a verification mismatch puts the backup back and sets status `expired` · a checkpoint URL gives `checkpoint` · the busy lock is released on every exit path.
+7. A leftover journal: on worker start, roll back and clear the journal.
+8. `youtube`: the URL is right with and without pageid · `next` keeps the original path · encoding is right.
+9. `store`: adding a duplicate (same platformUserId) gives `duplicate` · an empty name or one over 40 characters is refused · migrating from an unknown schema deletes nothing · `settings` gets its defaults and an invalid `theme` / `language` falls back to the default.
+10. `messages`: a malformed message, or a sender that is not the extension, is refused.
+11. `popup/view.ts`: renders every state in happy-dom (empty / accounts / switching / success / error / rename / delete confirm / locked / settings / settings wipe confirm), once per language.
+12. `popup/i18n.ts`: `resolveLanguage('auto', 'th-TH')` gives `th`, `'en-GB'` gives `en`, and an unknown language gives `en` · a placeholder is substituted and HTML-escaped · `[[x]]` becomes bold only after escaping · plural picks the right key · a missing key in `th` falls back to `en` · `locales.test.ts` (from B1) keeps the two files in step: same keys, same placeholders.
+13. `popup/theme.ts`: `applyTheme('system')` removes `data-theme`, `'dark'` sets it · `cacheTheme` writes the one key · an unreadable storage (throws) does not throw out of the function.
+14. `popup/motion.ts`: with `prefers-reduced-motion: reduce`, `document.startViewTransition` is never called and `update` runs once, at once · with no `startViewTransition`, `update` runs once · a second transition started during the first leaves exactly one `data-vt` owner and never leaves `data-vt` set after both finish · `circleReveal` animates a `clip-path` that starts at `circle(0px at x y)`.
 
-**e2e (Playwright Chromium + extension unpacked จาก `dist/`)**
-12. เว็บปลอม `www.facebook.com`/`www.instagram.com` → map ไป https localhost (`--host-resolver-rules` + cert self-signed ที่สร้างตอนเทสต์ + `ignoreHTTPSErrors`) หน้าเว็บแสดง user จาก cookie: เพิ่ม 2 บัญชี → สลับไปมา 5 รอบ → หน้าแสดงคนถูก
-13. server ปลอมยกเลิก session → popup แสดง error + บัญชีเดิมยังใช้ได้
-14. รีโหลดครบทุกแท็บของ domain และไม่แตะแท็บ domain อื่น
-15. ล็อก → ใส่รหัสผ่านหลัก → สลับได้ · รหัสผิดแสดง error inline · หยุด SW (`chrome://serviceworker-internals` หรือ CDP) แล้วสลับได้โดยไม่ต้องใส่รหัสใหม่
-16. **ไม่มี request ออกจาก extension** (ดัก `context.on('request')` แยก request ที่มาจาก SW/popup) และไม่มี dialog
-17. ภาพ popup ทุกสถานะ (สว่าง/มืด) เทียบ snapshot
+e2e (Playwright Chromium + the unpacked extension from `dist/`)
+15. Fake `www.facebook.com` / `www.instagram.com` map to https localhost (`--host-resolver-rules` + a self-signed cert made at test time + `ignoreHTTPSErrors`). The page shows the user taken from the cookie. Add 2 accounts, switch back and forth 5 times, the page shows the right person each time.
+16. The fake server revokes a session: the popup shows the error and the previous account still works.
+17. Every tab of the domain reloads, and no tab of another domain is touched.
+18. Lock, enter the master password, switch · a wrong password shows an inline error · stop the service worker (`chrome://serviceworker-internals` or CDP) and switching still works without asking again.
+19. No request leaves the extension (watch `context.on('request')` and tell worker/popup requests apart) and no dialog opens.
+20. Popup screenshots of every state in both languages and both themes (`en`/`th` × `light`/`dark`), compared with snapshots. Layout check in the same run: in every state and language nothing is cut off or sticks out of the 360 px popup.
+21. Reduced motion (`reducedMotion: 'reduce'`): switch, tab change, theme change, delete and the toast leave `document.getAnimations()` empty, including while the spinner is shown.
+22. The first-paint theme: with a saved Dark theme and a light OS, the dark attribute is set before `<body>` exists (no light flash).
 
-**เช็คด้วยมือก่อน publish (บัญชีทดสอบเท่านั้น — ต้องให้ผู้ใช้ทำ/เตรียมบัญชี)**
-18. FB 2 บัญชี / IG 2 บัญชี สลับ 10 รอบในหนึ่งวัน → ไม่โดน checkpoint
-19. YouTube: รูปแบบ `signin?action_handle_signin=true&authuser=&pageid=` ใช้ได้กับ Brand Account และ Gmail ในแท็บอื่นไม่เปลี่ยนบัญชี
+Manual checks before publishing (test accounts only; the user must do these or prepare the accounts)
+23. 2 FB accounts and 2 IG accounts, 10 switches in a day: no checkpoint.
+24. YouTube: `signin?action_handle_signin=true&authuser=&pageid=` works for a Brand Account, and Gmail in another tab does not change account.
+25. Thai review: every Thai string was reviewed by a Thai language reviewer and the reviewed text is what is in `th/messages.json`.
 
-### 8.4 เสนอการแบ่งการ์ดสร้างจริง
+### 8.4 Proposed card split for the real build
 
-| การ์ด | งาน | เสร็จเมื่อ | ต้องรอ |
+| Card | Work | Done when | Waits for |
 |---|---|---|---|
-| **B1 โครง repo + CI** | ทุกอย่างในข้อ 9 (Bun, tsconfig strict, Biome, bun test, playwright skeleton, workflows, zip, README/PRIVACY/LICENSE) + manifest + SW/popup ว่าง | `bun run check` ผ่าน, `bun outdated` ว่าง, CI เขียว, `bun run zip` ได้ไฟล์ที่โหลด unpacked ได้ · **ยืนยันว่า `setup-bun` กับ `bun-version-file: package.json` อ่านฟิลด์ `packageManager` ได้จริง** (ถ้าไม่ได้ ใช้ไฟล์ `.bun-version` หรือ `bun-version` ตรงๆ แล้วแก้ข้อ 9.3/9.8) | — |
-| **B2 lib แกน** | `cookies.ts`, `vault.ts`, `keyring.ts`, `store.ts`, `result.ts`, `fakes/chrome.ts` | เทสต์ 1–4b, 9 ผ่าน + coverage · **พิสูจน์กับ Chrome จริง (Playwright Chromium) ว่า `cookies.getAll({ domain, partitionKey: {} })` คืน cookie ทั้งแบบมีและไม่มี partition** (เอกสารทางการไม่ระบุพฤติกรรม `{}`) ถ้าไม่ได้ ให้เรียก 2 ครั้ง (ไม่ระบุ + ระบุ topLevelSite) แล้วรวม | B1 |
-| **B3 สลับ FB/IG** | `switcher.ts`, `journal.ts`, `facebook.ts`, `instagram.ts`, `messages.ts`, SW | เทสต์ 5–7, 10 ผ่าน | B2 |
-| **B4 YouTube** | `youtube.ts` (ytcfg + URL) | เทสต์ 8 ผ่าน | B1 (ขนาน B2/B3 ได้) |
-| **B5 popup จริง** | ยก mockup → `popup/` ต่อ messages | เทสต์ 11 ผ่าน + ภาพตรง mockup | B3, B4 |
-| **B6 e2e** | เว็บปลอม + spec 12–17 | e2e เขียวใน CI | B5 |
-| **B7 เตรียม publish** | ไอคอน, `store-listing.md`, ภาพสำหรับ store, CHANGELOG, tag `v0.1.0` → release zip | release.yml ได้ zip แนบ · ผู้ใช้ทำเช็คมือ 18–19 | B6 + ผู้ใช้ |
+| B1 repo skeleton + CI (done in t-512) | Everything in section 9 (Bun, strict tsconfig, Biome, bun test, Playwright skeleton, workflows, zip, README/PRIVACY/LICENSE) + manifest + empty service worker and popup + `_locales/{en,th}` skeleton and its parity test | `bun run check` passes, `bun outdated` is empty, CI is green, `bun run zip` gives a file that loads unpacked | none |
+| B2 core lib | `cookies.ts`, `vault.ts`, `keyring.ts`, `store.ts` (with `settings`), `result.ts`, `fakes/chrome.ts` | Tests 1 to 4b and 9 pass, with coverage · prove with a real Chrome (Playwright Chromium) that `cookies.getAll({ domain, partitionKey: {} })` returns both partitioned and unpartitioned cookies (the official docs do not say what `{}` does); if it does not, call twice (no partitionKey, then with a topLevelSite) and merge | B1 |
+| B3 FB/IG switching | `switcher.ts`, `journal.ts`, `facebook.ts`, `instagram.ts`, `messages.ts`, service worker | Tests 5 to 7 and 10 pass | B2 |
+| B4 YouTube | `youtube.ts` (ytcfg + URL) | Test 8 passes | B1 (can run alongside B2/B3) |
+| B5 real popup | Lift the mockup into `popup/`: `view.ts`, `main.ts`, `i18n.ts`, `theme.ts`, `motion.ts`, `theme-boot.js`, the Settings page, the final `th/messages.json` text, wired to `messages.ts` | Tests 11 to 14 pass, and the screenshots match the mockup in both languages and both themes · B5 takes the whole of sections 10, 11 and 12 | B3, B4 |
+| B6 e2e | Fake sites + specs 15 to 22 | e2e is green in CI | B5 |
+| B7 publish prep | Icons, `store-listing.md` (English and Thai), store images, CHANGELOG, tag `v0.1.0` → release zip | release.yml attaches the zip · the user does manual checks 23 to 25 | B6 + the user |
 
-แต่ละการ์ด = 1 branch `card/t-xxx` 1 PR ทุกการ์ดต้องผ่าน `bun run check` และ `bun outdated` ว่าง ก่อนส่ง QC
+Each card is one branch `card/t-xxx` and one PR. Every card must pass `bun run check` and have an empty `bun outdated` before it goes to QC.
 
 ---
 
-## 9. Repo พร้อม publish (best practice)
+## 9. A repo ready to publish (best practice)
 
-> ผู้ใช้กำหนด: **Bun** (package manager + รันสคริปต์ + unit test), **Biome** (lint + format), **dependency ล่าสุดทุกตัว** · ในแบบนี้ **จงใจไม่เขียนเลข version ใดๆ** — การ์ด B1 ติดตั้งด้วย `bun add -d <ชื่อ>` (ไม่ระบุ version = ได้ตัวล่าสุด) แล้วต้องผ่าน `bun outdated` ว่าง
+> The user decided on: Bun (package manager, script runner, unit tests), Biome (lint + format), and the newest version of every dependency. This document writes no version numbers on purpose, except in the "as built in B1" note below. Card B1 installed with `bun add -d <name>` (no version means the latest) and then required `bun outdated` to be empty.
 
-### 9.1 เครื่องมือ (สรุป)
+### 9.1 Tools (summary)
 
-| งาน | เลือก | เหตุผลสั้น |
+| Job | Choice | Short reason |
 |---|---|---|
-| package manager + สคริปต์ | **Bun** — `bun install`, `bun run`, lockfile `bun.lock` (ข้อความ อ่าน diff ได้) | ผู้ใช้กำหนด · เร็ว · ตัวเดียวทำได้ทั้ง install/run/test |
-| build | **Vite** (รันผ่าน `bun run` / `bunx --bun vite`) | ดู 9.2 |
-| ภาษา | **TypeScript strict** — ตรวจด้วย `tsc --noEmit` (Bun/Vite แค่ตัด type ไม่ตรวจ) | |
-| lint + format | **Biome** ตัวเดียว (`biome.json`) | ผู้ใช้กำหนด · แทน ESLint+Prettier · dependency เดียว ไม่มี plugin chain |
-| unit test | **`bun test`** + `happy-dom` (เฉพาะเทสต์ view) | ผู้ใช้กำหนด · มี mock/spy, coverage, `crypto.subtle` ในตัว — ไม่มีเหตุผลพอให้ใช้ตัวอื่น |
-| e2e | **`@playwright/test`** รันด้วย `bunx playwright test` | โหลด extension unpacked ใน Chromium ได้ (Puppeteer ก็ทำได้ แต่ Playwright มี test runner, fixture, trace และ report ครบในตัว ไม่ต้องประกอบเอง) · **ข้อยกเว้นที่มีเหตุผล:** test runner ของ Playwright รองรับทางการบน Node — ปล่อยให้ `bunx` รันตาม shebang (Node) ไม่ใส่ `--bun` (GitHub runner มี Node อยู่แล้ว) |
-| zip | สคริปต์ `scripts/zip.ts` รันด้วย `bun` + `fflate` | ไม่ต้องพึ่ง `zip` ของระบบ ผลเหมือนกันทุกเครื่อง |
-| CI | GitHub Actions + `oven-sh/setup-bun` | ผู้ใช้กำหนด |
+| Package manager + scripts | Bun: `bun install`, `bun run`, lockfile `bun.lock` (text, readable diffs) | The user's choice · fast · one tool for install, run and test |
+| Build | Vite (run through `bun run` / `bunx --bun vite`) | See 9.2 |
+| Language | TypeScript strict, checked with `tsc --noEmit` (Bun and Vite only strip types) | |
+| Lint + format | Biome alone (`biome.json`) | The user's choice · replaces ESLint + Prettier · one dependency, no plugin chain |
+| Unit tests | `bun test` + `happy-dom` (view tests only) | The user's choice · has mocks, coverage and `crypto.subtle` built in, so no reason to use another runner |
+| e2e | `@playwright/test`, run with `bunx playwright test` | Loads an unpacked extension in Chromium. (Puppeteer can too, but Playwright brings a test runner, fixtures, traces and a report, so nothing has to be assembled.) A justified exception: Playwright's test runner is officially supported on Node, so `bunx` runs it by its shebang (Node) and we do not pass `--bun` (GitHub runners already have Node). |
+| zip | `scripts/zip.ts`, run with `bun`, using `fflate` | No dependence on the system `zip`; the result is the same on every machine |
+| CI | GitHub Actions + `oven-sh/setup-bun` | The user's choice |
 
-### 9.2 framework: **Vite + TypeScript ล้วน** (ไม่ใช้ WXT)
+As built in B1 (newest at the time, for reference only): TypeScript 7.0.2 (the native compiler, still invoked as `tsc`), Vite 8.3.7, Biome 2.6.6, Bun 1.4.4 (recorded in `packageManager`), Playwright 1.65.0, happy-dom 21.0.4, fflate 0.8.3. Later cards must not copy these numbers; they ask the registry for the latest again.
 
-| | WXT | **Vite + TS ล้วน (เลือก)** |
+### 9.2 Framework: plain Vite + TypeScript (no WXT)
+
+| | WXT | Plain Vite + TS (chosen) |
 |---|---|---|
-| manifest | สร้างจาก config/ไฟล์ entry อัตโนมัติ | เขียนมือ `src/manifest.json` — **คนรีวิว (และ Chrome Web Store) เห็น permission ตรงๆ ใน repo** |
-| dependency | framework + auto-import + module หลายชั้น | `vite` ตัวเดียวฝั่ง build |
-| dev | HMR + รีโหลด extension ให้เอง | `vite build --watch` + กดรีโหลดใน `chrome://extensions` (popup 1 หน้า + SW 1 ไฟล์ พอรับได้) |
-| zip / หลาย browser | `wxt zip`, Firefox/Safari ในตัว | สคริปต์ zip เอง · v1 ทำ Chrome อย่างเดียว |
-| ทางถอย | — | WXT สร้างบน Vite → วันหนึ่งจะย้ายไป WXT โค้ด `lib/` และ `background/` ไม่ต้องแก้ |
+| manifest | Generated from config and entry files | Written by hand in `src/manifest.json`. A reviewer (and the Chrome Web Store) sees the permissions directly in the repo. |
+| dependencies | The framework + auto-imports + several module layers | `vite` alone on the build side |
+| dev loop | HMR and automatic extension reload | `vite build --watch` + press reload in `chrome://extensions` (one popup page and one worker file are small enough) |
+| zip / several browsers | `wxt zip`, Firefox/Safari built in | Our own zip script · v1 targets Chrome only |
+| way out | n/a | WXT is built on Vite, so moving to it later leaves `lib/` and `background/` untouched |
 
-**เหตุผล:** extension นี้ถือ cookie session (เท่ารหัสผ่าน) ทุก dependency ใน build คือ supply chain ที่ต้องเชื่อใจ ยิ่งน้อยยิ่งดี งานมีแค่ 2 entry (SW + popup) ไม่มี content script ถาวร ข้อดีหลักของ WXT (HMR, หลาย browser, manifest อัตโนมัติ) จึงไม่คุ้ม และ manifest เขียนมือตรวจง่ายกว่า · ส่วน `Bun.build` ล้วนก็ทำได้ แต่ Vite จัดการ HTML entry + CSS + การตั้ง target browser ได้ชัดกว่า และเป็นทางเดียวกับ WXT ถ้าย้ายภายหลัง → **ย้ายไป WXT เมื่อจะทำ Firefox/Edge หรือมีหลายหน้า UI**
+Reasoning: this extension holds session cookies (worth a password), so every build dependency is supply chain we must trust, and fewer is better. There are two entries (worker and popup) and no permanent content script, so WXT's main benefits (HMR, several browsers, automatic manifest) do not pay off, and a hand-written manifest is easier to audit. `Bun.build` alone would also work, but Vite handles the HTML entry, CSS and browser targets more clearly, and it is the same road as WXT if we move later. Move to WXT when Firefox/Edge support or several UI pages arrive.
 
-`vite.config.ts`: `build.rollupOptions.input = { popup: 'src/popup/index.html', 'service-worker': 'src/background/service-worker.ts' }`, `output.entryFileNames: '[name].js'`, `build.target` = Chrome ตาม `minimum_chrome_version`, `sourcemap: false` ตอน build จริง, `modulePreload: false` (ไม่ฉีด polyfill) · plugin เล็กๆ ใน config คัด `src/manifest.json` ไป `dist/` แล้วใส่ `version` จาก package.json
+`vite.config.ts` as built in B1 (Vite 8 bundles with Rolldown, so the option is `build.rolldownOptions`, not `rollupOptions`): `root: 'src'`, `build.rolldownOptions.input = { popup: 'src/popup/index.html', 'service-worker': 'src/background/service-worker.ts' }`, `output.entryFileNames: '[name].js'`, `build.target: 'chrome119'` (kept in step with `minimum_chrome_version`), `sourcemap` only in development mode, `modulePreload: false` (no polyfill is injected), and `publicDir: 'public'` so `_locales/`, `theme-boot.js` and `icons/` are copied as they are. The popup is emitted at `dist/popup/index.html`. A small plugin emits `src/manifest.json` into `dist/` with `version` taken from package.json.
 
-### 9.3 Dependency: ล่าสุดทุกตัว
+### 9.3 Dependencies: the newest of every one
 
-- **runtime dependency = 0** (โค้ดที่ไปอยู่ใน extension มีแต่ของเราเอง)
-- devDependencies ที่อนุญาต: `typescript`, `vite`, `@biomejs/biome`, `@types/chrome`, `@types/bun`, `happy-dom`, `@happy-dom/global-registrator`, `@playwright/test`, `fflate` — เพิ่มตัวใหม่ต้องเขียนเหตุผลใน PR
-- ติดตั้งด้วย `bun add -d <ชื่อ>` ไม่ระบุ version → ได้ตัวล่าสุด ณ วันสร้าง · `bun.lock` commit เสมอ · CI ใช้ `bun install --frozen-lockfile`
-- เวอร์ชันของ Bun เอง: ใส่ `"packageManager": "bun@<เวอร์ชันล่าสุด ณ วันสร้าง>"` ใน package.json แล้ว CI อ่านจากไฟล์นั้น (`bun-version-file`) — เครื่องคนพัฒนากับ CI ตรงกัน (ยืนยันแล้วใน B1: ซอร์ส `src/utils.ts` ของ `oven-sh/setup-bun` v2.2.0 อ่าน `package.json` → `packageManager.split("bun@")[1]` แล้วถอยไป `engines.bun` จึงไม่ต้องใช้ทางสำรอง)
-- GitHub Actions ทุกตัว pin ด้วย commit SHA ของ release ล่าสุด ณ วันสร้าง (ใส่ชื่อ tag เป็น comment ข้างหลัง)
-- **ด่านก่อนส่งทุกการ์ด:** `bun outdated` ต้องไม่มีรายการ (เป็นข้อหนึ่งใน "เสร็จเมื่อ")
-- หลังจากนั้นอัปเดตผ่าน **Dependabot** (`package-ecosystem: bun` + `github-actions`, รายสัปดาห์, รวม PR เป็นกลุ่ม) — ไม่ใส่ `bun outdated` เป็นด่านบล็อกใน CI เพราะ release ใหม่ของคนอื่นจะทำ CI แดงทั้งที่โค้ดเราไม่เปลี่ยน
-- ข้อควรระวังของ "ล่าสุดเสมอ": ตัว major ใหม่อาจเปลี่ยน API/config (เช่น schema ของ `biome.json`) → การ์ด B1 ต้องเขียน config ตามเอกสารของเวอร์ชันที่ได้จริง ไม่ใช่ตามความจำ
+- runtime dependencies = 0. The code that ships inside the extension is only ours. This is also why transition-kit (or any UI or animation library) is not used (section 12.5).
+- Allowed devDependencies: `typescript`, `vite`, `@biomejs/biome`, `@types/chrome`, `@types/bun`, `happy-dom`, `@happy-dom/global-registrator`, `@playwright/test`, `fflate`. A new one needs its reason written in the PR.
+- Install with `bun add -d <name>` and no version, which gives the latest on the day. `bun.lock` is always committed. CI uses `bun install --frozen-lockfile`.
+- The Bun version itself: put `"packageManager": "bun@<latest on the day>"` in package.json and let CI read it with `bun-version-file`, so the developer's machine and CI match. Confirmed in B1: `oven-sh/setup-bun` v2.2.0 reads `package.json`, takes `packageManager.split("bun@")[1]`, and falls back to `engines.bun`, so no workaround file (`.bun-version`) is needed.
+- Every GitHub Action is pinned by the commit SHA of its latest release on the day (the tag name goes in a comment after it).
+- The gate before every card: `bun outdated` must show nothing (it is one of the "done when" items).
+- After that, updates come from Dependabot (`package-ecosystem: bun` + `github-actions`, weekly, grouped PRs). `bun outdated` is not a blocking step in CI, because someone else's new release would turn CI red while our code did not change.
+- Caution with "always newest": a new major can change APIs and config (for example the `biome.json` schema, or Vite 8's switch from Rollup to Rolldown). Card B1 wrote every config from the documentation of the version it actually got, not from memory.
 
 ### 9.4 TypeScript
 
-- `tsconfig.json` (โค้ด extension): `"strict": true`, `"noUncheckedIndexedAccess": true`, `"exactOptionalPropertyTypes": true`, `"noImplicitOverride": true`, `"noFallthroughCasesInSwitch": true`, `"verbatimModuleSyntax": true`, `"module": "ESNext"`, `"moduleResolution": "Bundler"`, `"noEmit": true`, `"types": ["chrome", "vite/client"]`, `include: ["src"]`
-- `tests/tsconfig.json` extends ตัวบน เพิ่ม `"types": ["chrome", "bun"]` — **แยกไว้เพื่อไม่ให้ type ของ Bun หลุดเข้าโค้ด extension** (ใน Chrome ไม่มี `Bun.*`)
-- `"typecheck": "tsc -p tsconfig.json && tsc -p tests/tsconfig.json"`
+`tsconfig.json` as built in B1 (extension code): `"target": "ES2022"`, `"lib": ["ES2023", "DOM", "DOM.Iterable"]`, `"module": "ESNext"`, `"moduleResolution": "Bundler"`, `"types": ["chrome", "vite/client"]`, `"strict": true`, `"noUncheckedIndexedAccess": true`, `"exactOptionalPropertyTypes": true`, `"noImplicitOverride": true`, `"noImplicitReturns": true`, `"noFallthroughCasesInSwitch": true`, `"noUnusedLocals": true`, `"noUnusedParameters": true`, `"verbatimModuleSyntax": true`, `"isolatedModules": true`, `"resolveJsonModule": true` (the popup imports both `messages.json` files), `"skipLibCheck": true`, `"noEmit": true`, `include: ["src"]`.
+
+`tests/tsconfig.json` extends it and sets `"types": ["chrome", "bun"]`. It is separate so Bun's types never leak into extension code (there is no `Bun.*` in Chrome).
+`"typecheck": "tsc -p tsconfig.json && tsc -p tests/tsconfig.json"`
 
 ### 9.5 Biome (lint + format)
 
-- `biome.json`: เปิด `recommended` + formatter (`indentStyle: space`, `lineWidth: 100`, quote เดี่ยว) + `organizeImports` · ไฟล์ที่ข้าม: `dist/`, `release/`, `coverage/`, `playwright-report/`, `mockup/`
-- กฎบังคับนโยบาย "ไม่ส่งข้อมูลออก / ไม่ใช้ dialog": `noRestrictedGlobals` ห้าม `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `alert`, `confirm`, `prompt`, `Bun` (ใน `src/`) — ทำด้วยเครื่องมือ ไม่ใช่ความจำ
-- `noConsole` ยกเว้น `warn`/`error` · `noExplicitAny` = error · `useAwait` / กฎ promise ที่ลอย (ถ้าเวอร์ชันที่ได้มีกฎแบบ `noFloatingPromises` ให้เปิดเป็น error — โค้ด chrome API เป็น async ทั้งหมด ลืม await = cookie ครึ่งๆ; ถ้าไม่มี ชดเชยด้วยเทสต์ลำดับในข้อ 8.3 ข้อ 5)
-- CI ใช้ `biome ci .` (ตรวจทั้ง lint + format ไม่แก้ไฟล์) · เครื่องคนใช้ `biome check --write .`
-- ไม่ใช้ git hook (ลดของที่ต้องติดตั้ง) — CI เป็นด่านจริง; README บอกให้รัน `bun run check` ก่อน commit
+- `biome.json`: `recommended` preset + formatter (`indentStyle: space`, `lineWidth: 100`, single quotes) + `organizeImports`. The markdown formatter is turned off (it would rewrite this document). Files skipped: `dist/`, `release/`, `coverage/`, `playwright-report/`, `test-results/`, `tests/lint-fixtures/`, `docs/`, `mockup/`.
+- The policy "no sending data out, no dialogs" is enforced by `noRestrictedGlobals` for `src/`: it denies `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `alert`, `confirm`, `prompt`, `Bun`, and also `chrome`, `globalThis`, `self`, `window`, `frames`, `parent`, `top`. The rule only matches the bare name (`globalThis.fetch(...)` slips through), which is why the list also bans the objects you would reach it through, and why `scripts/zip.ts` scans `dist/` again (9.7). The two adapter files (`src/background/chrome-adapter.ts`, `src/popup/runtime.ts`) have an override that allows `chrome` and keeps the rest. `tests/lint-fixtures/{good,bad}` prove the rules still fire.
+- `noConsole` except `warn` and `error` · `noExplicitAny` is an error · `noFloatingPromises` and `noMisusedPromises` are on as errors (in Biome 2.x they sit in the `nursery` group; Chrome API code is async everywhere and a forgotten `await` leaves half-applied cookies). Biome does not infer return types from `@types/chrome`, which is why all browser access goes through the typed ports in `src/lib/ports.ts`.
+- CI runs `biome ci .` (lint and format check, changes nothing); a developer runs `biome check --write .`.
+- No git hooks (fewer things to install). CI is the real gate, and the README tells people to run `bun run check` before committing.
 
-### 9.6 Scripts + ค่าตั้งเทสต์
+### 9.6 Scripts and test config
 
 ```json
 {
@@ -526,42 +606,45 @@ export type Request =
 `bunfig.toml`:
 ```toml
 [install]
-exact = true                 # bun add เขียน version ตรงตัว ไม่ใส่ ^ — lockfile + package.json ตรงกัน
+exact = true                 # bun add writes exact versions, no ^, so package.json and bun.lock always agree
 
 [test]
-preload = ["./tests/setup.ts"]       # GlobalRegistrator.register() ของ happy-dom
+preload = ["./tests/setup.ts"]       # happy-dom GlobalRegistrator.register() for the view tests
 coverage = true
 coverageThreshold = { lines = 0.9, functions = 0.9 }
 coverageSkipTestFiles = true
+coverageReporter = ["text", "lcov"]
+coverageDir = "coverage"
 ```
-(entry ที่แค่ต่อสาย เช่น `popup/main.ts`, `service-worker.ts` ไม่นับ coverage — ถ้า bun ที่ได้ตั้ง ignore pattern ได้ให้ใส่ ไม่ได้ก็ทำให้ไฟล์เหล่านั้นบางที่สุด)
+(Entries that only wire things together, such as `popup/main.ts` and `service-worker.ts`, are not counted. If the installed Bun can set an ignore pattern, use it; if not, keep those files as thin as possible.)
 
-**unit:** `tests/fakes/chrome.ts` เขียนเอง — cookie store in-memory ที่ทำตามกติกา hostOnly/secure/path/partitionKey/expiry, `storage.local/session`, `tabs.query/reload/update`, `scripting.executeScript` คืนค่าที่กำหนด — แทน lib mock สำเร็จรูป (ส่วนใหญ่เลิกดูแลแล้ว และ mock แบบไม่มีกติกาจับบั๊กเรื่อง cookie ไม่ได้) · ฟังก์ชันทุกตัวรับ dependency ผ่าน parameter (ข้อ 8.2) จึงใช้ `mock()` ของ `bun:test` แค่จุดที่ต้องการ spy ลำดับการเรียก
+unit: `tests/fakes/chrome.ts` is written by us: an in-memory cookie store that follows the hostOnly / secure / path / partitionKey / expiry rules, `storage.local/session`, `tabs.query/reload/update`, `scripting.executeScript` returning a configured value, and `i18n.getMessage/getUILanguage`. It replaces an off-the-shelf mock library (most are no longer maintained, and a mock without the rules cannot catch cookie bugs). Every function takes its dependencies as parameters (8.2), so `mock()` from `bun:test` is used only where a spy on call order is wanted.
 
-**e2e:** fixture `chromium.launchPersistentContext(tmpDir, { channel: 'chromium', args: ['--disable-extensions-except=<dist>', '--load-extension=<dist>', '--host-resolver-rules=MAP www.facebook.com 127.0.0.1:<port>, MAP www.instagram.com 127.0.0.1:<port>'], ignoreHTTPSErrors: true })` → หา extension id จาก `context.serviceWorkers()` → เปิด `chrome-extension://<id>/popup.html` เป็นหน้า · ใช้ Chromium ที่ Playwright ติดตั้ง (Chrome ตัวขายจริงตัดการโหลด extension ทาง flag แล้ว) · cert self-signed สร้างตอนรัน · **ไม่แตะเว็บจริงใน CI**
+e2e: the fixture is `chromium.launchPersistentContext(tmpDir, { channel: 'chromium', args: ['--disable-extensions-except=<dist>', '--load-extension=<dist>', '--host-resolver-rules=MAP www.facebook.com 127.0.0.1:<port>, MAP www.instagram.com 127.0.0.1:<port>'], ignoreHTTPSErrors: true })`. Find the extension id from `context.serviceWorkers()`, then open `chrome-extension://<id>/popup/index.html` as a page. Use the Chromium that Playwright installs (branded Chrome no longer allows loading an extension by flag). The self-signed cert is made at run time. The real sites are never touched in CI.
 
-### 9.7 สคริปต์ zip สำหรับ Chrome Web Store
+### 9.7 Zip script for the Chrome Web Store
 
-`scripts/check-permissions.ts` — `dist/manifest.json` ต้องมี permissions/host_permissions **ตรงกับรายการอนุญาต** (`cookies`, `storage`, `scripting` + 3 host ข้อ 4) เกิน/ขาด = ล้ม
+`scripts/check-permissions.ts`: `dist/manifest.json` must carry permissions and host_permissions that exactly match the allow-list (`cookies`, `storage`, `scripting` + the 3 hosts of section 4). Anything extra or missing fails. `PRIVACY.md` must mention every permission too (`checkPrivacyPolicy`).
 
 `scripts/zip.ts`
-1. รัน check-permissions · ตรวจ `version` ใน manifest = package.json
-2. ตรวจ `dist/`: ไม่มี `*.map`, ไม่มี `<script src="http…">` / `import("http…")`, ไม่มี `eval(` / `new Function(`, ไม่มี `fetch(`/`sendBeacon` หลุดมา (ด่านที่ 2 ต่อจาก Biome)
-3. zip เนื้อหา `dist/` (manifest อยู่รากของ zip) → `release/social-account-switcher-v<version>.zip` แบบ deterministic (เรียงชื่อไฟล์, เวลาไฟล์คงที่) แล้วพิมพ์ SHA-256
+1. Run the permission check and confirm `version` in the manifest equals package.json.
+2. Check `dist/`: no `*.map`, no `<script src="http…">` or `import("http…")`, no `eval(` / `new Function(`, no `fetch(` / `sendBeacon` / `XMLHttpRequest` / `WebSocket(` that slipped through (the second gate after Biome), and `_locales/en/messages.json` and `_locales/th/messages.json` are present.
+3. Zip the contents of `dist/` (manifest at the zip root) to `release/social-account-switcher-v<version>.zip`, deterministic (sorted names, fixed file times), and print the SHA-256 (also written to a `.sha256` file).
 
 ### 9.8 GitHub Actions
 
-`ci.yml` — on `push` (main) + `pull_request`:
+`ci.yml`: on `push` (main) and `pull_request`:
 ```yaml
 permissions: { contents: read }
 concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@<sha>            # pin SHA ของ release ล่าสุด
+      - uses: actions/checkout@<sha>            # pin the SHA of the latest release; persist-credentials: false
       - uses: oven-sh/setup-bun@<sha>
-        with: { bun-version-file: package.json }   # อ่าน packageManager: "bun@x.y.z" (ยืนยันจากซอร์ส setup-bun v2.2.0 ใน B1)
+        with: { bun-version-file: package.json }   # reads packageManager: "bun@x.y.z" (confirmed from the setup-bun v2.2.0 source in B1)
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun run lint
@@ -572,29 +655,139 @@ jobs:
       - run: bun run e2e
       - run: bun scripts/zip.ts
       - uses: actions/upload-artifact@<sha>
-        with: { name: extension-zip, path: release/*.zip, retention-days: 14 }
+        with: { name: extension-zip, path: "release/*.zip\nrelease/*.sha256", retention-days: 14, if-no-files-found: error }
       - if: failure()
         uses: actions/upload-artifact@<sha>
-        with: { name: playwright-report, path: playwright-report/ }
+        with: { name: playwright-report, path: "playwright-report/\ntest-results/", retention-days: 7 }
 ```
-`release.yml` — on tag `v*`: ทำชุดเดียวกัน แล้วแนบ zip + SHA-256 เข้า GitHub Release (`permissions: contents: write` เฉพาะ job นี้) · **อัปโหลดเข้า Chrome Web Store ทำมือ** ใน v1 (ไม่เก็บ token ของ store ใน repo) · `.github/dependabot.yml` ตามข้อ 9.3
+`release.yml`: on a `v*` tag it runs the same steps and attaches the zip and its SHA-256 to a GitHub Release (`permissions: contents: write` for that job only). Uploading to the Chrome Web Store is done by hand in v1 (no store token in the repo). `.github/dependabot.yml` follows 9.3.
 
-### 9.9 เอกสาร + ไฟล์ที่ต้องมี
+### 9.9 Documents and files that must exist
 
-| ไฟล์ | เนื้อหา |
+| File | Content |
 |---|---|
-| `README.md` | ทำอะไร (ภาพ popup), ติดตั้งจาก store / โหลด unpacked จาก release zip, ใช้ 3 ขั้น, **ข้อจำกัดและความเสี่ยงแบบสั้น (ข้อ 7)**, พัฒนา (`bun install`, `bun run dev`, `bun run check`), โครงไฟล์, วิธี release |
-| `PRIVACY.md` | extension นี้ **เข้าถึง cookie** ของ 3 domain: เก็บอะไร (ข้อ 5), เก็บที่ไหน (เครื่องผู้ใช้เท่านั้น), เข้ารหัสอย่างไร + **ความแข็งแรงขึ้นกับรหัสผ่านหลัก (ตารางตัวเลขข้อ 6 แบบย่อ) และการหน่วงหลังใส่ผิดไม่กันการเดาจากไฟล์ที่ถูกขโมย**, **ไม่ส่งออก ไม่มี server ไม่มี analytics ไม่ขาย/แชร์**, permission แต่ละตัวใช้ทำอะไร, วิธีลบข้อมูลทั้งหมด, ช่องทางติดต่อ — ใช้เป็น URL นโยบายความเป็นส่วนตัวในหน้า store |
-| `LICENSE` | MIT (ปี + ชื่อเจ้าของ repo — การ์ด B1 ถามผู้ใช้ว่าจะใส่ชื่ออะไร) |
-| `SECURITY.md` | แจ้งช่องโหว่ทาง GitHub private vulnerability reporting |
+| `README.md` | What it does (a popup picture), install from the store or load unpacked from the release zip, the 3-step use, the short limits and risks (section 7), development (`bun install`, `bun run dev`, `bun run check`), the file layout, how to release, how to add a language (section 10.7) |
+| `PRIVACY.md` | The extension reads cookies of 3 domains: what it stores (section 5), where (only the user's machine), how it is encrypted, and that the strength depends on the master password (a short form of the numbers table in section 6) and that the delay after wrong attempts does not stop guessing from a stolen file, no sending out, no server, no analytics, no selling or sharing, what each permission is for, how to delete all data (Settings, Wipe all data), a contact. It is used as the privacy-policy URL on the store page. |
+| `LICENSE` | MIT (year + the repo owner's name; card B1 asks the user which name to use) |
+| `SECURITY.md` | Report vulnerabilities through GitHub private vulnerability reporting |
 | `CHANGELOG.md` | Keep a Changelog + SemVer |
-| `docs/store-listing.md` | ข้อความหน้า store (ไทย/อังกฤษ), เหตุผลขอแต่ละ permission (ช่อง justification ของ store), single purpose: "สลับบัญชีที่ผู้ใช้ login ไว้เองบน Facebook, Instagram, YouTube" |
-| `.gitignore` | `node_modules/ dist/ release/ coverage/ playwright-report/ test-results/ *.pem .env*` — **ไม่มีความลับหรือไฟล์ build ใน repo** (cert ของ e2e สร้างตอนรัน) |
-| `.editorconfig` | utf-8, LF, เว้นวรรค 2 |
+| `docs/store-listing.md` | Store page text (English and Thai), the reason for each permission (the store's justification field), and the single purpose: "Switch between the Facebook, Instagram and YouTube accounts the user has logged in to themselves" |
+| `.gitignore` | `node_modules/ dist/ release/ coverage/ playwright-report/ test-results/ *.pem .env*`. No secrets or build files in the repo (the e2e cert is made at run time). |
+| `.editorconfig` | utf-8, LF, 2 spaces |
 
-### 9.10 กติกาความปลอดภัยของ repo
+### 9.10 Repo security rules
 
-- runtime dependency 0 · ไม่โหลดโค้ด/ฟอนต์/รูปจากภายนอก (MV3 + Web Store ห้าม remote code อยู่แล้ว) · ฟอนต์ใช้ของระบบ
-- permission จะเพิ่มต้องแก้ 3 ที่พร้อมกัน: manifest, รายการอนุญาตใน `check-permissions.ts`, `PRIVACY.md` — ลืมที่ใด CI ล้ม
-- แนะนำตั้งค่าบน GitHub: branch protection `main` (ต้องผ่าน CI), secret scanning, Dependabot alerts
-- **ไม่ push remote ในการ์ดนี้** — ผู้ใช้เป็นคนสร้าง repo ปลายทางและ push เอง
+- Zero runtime dependencies · no code, fonts or images loaded from outside (MV3 and the Web Store already forbid remote code) · fonts are the system's.
+- Adding a permission means editing 3 places together: the manifest, the allow-list in `scripts/permissions.ts`, and `PRIVACY.md`. Forget one and CI fails.
+- Suggested GitHub settings: branch protection on `main` (CI must pass), secret scanning, Dependabot alerts.
+- Nothing is pushed to a remote in this card. The user creates the destination repo and pushes it themselves.
+
+---
+
+## 10. Internationalization (i18n)
+
+### 10.1 What the user gets
+The popup is in English (the default) or Thai. Settings has a Language control with three choices: Auto (follow the browser), English, ไทย. The choice is saved and applies at once, with no reload. More languages can be added later by adding a folder (10.7).
+
+### 10.2 One source of strings
+Every user-facing string lives in `public/_locales/<lang>/messages.json`, in Chrome's standard format. There is no other table. The same files serve three readers:
+- `manifest.json` uses `__MSG_extName__`, `__MSG_extShortName__`, `__MSG_extDescription__`, `__MSG_actionTitle__`. Chrome resolves these itself, in the browser's UI language, and `default_locale` is `en`. The in-popup Language setting cannot change them. That is a limit of the platform and is acceptable: they are the extension's name and tooltip.
+- The popup imports both JSON files at build time (`resolveJsonModule`, a normal `import`), so a language switch needs no `fetch`, no network and no permission. It cannot rely on `chrome.i18n.getMessage`, which always answers in the browser language and would ignore the user's choice.
+- The Chrome Web Store reads the same folders for the localized listing.
+
+### 10.3 Key and message rules
+- Keys use only letters, digits and `_` (Chrome requires it), in `camelCase`/`snake_case` groups such as `list_label`, `error_title`, `settings_theme`. (The mockup writes them with dots, `list.label`, for readability; the real key replaces each dot with `_`. The mockup's table is the content to copy into the real files.)
+- Each entry has a `message` and a `description` for translators, as B1 already does. Placeholders use Chrome's form: `"message": "Switched to $NAME$"` with `"placeholders": { "name": { "content": "$1" } }`. Both languages must declare the same placeholders; `tests/unit/locales.test.ts` checks it, together with the same key set.
+- Plurals: Chrome messages have no plural syntax. A count word has two keys (`nTabs_one`, `nTabs_other`) and `i18n.ts` picks one with `Intl.PluralRules(lang)`. Thai has one form, so both keys can hold the same text.
+- Emphasis: a message may wrap a word in `[[…]]`. `i18n.ts` escapes all parameters and the text first, then turns `[[x]]` into `<b>x</b>`, so a user-typed name can never inject markup. No other markup is allowed in messages.
+- User-typed data (account names) is never translated and is always escaped.
+
+### 10.4 Choosing the language
+`resolveLanguage(pref, uiLanguage)`: `'en'` and `'th'` are returned as they are. For `'auto'`, take the primary subtag of `chrome.i18n.getUILanguage()` (`th-TH` → `th`); if the language has a folder, use it, else `en`. The result sets `<html lang>` so screen readers, hyphenation and the font stack follow it. A missing key in a non-English file falls back to the English text (and the test in 8.3 makes that case fail CI, so it should never ship).
+
+Storage: `settings.language` in `storage.local` (section 5).
+
+### 10.5 Writing quality
+- English text is plain and direct: short sentences, the verb the user would say, no filler and no marketing words. Every English string is run through the `humanizer` skill before it is committed.
+- Thai text is written the way a Thai speaker would say it. Product words people already say in English stay in English (`session`, `cookie`, `login`, `Google`, `Facebook`, `Instagram`, `YouTube`, `Chrome`, `extension`). Every Thai string is reviewed by the project's Thai language reviewer (`kru-thai`) before it goes into `th/messages.json`, and the reviewed text is what ships (manual check 25).
+- Thai text has no spaces between words, so every text box must be able to break a long line anywhere (`overflow-wrap: anywhere`), and Thai needs more line height (the mockup uses 1.55).
+
+### 10.6 Fonts and layout
+No web fonts (section 9.10). The CSS has two stacks: `system-ui` for English, and a Thai stack (`"IBM Plex Sans Thai", "Noto Sans Thai", "Sukhumvit Set", "Leelawadee UI", Tahoma, system-ui`) applied with `:lang(th)`. The 360 px popup must show every state in both languages without cutting or overflowing text. The e2e (test 20) measures this in every state, so a longer translation cannot ship by accident. Account name and sub-line wrap instead of being cut, except the account name, which ends with an ellipsis only when it is longer than the row.
+
+### 10.7 Adding a language
+1. Copy `public/_locales/en` to `public/_locales/<code>` and translate the `message` fields.
+2. Add the code to the `Language` union and to `resolveLanguage`, and add its button to Settings (the name of a language is always written in that language).
+3. `locales.test.ts` must pass (same keys and placeholders). Add the language to the screenshot loop in the e2e.
+
+---
+
+## 11. Theme
+
+### 11.1 Behavior
+Three choices in Settings: System (default), Light, Dark. System follows `prefers-color-scheme` live, so if the OS switches at sunset the popup follows. The choice is stored in `settings.theme`. The change is shown with a Circle Reveal (12.2).
+
+### 11.2 Tokens
+Every colour is a CSS custom property on `:root` (`--bg`, `--surface`, `--surface-2`, `--text`, `--text-2`, `--line`, `--focus`, `--ok`, `--err`, `--warn`, and the platform colours with a soft variant). There are no hard-coded colours in components, so a new page (an options page, say) gets both themes by importing the same `popup.css` tokens.
+- Light = the `:root` values.
+- Dark = the same names under `:root[data-theme="dark"]`, and under `@media (prefers-color-scheme: dark)` for `:root:not([data-theme="light"])`. So System needs no JavaScript at all: with no `data-theme` attribute, the media query decides.
+- `color-scheme: light` / `dark` is set with the tokens so form controls and scrollbars follow, and the page has `<meta name="color-scheme" content="light dark">`.
+- Contrast: body text, secondary text, the footer and section labels must reach 4.5:1 in both themes (the e2e computes it).
+
+### 11.3 No wrong-colour flash on open
+The popup must never paint light for a moment and then turn dark. `storage.local` is asynchronous, so it cannot be read before the first paint. The fix is a synchronous cache:
+1. `public/theme-boot.js` is a tiny classic script (about 10 lines, no imports) referenced from `<head>` of `popup/index.html` before the stylesheet: it reads `localStorage.getItem('theme')` inside a `try`, and if the value is `light` or `dark` it sets `data-theme` on `<html>`. It has to be a separate file: an inline script is blocked by the MV3 content security policy. It sits in `public/`, so Vite copies it untouched (no hashing, no module wrapper), and it runs before the body is parsed.
+2. `theme.ts` writes the same value into `localStorage` every time the user changes the theme, and once at load when it finds `storage.local` disagrees (so the source of truth always wins).
+3. If the cache is empty (first run, or the user cleared site data), the popup paints in System mode, which is right for most people, and then applies the stored theme. That is the only case with a possible flash, and it happens once.
+4. e2e test 22 checks the attribute is set before `<body>` exists.
+
+### 11.4 Changing the theme
+`setTheme(value, clickEvent)`: update `settings.theme` through the worker message, write the cache, then run `circleReveal(x, y, () => applyTheme(...))` (12.2). With reduced motion, or with no View Transitions, the theme just changes. The Settings buttons use `aria-pressed`.
+
+---
+
+## 12. Motion
+
+### 12.1 Principles
+Motion tells the user what just happened (a row moved, a switch finished) and never makes them wait. Rules:
+- Short. Nothing is longer than 600 ms, and nothing blocks input: the transition layer has `pointer-events: none`, so a click during an animation goes straight to the live page.
+- One set of tokens (below). No component hard-codes a duration or easing.
+- Enhancement only. If the browser has no View Transitions, or the user asked for reduced motion, the DOM changes at once and every function still works. Nothing depends on an animation finishing.
+- Platform APIs, no library (12.5): `document.startViewTransition`, `view-transition-name`, `view-transition-class`, and CSS keyframes.
+
+Tokens (CSS custom properties on `:root`; one multiplier, `--motion-scale`, lets the recorder slow everything down for GIFs and defaults to 1):
+
+| Token | Value | Used for |
+|---|---|---|
+| `--dur-fast` | 120 ms | cross-fades inside a morph |
+| `--dur-base` | 240 ms | default group move, fades, slide out |
+| `--dur-slow` | 420 ms | pill glide, pop in, expand, slide in, toast in |
+| `--dur-reveal` | 560 ms | Circle Reveal |
+| `--ease-out` | `cubic-bezier(.22, 1, .36, 1)` | things arriving |
+| `--ease-in-out` | `cubic-bezier(.65, 0, .35, 1)` | things leaving or resizing |
+
+### 12.2 How it is wired
+`motion.ts` exports `transition(mode, update, { dir })`. It does five things: skip the animation (just run `update()`) when `document.startViewTransition` is missing or `matchMedia('(prefers-reduced-motion: reduce)')` matches · set `data-vt="<mode>"` on `<html>` and `--vt-dir` (1 or -1) · put a `view-transition-name` and `view-transition-class` on the elements that should move on this transition (names are set on the old DOM before the call and on the new DOM inside the update callback, so both snapshots carry them) · call `document.startViewTransition(update)` · clear `data-vt` and `data-vt-busy` when `finished` settles (only if no newer transition took over; a newer one skips the older one, and the rejected `ready` / `finished` promises are caught so nothing is logged as an error).
+
+Elements get names only in the modes that need them, because an element with a name is lifted into its own layer and would otherwise animate on unrelated updates. The default root cross-fade is turned off (`::view-transition-old(root), ::view-transition-new(root) { animation: none }`), so everything that is not named just changes.
+
+### 12.3 The six transitions
+
+| # | Where | Mode | What moves | Duration / easing | How |
+|---|---|---|---|---|---|
+| 1 | Theme change | `theme` | Circle Reveal: the new theme grows as a circle from the point that was clicked | `--dur-reveal`, `--ease-out` | The new root snapshot is animated in JS with `root.animate({ clipPath: ['circle(0px at x y)', 'circle(r at x y)'] }, { pseudoElement: '::view-transition-new(root)' })`. `r` is the distance from the click to the farthest corner. |
+| 2 | Platform tabs | `tab` | The selected-tab pill glides to the new tab, and the panel slides sideways (direction follows the tab order) | pill `--dur-slow`; panel out `--dur-base`, in `--dur-slow` | The pill is its own element with `view-transition-name: pill`; the panel has `panel`. Keyframes `vt-slide-out` / `vt-slide-in` use `translateX(calc(var(--vt-dir) * 28px))` and opacity. |
+| 3 | Account list | `list` | Add: the new row pops in (scale .92 → 1, fade). Remove: the row fades out. The others glide into their new place (this also covers the active account moving to the top). | pop `--dur-slow`; fade `--dur-base`; glide `--dur-base` | Each row is named `row-<id>` with class `row`. A row that exists only in the new snapshot matches `::view-transition-new(.row):only-child` (pop in); only in the old one, `::view-transition-old(.row):only-child` (fade out). The group animation does the glide. |
+| 4 | Switch status (row slot and Unlock button) | `status` | Morph idle → loading → success or error: the right-hand slot of a row changes from the pencil and trash, to a spinner, to a green check (or a red cross), and the box resizes while the faces cross-fade. The Unlock button does the same: label → spinner "Unlocking…" → "Unlocked" (or "Try again" in red). | group `--dur-slow` `--ease-in-out`; cross-fade `--dur-base` | The slot is named `slot-<id>` (class `slot`), the button `sbtn`. The steps of a switch change the label and the progress bars in place (no re-render), so the spinner keeps turning smoothly. |
+| 5 | Rename editor, delete confirmation, add form, error bar, wipe confirmation, Settings page | `expand` and `page` | The row or card expands and collapses in place. The Settings page and the lock screen slide in from the side (forward) and out (back). | expand `--dur-slow`; slide as in 2 | Rows and Settings cards keep their name while their content changes (`expand`); the panel slides (`page`). |
+| 6 | Toast | any | The toast slides up into view and slides down out | in `--dur-slow`; out `--dur-base` | Named `toast`; arriving matches `::view-transition-new(toast):only-child`, leaving `::view-transition-old(toast):only-child`. |
+
+A language change uses mode `lang`, a short cross-fade of the whole popup (`--dur-base`), so the text does not jump. Hover and focus colours use plain CSS `transition` with `--dur-fast`.
+
+### 12.4 Reduced motion and no support
+- `prefers-reduced-motion: reduce`: `transition()` does not call `startViewTransition` at all. The change is immediate, including the theme (no circle). The CSS also sets `animation: none !important` on every view-transition pseudo-element as a second guard. The spinner stops turning and becomes a still ring, and the label ("Switching…") still says what is happening. A short fade (≤ 120 ms) would be acceptable by the rule, but v1 uses none, so `document.getAnimations()` is empty and testable (e2e test 21).
+- No View Transitions API: `update()` runs directly and nothing throws (a test deletes the API and runs every flow). A browser that has the API but not `view-transition-class` (before Chrome 125) loses the pop-in and fade-out specifics and gets the default cross-fade for those rows, which is still correct.
+- A transition never changes focus. The popup stays `aria-live="polite"`, so the new state is announced once it appears.
+
+### 12.5 Why transition-kit is not used
+The brief pointed to transition-kit.space for ideas. It is a React 19 + shadcn + Tailwind kit. Using it here would mean a UI framework and a CSS toolchain inside an extension that has exactly two entries and a rule of zero runtime dependencies (9.3 and 9.10), where every added package is code we have to trust next to session cookies. It also declares no license, so we have no permission to copy its code. We took the ideas only (Circle Reveal, animated list, status button, sliding tabs) and built each one directly on the platform's View Transitions API and CSS, with a small amount of code. The result is checked in `mockup/popup.html`, recorded in `mockup/media/*.gif`, and tested by `mockup/e2e/popup.e2e.mjs`.
