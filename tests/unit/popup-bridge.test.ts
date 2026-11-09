@@ -1345,3 +1345,65 @@ describe('error texts are the literal words, in both languages (not read back fr
     expect(text('pw-hint')).not.toContain('Something went wrong');
   });
 });
+
+describe('the master password does not stay in the markup or in the state', () => {
+  const SECRET = 'correct horse battery staple 77';
+  const leaks = (r: Rig): string[] =>
+    [
+      root.outerHTML.includes(SECRET) ? 'outerHTML' : '',
+      JSON.stringify(r.app.state()).includes(SECRET) ? 'state' : '',
+    ].filter(Boolean);
+
+  test('setup: typing, a redraw under the field, and every result after sending', async () => {
+    const h = await startWorker();
+    const r = rig(reply(h));
+    await screen('setup');
+    type(SECRET);
+    expect(root.querySelector<HTMLInputElement>('#pw-input')?.value).toBe(SECRET);
+    expect(leaks(r)).toEqual(['state']); // only while it is being typed
+    click('pw-toggle'); // a redraw: the field still shows what was typed, the markup does not
+    expect(root.querySelector<HTMLInputElement>('#pw-input')?.value).toBe(SECRET);
+    expect(root.querySelector('#pw-input')?.hasAttribute('value')).toBe(false);
+    expect(root.outerHTML).not.toContain(SECRET);
+    click('setup-create');
+    expect(r.app.state().lock.password).toBe(''); // forgotten the moment it is sent
+    await wait(() => r.app.state().lock.button === 'ok', 'created');
+    r.runLater();
+    await screen('empty');
+    expect(leaks(r)).toEqual([]);
+  });
+
+  test('locked: a wrong password and a timeout both leave nothing behind', async () => {
+    const { h } = await withAccounts();
+    await h.must({ type: 'vault.lock' });
+    let hang = false;
+    const r = rig((m) => (hang && m.type === 'vault.unlock' ? HANG() : h.send(m)));
+    await screen('locked');
+    type(`${SECRET} wrong`);
+    click('unlock');
+    expect(r.app.state().lock.password).toBe('');
+    await wait(() => r.app.state().lock.button === 'err', 'wrong password');
+    expect(root.outerHTML).not.toContain(`${SECRET} wrong`);
+    expect(JSON.stringify(r.app.state())).not.toContain(`${SECRET} wrong`);
+    r.runLater();
+    hang = true;
+    type(SECRET);
+    click('unlock');
+    expect(leaks(r)).toEqual([]);
+    r.fireDeadlines();
+    await wait(() => r.app.state().lock.error === 'timeoutPassword', 'timeout');
+    expect(leaks(r)).toEqual([]);
+    expect(root.querySelector<HTMLInputElement>('#pw-input')?.value).toBe('');
+  });
+
+  test('a password the rule refuses is not sent and stays in the field for fixing', async () => {
+    const h = await startWorker();
+    const r = rig(reply(h));
+    await screen('setup');
+    type('short');
+    click('setup-create');
+    expect(types(r).filter((t) => t === 'vault.setup')).toHaveLength(0);
+    expect(root.querySelector<HTMLInputElement>('#pw-input')?.value).toBe('short');
+    expect(root.outerHTML).not.toContain('value="short"');
+  });
+});

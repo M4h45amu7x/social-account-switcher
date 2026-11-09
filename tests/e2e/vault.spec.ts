@@ -425,3 +425,37 @@ test('a password page that is still a password page after the reconcile: the wor
   await expect(page.getByTestId('unlock')).toBeEnabled(); // not stale: the state was read
   expect(problems).toEqual([]);
 });
+
+test('the master password is never in the page markup: typing, redraws, sending (setup and unlock)', async ({
+  context,
+  extensionId,
+}) => {
+  const { problems } = watch(context);
+  const page = await open(context, extensionId);
+  const markup = () => page.evaluate(() => document.documentElement.outerHTML);
+  const WRONG = 'a wrong password for the canal';
+
+  await expect(screen(page)).toHaveAttribute('data-state', 'setup');
+  await page.getByTestId('pw-input').fill(PASSWORD);
+  expect(await markup()).not.toContain(PASSWORD);
+  await page.getByTestId('pw-toggle').click(); // a redraw with the text shown
+  await expect(page.getByTestId('pw-input')).toHaveValue(PASSWORD);
+  expect(await markup()).not.toContain(PASSWORD);
+  await page.getByTestId('setup-create').click();
+  await expect(screen(page)).toHaveAttribute('data-state', 'empty');
+  expect(await markup()).not.toContain(PASSWORD);
+
+  await lockNow(page);
+  await page.getByTestId('pw-input').fill(WRONG);
+  expect(await markup()).not.toContain(WRONG);
+  await page.getByTestId('unlock').click();
+  await expect(page.getByTestId('unlock')).toHaveAttribute('data-btn-state', 'err');
+  expect(await markup()).not.toContain(WRONG);
+  await page.getByTestId('pw-input').fill(PASSWORD);
+  await page.getByTestId('pw-toggle').click();
+  expect(await markup()).not.toContain(PASSWORD);
+  await page.getByTestId('unlock').click();
+  await expect(screen(page)).toHaveAttribute('data-state', 'empty');
+  expect(await markup()).not.toContain(PASSWORD);
+  expect(problems).toEqual([]);
+});

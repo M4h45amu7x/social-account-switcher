@@ -415,9 +415,12 @@ export function reduce(s: PopupState, a: PopupAction): Step {
       });
     case 'unlock': {
       if (s.lock.button === 'loading') return same(s, 'none', { render: false });
-      return same({ ...s, lock: { ...s.lock, button: 'loading', error: null } }, 'status', {
-        effects: [{ type: 'unlock', password: s.lock.password }],
-      });
+      // the password lives in the state only until the request carries it: the state forgets it at once
+      return same(
+        { ...s, lock: { ...s.lock, button: 'loading', error: null, password: '' } },
+        'status',
+        { effects: [{ type: 'unlock', password: s.lock.password }] },
+      );
     }
     case 'setup': {
       if (s.lock.button === 'loading') return same(s, 'none', { render: false });
@@ -427,7 +430,7 @@ export function reduce(s: PopupState, a: PopupAction): Step {
         return same({ ...s, lock: { ...s.lock, bad: true, error: valid.error } }, 'status');
       }
       return same(
-        { ...s, lock: { ...s.lock, button: 'loading', bad: false, error: null } },
+        { ...s, lock: { ...s.lock, button: 'loading', bad: false, error: null, password: '' } },
         'status',
         {
           effects: [{ type: 'setup', password: s.lock.password }],

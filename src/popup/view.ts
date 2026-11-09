@@ -356,7 +356,7 @@ function lockedBody(tr: Translator, s: PopupState): Safe {
       <div><b>${tr.html(setup ? 'setup_title' : 'lock_title')}</b><div class="hint">${tr.html(setup ? 'setup_sub' : 'lock_sub')}</div></div>
       <div class="pw ${lock.bad ? 'bad' : ''}">
         <label class="sr" for="pw-input">${tr.html(setup ? 'setup_label' : 'lock_label')}</label>
-        <input id="pw-input" type="${lock.show ? 'text' : 'password'}" autocomplete="${setup ? 'new-password' : 'current-password'}" placeholder="${tr.text(setup ? 'setup_label' : 'lock_placeholder')}" value="${lock.password}" data-testid="pw-input" data-autofocus>
+        <input id="pw-input" type="${lock.show ? 'text' : 'password'}" autocomplete="${setup ? 'new-password' : 'current-password'}" placeholder="${tr.text(setup ? 'setup_label' : 'lock_placeholder')}" data-testid="pw-input" data-autofocus>
         <button class="icon-btn" data-act="pw-toggle" data-testid="pw-toggle" aria-pressed="${String(lock.show)}" aria-label="${tr.text(lock.show ? 'lock_hide' : 'lock_show')}" title="${tr.text(lock.show ? 'lock_hide' : 'lock_show')}">${lock.show ? ICON.eyeOff : ICON.eye}</button>
       </div>
       <div class="hint ${lock.bad ? 'bad' : ''}" data-testid="pw-hint">${tr.html(hint)}</div>
@@ -533,6 +533,9 @@ export function renderPopup(root: HTMLElement, state: PopupState, tr: Translator
       if (el.dataset.pref || WRITE_ACTIONS.has(el.dataset.act ?? '')) el.disabled = true;
     }
   }
+  // The password goes in as a property, never as an attribute: it must not show in the markup (outerHTML).
+  const pw = root.querySelector<HTMLInputElement>('#pw-input');
+  if (pw) pw.value = state.lock.password;
   const again = kept ? root.querySelector<HTMLInputElement>(`#${CSS.escape(kept.id)}`) : null;
   if (kept && again && again.value === kept.value && kept.start !== null && kept.end !== null) {
     again.focus();
