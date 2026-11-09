@@ -1,16 +1,11 @@
 // Design 3.3 in a real Chromium: the built extension switches YouTube accounts against a local https
 // server that plays www.youtube.com and accounts.google.com, with real 302 redirects. Chrome only
 // reports `url` in tabs.onUpdated when the committed URL changes and hides Google's URL entirely,
-// which the unit fakes can only imitate (QC t-546). Every other host resolves to nothing, so no
-// request leaves the machine.
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { createServer, type Server } from 'node:https';
-import type { AddressInfo } from 'node:net';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+// which the unit fakes can only imitate (QC t-546). The server is the shared one in https-sites.ts:
+// every other host resolves to nothing, so no request leaves the machine.
 import type { BrowserContext, Page } from '@playwright/test';
-import { expect, launchExtension, test } from './fixtures';
+import { expect, test } from './fixtures';
+import { type HttpsSites, launchWithSites, type SiteHandler } from './https-sites';
 
 const ORIGINAL = 'https://www.youtube.com/watch?v=abc&list=def';
 
@@ -18,19 +13,16 @@ type Mode = 'same' | 'extra' | 'direct' | 'google' | 'slow';
 type Session = Record<string, string>;
 
 /** A tiny YouTube + Google: the page's ytcfg shows whichever account signin last selected. */
-function fakeGoogle(key: Buffer, cert: Buffer) {
+function fakeGoogle() {
   const state = {
     mode: 'same' as Mode,
     current: { SESSION_INDEX: '0' } as Session,
-    hosts: new Set<string>(),
   };
   const page = (title: string, session: Session) =>
     `<!doctype html><meta charset="utf-8"><title>${title}</title>` +
     `<script>var ytcfg={get:function(k){return (${JSON.stringify(session)})[k]}}</script>${title}`;
-  const server = createServer({ key, cert }, (req, res) => {
-    const host = (req.headers.host ?? '').split(':')[0] ?? '';
-    const url = new URL(req.url ?? '/', `https://${host}`);
-    state.hosts.add(host);
+  const handler: SiteHandler = (_req, res, url) => {
+    const host = url.hostname;
     const html = (title: string, session: Session) => {
       res.writeHead(200, {
         'content-type': 'text/html; charset=utf-8',
@@ -42,11 +34,6 @@ function fakeGoogle(key: Buffer, cert: Buffer) {
       res.writeHead(302, { location: to, 'cache-control': 'no-store' });
       res.end();
     };
-    if (url.pathname === '/favicon.ico') {
-      res.writeHead(204);
-      res.end();
-      return;
-    }
     if (host === 'accounts.google.com') return html('Sign in - Google Accounts', {});
     if (url.pathname !== '/signin') return html(`YouTube ${url.pathname}`, state.current);
     const next = url.searchParams.get('next') ?? '/';
@@ -66,58 +53,26 @@ function fakeGoogle(key: Buffer, cert: Buffer) {
     if (state.mode === 'direct') return html('YouTube signin', state.current);
     // 'slow': the answer comes late, so the user has time to click somewhere else.
     setTimeout(() => redirect(back), 3000);
-  });
-  return { server, state };
+  };
+  return { handler, state };
 }
 
-let server: Server;
+let sites: HttpsSites;
 let google: ReturnType<typeof fakeGoogle>['state'];
 let context: BrowserContext;
-let closeBrowser: () => Promise<void>;
-let tlsDir: string;
+let closeAll: () => Promise<void>;
 
 test.beforeAll(async () => {
-  tlsDir = mkdtempSync(join(tmpdir(), 'sas-tls-'));
-  const keyFile = join(tlsDir, 'key.pem');
-  const certFile = join(tlsDir, 'cert.pem');
-  execFileSync(
-    'openssl',
-    [
-      'req',
-      '-x509',
-      '-newkey',
-      'rsa:2048',
-      '-nodes',
-      '-days',
-      '1',
-      '-subj',
-      '/CN=www.youtube.com',
-      '-keyout',
-      keyFile,
-      '-out',
-      certFile,
-    ],
-    { stdio: 'ignore' },
-  );
-  const made = fakeGoogle(readFileSync(keyFile), readFileSync(certFile));
-  server = made.server;
+  const made = fakeGoogle();
   google = made.state;
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const { port } = server.address() as AddressInfo;
-  const launched = await launchExtension({
-    extraArgs: [
-      `--host-resolver-rules=MAP www.youtube.com 127.0.0.1:${port}, MAP accounts.google.com 127.0.0.1:${port}, MAP * ~NOTFOUND`,
-      '--ignore-certificate-errors',
-    ],
-  });
+  const launched = await launchWithSites(['www.youtube.com', 'accounts.google.com'], made.handler);
   context = launched.context;
-  closeBrowser = launched.close;
+  sites = launched.sites;
+  closeAll = launched.close;
 });
 
 test.afterAll(async () => {
-  await closeBrowser?.();
-  await new Promise((resolve) => server?.close(resolve));
-  rmSync(tlsDir, { recursive: true, force: true });
+  await closeAll?.();
 });
 
 type Answer = { ok: boolean; value?: unknown; error?: string };
@@ -235,5 +190,5 @@ test('switching YouTube accounts through real redirects in Chromium', async () =
   expect(after.busy).toEqual([]);
 
   // Only the two local stand-ins were ever asked for anything.
-  expect([...google.hosts].sort()).toEqual(['accounts.google.com', 'www.youtube.com']);
+  expect([...sites.hostsSeen].sort()).toEqual(['accounts.google.com', 'www.youtube.com']);
 });

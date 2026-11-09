@@ -539,6 +539,8 @@ e2e (Playwright Chromium + the unpacked extension from `dist/`)
 21. Reduced motion (`reducedMotion: 'reduce'`): switch, tab change, theme change, delete and the toast leave `document.getAnimations()` empty, including while the spinner is shown.
 22. The first-paint theme: with a saved Dark theme and a light OS, the dark attribute is set before `<body>` exists (no light flash).
 
+> **Result of card B6:** tests 15 to 19, 21 and 22 run in `tests/e2e/fake-sites.spec.ts`, one Chromium for the whole file, through the shared server in `tests/e2e/https-sites.ts` (the YouTube test of 3.3 uses it too). The fake sites in `tests/e2e/fake-social.ts` behave like the real ones where the switch depends on it. A session the server no longer knows gets its identity and session cookies deleted on the next load, so verify (3.0 step 7) finds no identity cookie and puts the previous account back. A checkpoint page sends anyone who is not under check back to `/`. Device cookies `datr` and `mid` are set once per browser, while `sb` and `ig_did` are set again at each login, so a switch that swapped them would show. Test 19 sorts requests into worker, popup and site pages, and the server lists every host it was asked for. Test 20 is card B5a's `popup-states.spec.ts`, which compares every state with the same state of `mockup/popup.html` instead of with stored snapshots.
+
 Manual checks before publishing (test accounts only; the user must do these or prepare the accounts)
 23. 2 FB accounts and 2 IG accounts, 10 switches in a day: no checkpoint.
 24. YouTube: `signin?action_handle_signin=true&authuser=&pageid=` works for a Brand Account, and Gmail in another tab does not change account.

@@ -15,5 +15,6 @@ Version 0.1.0 is the current development version.
 - English and Thai popup text, light and dark themes, account lists and status messages.
 - A toolbar icon composed of the three platform marks, sample popup screenshots and GitHub installation instructions.
 - A reproducible extension zip with a SHA-256 checksum for manual installation.
+- End-to-end tests that switch accounts on stand-in Facebook and Instagram sites served locally, so no test touches the real sites.
 
 Live account checks and the final privacy review remain pending before a release.
