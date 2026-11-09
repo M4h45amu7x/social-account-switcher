@@ -1,11 +1,11 @@
 // docs/design.md 8.3 test 4b.
 import { beforeEach, describe, expect, test } from 'bun:test';
 import { dropCachedKey, getKey, lock, storeKey, VAULT_KEY } from '../../src/background/keyring';
+import { facebook } from '../../src/background/platforms/facebook';
 import { snapshot } from '../../src/lib/cookies';
 import { addAccount, emptyStore, loadStore, saveStore } from '../../src/lib/store';
 import { createVault, fromBase64, readVault, sealCookies } from '../../src/lib/vault';
 import { type FakeChrome, fakeChrome } from '../fakes/chrome';
-import { facebook } from '../fakes/platforms';
 
 const SECRET = 'xs-SECRET-value';
 let chrome: FakeChrome;
@@ -105,6 +105,13 @@ describe('keyring', () => {
     const { rawKeyB64 } = await createVault('a different long password', {});
     await chrome.storage.session.set({ [VAULT_KEY]: rawKeyB64 });
     expect(await getKey(chrome.storage.session)).not.toBe(first as CryptoKey);
+  });
+
+  test('a malformed key is refused before it reaches storage (QC t-535 note 3)', async () => {
+    await expect(storeKey(chrome.storage.session, 'not-a-key')).rejects.toThrow();
+    await expect(storeKey(chrome.storage.session, btoa('too short'))).rejects.toThrow();
+    expect(chrome.storage.session.dump()).toEqual({});
+    expect(await getKey(chrome.storage.session)).toBeNull();
   });
 
   test('locked from the start gives null', async () => {

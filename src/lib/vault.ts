@@ -8,7 +8,8 @@ import { err, ok, type Result } from './result';
 export type SessionMap = Record<string, { capturedAt: number; cookies: StoredCookie[] }>;
 
 export interface Vault {
-  kdf: { name: 'PBKDF2'; hash: 'SHA-256'; iterations: 600000; salt: string };
+  /** `iterations` is read back on unlock, so a later version can raise it without breaking old vaults. */
+  kdf: { name: 'PBKDF2'; hash: 'SHA-256'; iterations: number; salt: string };
   /** Base64 of the 12-byte IV of `ciphertext`. New on every write. */
   iv: string;
   /** Base64 of AES-GCM(JSON of the SessionMap). */
@@ -18,6 +19,8 @@ export interface Vault {
 }
 
 export const PBKDF2_ITERATIONS = 600000;
+/** unlock() refuses a vault outside these bounds instead of deriving with a weak or absurd count. */
+export const MAX_PBKDF2_ITERATIONS = 10_000_000;
 export const MIN_PASSWORD_LENGTH = 10;
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
@@ -58,7 +61,11 @@ export function validatePassword(pw: string): Result<void, 'too_short' | 'too_si
 
 // --- keys ---
 
-async function deriveKey(pw: string, salt: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
+async function deriveKey(
+  pw: string,
+  salt: Uint8Array<ArrayBuffer>,
+  iterations = PBKDF2_ITERATIONS,
+): Promise<CryptoKey> {
   const material = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(pw),
@@ -67,7 +74,7 @@ async function deriveKey(pw: string, salt: Uint8Array<ArrayBuffer>): Promise<Cry
     ['deriveKey'],
   );
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', hash: 'SHA-256', iterations: PBKDF2_ITERATIONS, salt },
+    { name: 'PBKDF2', hash: 'SHA-256', iterations, salt },
     material,
     { name: 'AES-GCM', length: 256 },
     true, // extractable only so unlock() can hand the raw key to the keyring
@@ -158,8 +165,28 @@ export async function createVault(
   return { vault: await writeVault(key, empty, data), rawKeyB64: await exportRaw(key) };
 }
 
-export async function unlock(pw: string, vault: Vault): Promise<Result<string, 'wrong_password'>> {
-  const key = await deriveKey(pw, fromBase64(vault.kdf.salt));
+/** True when the vault's KDF settings are ones this version derives with. */
+export function isSupportedKdf(kdf: Vault['kdf']): boolean {
+  return (
+    kdf.name === 'PBKDF2' &&
+    kdf.hash === 'SHA-256' &&
+    Number.isInteger(kdf.iterations) &&
+    kdf.iterations >= PBKDF2_ITERATIONS &&
+    kdf.iterations <= MAX_PBKDF2_ITERATIONS &&
+    typeof kdf.salt === 'string'
+  );
+}
+
+/**
+ * Derives the key with the salt and iteration count stored in the vault. A vault whose settings are
+ * weaker than this version's minimum (or absurdly high) gives `unsupported_vault` without deriving.
+ */
+export async function unlock(
+  pw: string,
+  vault: Vault,
+): Promise<Result<string, 'wrong_password' | 'unsupported_vault'>> {
+  if (!isSupportedKdf(vault.kdf)) return err('unsupported_vault');
+  const key = await deriveKey(pw, fromBase64(vault.kdf.salt), vault.kdf.iterations);
   try {
     if ((await unseal(key, vault.check)) !== CHECK_TEXT) return err('wrong_password');
   } catch {

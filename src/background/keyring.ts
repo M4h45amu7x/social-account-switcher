@@ -12,9 +12,12 @@ let cache: { raw: string; key: CryptoKey } | null = null;
 
 export async function storeKey(session: SessionStorageApi, rawKeyB64: string): Promise<void> {
   // Content scripts must never read the key, even if something changed the access level.
+  // Import first: a malformed key throws here and never reaches storage, where getKey would trip on
+  // it until the next lock.
+  const key = await importSessionKey(rawKeyB64);
   await session.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
   await session.set({ [VAULT_KEY]: rawKeyB64 });
-  cache = { raw: rawKeyB64, key: await importSessionKey(rawKeyB64) };
+  cache = { raw: rawKeyB64, key };
 }
 
 /** The unlocked key, or null when the vault is locked. */

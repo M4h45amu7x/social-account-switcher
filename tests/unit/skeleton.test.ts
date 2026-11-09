@@ -5,6 +5,7 @@ import { fakeLifecycle, fakeSessionStorage } from '../fakes/chrome';
 // The real adapter wires listeners to the global `chrome` at import time; give it a minimal stand-in.
 const onInstalled = mock();
 const onStartup = mock();
+const onMessage = mock();
 const setAccessLevel = mock(async () => {});
 const area = () => ({
   get: mock(async () => ({})),
@@ -18,8 +19,14 @@ const cookies = {
   set: mock(async () => null),
   remove: mock(async () => null),
 };
+const tabListeners: unknown[] = [];
 const tabs = {
   query: mock(async () => []),
+  get: mock(async () => ({ active: true })),
+  onUpdated: {
+    addListener: mock((l: unknown) => tabListeners.push(l)),
+    removeListener: mock((l: unknown) => tabListeners.splice(tabListeners.indexOf(l), 1)),
+  },
   reload: mock(async () => {}),
   update: mock(async () => undefined),
   create: mock(async () => ({ active: true })),
@@ -28,6 +35,8 @@ const scripting = { executeScript: mock(async () => []) };
 Object.assign(globalThis, {
   chrome: {
     runtime: {
+      id: 'abcdefghijklmnopabcdefghijklmnop',
+      onMessage: { addListener: onMessage },
       onInstalled: { addListener: onInstalled },
       onStartup: { addListener: onStartup },
     },
@@ -37,7 +46,9 @@ Object.assign(globalThis, {
     scripting,
   },
 });
-const { hardenSessionStorage, start } = await import('../../src/background/service-worker');
+const { hardenSessionStorage, start, workerDeps, youtubeNotWired } = await import(
+  '../../src/background/service-worker'
+);
 const { renderPopup } = await import('../../src/popup/view');
 const adapter = await import('../../src/background/chrome-adapter');
 
@@ -139,4 +150,47 @@ test('every other adapter function is a straight pass-through', async () => {
   const injection = { target: { tabId: 3 }, world: 'MAIN' as const, func: () => 1 };
   await adapter.scriptingApi.executeScript(injection);
   expect(scripting.executeScript).toHaveBeenCalledWith(injection);
+});
+
+test('tabs.onUpdated relays events and unsubscribes', async () => {
+  const seen: number[] = [];
+  const stop = adapter.tabsApi.onUpdated((tabId) => seen.push(tabId));
+  (tabListeners[0] as (id: number, info: object, tab: object) => void)(
+    4,
+    { status: 'complete' },
+    {},
+  );
+  stop();
+  expect(seen).toEqual([4]);
+  expect(tabListeners).toEqual([]);
+  await adapter.tabsApi.get(4);
+  expect(tabs.get).toHaveBeenCalledWith(4);
+});
+
+test('runtime.onMessage answers with what the handler resolves to and keeps the channel open', async () => {
+  // importing service-worker.ts registered the router
+  expect(onMessage).toHaveBeenCalledTimes(1);
+  const listener = onMessage.mock.calls[0]?.[0] as (
+    m: unknown,
+    s: object,
+    send: (r: unknown) => void,
+  ) => boolean;
+  const answer = new Promise((resolve) => {
+    expect(listener({ type: 'state.get' }, { id: 'someone-else' }, resolve)).toBe(true);
+  });
+  expect(await answer).toEqual({ ok: false, error: 'forbidden' });
+  expect(adapter.runtimeApi.id).toBe('abcdefghijklmnopabcdefghijklmnop');
+});
+
+test('the worker wires real adapters, a clock, UUIDs and the YouTube stand-in', async () => {
+  const deps = workerDeps();
+  expect(deps.cookies).toBe(adapter.cookiesApi);
+  expect(Math.abs(deps.now() - Date.now())).toBeLessThan(1000);
+  expect(deps.newId()).toMatch(/^[0-9a-f-]{36}$/);
+  expect(deps.newId()).not.toBe(deps.newId());
+  expect(await youtubeNotWired.readCurrent()).toEqual({ ok: false, error: 'unavailable' });
+  expect(await youtubeNotWired.switchTo({ authuser: 0 })).toEqual({
+    ok: false,
+    error: 'unavailable',
+  });
 });

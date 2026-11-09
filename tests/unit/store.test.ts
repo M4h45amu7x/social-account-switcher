@@ -171,6 +171,11 @@ describe('settings', () => {
     expect(DEFAULT_SETTINGS).toEqual({ theme: 'system', language: 'auto' });
   });
 
+  test('a field left undefined changes nothing', () => {
+    const r = updateSettings(emptyStore(), { theme: 'dark', language: undefined });
+    expect(r.ok && r.value.settings).toEqual({ theme: 'dark', language: 'auto' });
+  });
+
   test('accept known values and reject others', () => {
     const r = updateSettings(emptyStore(), { theme: 'dark', language: 'th' });
     expect(r.ok && r.value.settings).toEqual({ theme: 'dark', language: 'th' });
@@ -202,10 +207,61 @@ describe('migrate (test 9)', () => {
     });
     expect(odd.ok && odd.value.settings).toEqual({ theme: 'system', language: 'th' });
     expect(odd.ok && odd.value.active).toEqual({ facebook: 'a1', instagram: null, youtube: null });
-    expect(migrate({ ...store, active: 'junk', vault: 'junk' })).toMatchObject({
+    expect(migrate({ ...store, active: 'junk', vault: null })).toMatchObject({
       ok: true,
       value: { active: { facebook: null }, vault: null },
     });
+  });
+
+  test('a vault that is present but malformed refuses the load instead of being dropped', () => {
+    const { store } = add(emptyStore(), { platform: 'facebook', label: 'A', platformUserId: '1' });
+    expect(migrate({ ...store, vault: 'junk' })).toEqual({ ok: false, error: 'unknown_schema' });
+    expect(migrate({ ...store, vault: { kdf: {}, iv: 1 } })).toEqual({
+      ok: false,
+      error: 'unknown_schema',
+    });
+  });
+
+  test('malformed accounts are set aside in quarantine, the rest load, nothing is lost', async () => {
+    let { store } = add(emptyStore(), { platform: 'facebook', label: 'Good', platformUserId: '1' });
+    store = add(
+      store,
+      { platform: 'youtube', label: 'Tube', youtube: { authuser: 2, pageid: 'p' } },
+      'y1',
+    ).store;
+    const good = store.accounts;
+    const bad = [
+      'text',
+      null,
+      { ...good[0], id: '' },
+      { ...good[0], id: 'x1', platform: 'myspace' },
+      { ...good[0], id: 'x2', label: '' },
+      { ...good[0], id: 'x3', status: 'weird' },
+      { ...good[0], id: 'x4', createdAt: 'yesterday' },
+      { ...good[0], id: 'x5', lastUsedAt: 'never' },
+      { ...good[0], id: 'x6', platformUserId: undefined },
+      { ...good[1], id: 'y2', youtube: { authuser: -1 } },
+      { ...good[1], id: 'y3', youtube: { authuser: 0, pageid: 5 } },
+      { ...good[1], id: 'y4', youtube: null },
+      { ...good[0] }, // a second account with the same id
+    ];
+    const raw = {
+      ...store,
+      accounts: [...good, ...bad],
+      active: { facebook: 'a1', instagram: 'x1', youtube: 'gone' },
+    };
+    const loaded = migrate(raw);
+    if (!loaded.ok) throw new Error(loaded.error);
+    expect(loaded.value.accounts).toEqual(good);
+    expect(loaded.value.quarantine).toEqual(bad);
+    expect(loaded.value.active).toEqual({ facebook: 'a1', instagram: null, youtube: null });
+
+    // Saving and loading again keeps the quarantined entries, and does not quarantine them twice.
+    const local = fakeStorageArea();
+    await saveStore(local, loaded.value);
+    const again = await loadStore(local);
+    expect(again.ok && again.value.quarantine).toEqual(bad);
+    expect(migrate(store)).toEqual({ ok: true, value: store });
   });
 
   test.each([

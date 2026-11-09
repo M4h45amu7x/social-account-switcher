@@ -1,5 +1,7 @@
 // docs/design.md 8.3 tests 1–3, plus "no cookie values in the console" (design 6).
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { facebook } from '../../src/background/platforms/facebook';
+import { instagram } from '../../src/background/platforms/instagram';
 import {
   clear,
   cookieUrl,
@@ -9,8 +11,7 @@ import {
   snapshot,
 } from '../../src/lib/cookies';
 import type { CookieSetDetails } from '../../src/lib/ports';
-import { type FakeChrome, fakeChrome } from '../fakes/chrome';
-import { facebook, instagram } from '../fakes/platforms';
+import { type FakeChrome, fakeChrome, MANIFEST_HOSTS } from '../fakes/chrome';
 
 const NOW = Date.UTC(2026, 0, 1);
 const inDays = (days: number) => NOW / 1000 + days * 86400;
@@ -46,7 +47,7 @@ async function seed(chrome: FakeChrome, user = '1001') {
   });
   await set({ name: 'sb', value: 'device-sb', domain: 'facebook.com' });
   await chrome.cookies.set({
-    url: 'https://m.facebook.com/',
+    url: 'https://m.facebook.com/x',
     name: 'm_only',
     value: 'm',
     ...base,
@@ -70,7 +71,12 @@ async function seed(chrome: FakeChrome, user = '1001') {
 
 let chrome: FakeChrome;
 beforeEach(async () => {
-  chrome = fakeChrome({ now: NOW });
+  // notfacebook.com is outside the manifest's hosts; it is allowed here only to prove that the
+  // library's own domain filter would drop such a look-alike.
+  chrome = fakeChrome({
+    now: NOW,
+    hostPermissions: [...MANIFEST_HOSTS, '*://*.notfacebook.com/*'],
+  });
   await seed(chrome);
 });
 
@@ -291,7 +297,7 @@ describe('clear (test 3)', () => {
   });
 });
 
-test('the test platforms recognise checkpoint pages', () => {
+test('the platforms recognise checkpoint pages', () => {
   expect(facebook.isCheckpointUrl('https://www.facebook.com/checkpoint/123/')).toBe(true);
   expect(instagram.isCheckpointUrl('https://www.instagram.com/challenge/x/')).toBe(true);
   expect(facebook.isCheckpointUrl('https://www.facebook.com/home')).toBe(false);

@@ -213,6 +213,7 @@ interface StoreV1 {
   active: Record<Platform, string | null>;   // accountId currently in use
   vault: Vault | null;                       // null = no master password yet / no FB or IG account yet
   settings: Settings;                        // not secret, readable while locked (sections 10 and 11)
+  quarantine?: unknown[];                    // accounts that failed validation on load, kept as they were
 }
 
 interface Settings {
@@ -234,7 +235,7 @@ interface Account {
 }
 
 interface Vault {             // one encrypted blob
-  kdf: { name: 'PBKDF2'; hash: 'SHA-256'; iterations: 600000; salt: string /*b64 16B*/ };
+  kdf: { name: 'PBKDF2'; hash: 'SHA-256'; iterations: number /* 600000 today */; salt: string /*b64 16B*/ };
   iv: string;                 // b64 12B, new random value on every write
   ciphertext: string;         // AES-GCM( JSON<SessionMap> )
   check: string;              // AES-GCM of a constant, to tell a wrong password from a right one without decrypting the whole blob
@@ -242,6 +243,8 @@ interface Vault {             // one encrypted blob
 ```
 
 `settings` is created with its defaults the first time the store is read. It is plain data: no migration is needed because v1 has not shipped. An unknown value in `theme` or `language` is treated as the default.
+
+Loading checks every account. One that is malformed (wrong platform, bad label, missing user ID, a second copy of an ID) does not stop the rest from loading: it moves to `quarantine` unchanged, and the next save keeps it there, so nothing is deleted without the user knowing. `state.get` reports how many there are. A vault that is present but malformed makes the whole load fail instead, because replacing it would destroy the saved sessions. `unlock` derives with the `iterations` stored in the vault, so a later version can raise the count without breaking old vaults; a count below 600,000 or above 10,000,000, or another hash, is refused as `unsupported_vault`.
 
 Inside the vault (after decryption)
 
@@ -253,7 +256,7 @@ type SessionMap = Record<string /*accountId*/, {
     hostOnly: boolean; secure: boolean; httpOnly: boolean;
     sameSite: 'no_restriction' | 'lax' | 'strict' | 'unspecified';
     expirationDate?: number;  // missing = session cookie
-    partitionKey?: { topLevelSite?: string };
+    partitionKey?: { topLevelSite?: string; hasCrossSiteAncestor?: boolean };  // the flag exists from Chrome 130; kept as Chrome reports it so the cookie goes back into the same partition
   }>;
 }>;
 ```
@@ -263,7 +266,18 @@ type SessionMap = Record<string /*accountId*/, {
 ```ts
 interface SessionArea {
   vaultKey?: string;          // raw AES-256 key as base64 (32 bytes). Present = unlocked.
-  journal?: { platform: Platform; fromId: string | null; toId: string; backup: string /* AES-GCM of the previous cookies */ };
+  // One journal per platform, so Facebook and Instagram can switch at the same time.
+  'journal.facebook'?: Journal;
+  'journal.instagram'?: Journal;
+  unlockFailures?: { count: number; lastAt: number };   // wrong master passwords since the last unlock (section 6, point 5)
+}
+
+interface Journal {
+  platform: 'facebook' | 'instagram';
+  fromId: string | null;      // the saved account the browser was on, if any
+  toId: string;
+  backup: string;             // sealCookies(): IV + AES-GCM of the cookies from before the switch
+  startedAt: number;
 }
 ```
 - The access level stays `TRUSTED_CONTEXTS` (the default: content scripts cannot read it), and the service worker calls `setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' })` again at start so nobody changes it.
@@ -346,10 +360,13 @@ social-account-switcher/
 │  ├─ background/
 │  │  ├─ service-worker.ts     # entry: register onMessage, onStartup → recoverJournal()
 │  │  ├─ chrome-adapter.ts     # one of the TWO files allowed to touch the `chrome` global
+│  │  ├─ router.ts             # checks sender and shape of every message, answers with a Result
+│  │  ├─ store-access.ts       # serialized read-modify-write of the store (editStore / patchStore)
 │  │  ├─ switcher.ts           # switchAccount(), steps 0 to 8 of 3.0, a lock per platform
 │  │  ├─ journal.ts            # write / clear / recover in storage.session
 │  │  ├─ keyring.ts            # key in storage.session (export raw ↔ import non-extractable)
 │  │  └─ platforms/
+│  │     ├─ index.ts           # COOKIE_PLATFORMS: facebook + instagram
 │  │     ├─ types.ts           # interfaces CookiePlatform / YoutubePlatform
 │  │     ├─ facebook.ts
 │  │     ├─ instagram.ts
@@ -360,6 +377,7 @@ social-account-switcher/
 │  │  ├─ vault.ts              # PBKDF2 + AES-GCM
 │  │  ├─ store.ts              # schema v1, migrate(), account CRUD, settings
 │  │  ├─ messages.ts           # popup ⇄ service worker message types (discriminated union)
+│  │  ├─ mutex.ts              # runs async jobs one at a time (store writes)
 │  │  └─ result.ts             # type Result<T, E>, never throw across a message boundary
 │  └─ popup/
 │     ├─ index.html  popup.css # taken from mockup/popup.html (same CSS tokens, theme tokens and motion tokens)

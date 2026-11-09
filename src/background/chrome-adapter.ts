@@ -4,6 +4,7 @@
 import type {
   CookiesApi,
   LifecycleApi,
+  RuntimeApi,
   ScriptingApi,
   SessionStorageApi,
   StorageAreaApi,
@@ -40,6 +41,13 @@ export const cookiesApi: CookiesApi = {
 
 export const tabsApi: TabsApi = {
   query: (query) => chrome.tabs.query(query),
+  get: (tabId) => chrome.tabs.get(tabId),
+  onUpdated: (listener) => {
+    const relay = (tabId: number, info: chrome.tabs.OnUpdatedInfo, tab: chrome.tabs.Tab) =>
+      listener(tabId, info, tab);
+    chrome.tabs.onUpdated.addListener(relay);
+    return () => chrome.tabs.onUpdated.removeListener(relay);
+  },
   reload: (tabId) => chrome.tabs.reload(tabId),
   update: (tabId, props) => chrome.tabs.update(tabId, props),
   create: (props) => chrome.tabs.create(props),
@@ -48,4 +56,15 @@ export const tabsApi: TabsApi = {
 export const scriptingApi: ScriptingApi = {
   executeScript: <T>(injection: Parameters<ScriptingApi['executeScript']>[0]) =>
     chrome.scripting.executeScript(injection) as Promise<{ result?: T }[]>,
+};
+
+export const runtimeApi: RuntimeApi = {
+  id: chrome.runtime.id,
+  onMessage: (handler) => {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      // The handler never rejects (see RuntimeApi); `true` keeps the channel open until it answers.
+      handler(message, sender).then(sendResponse, sendResponse);
+      return true;
+    });
+  },
 };

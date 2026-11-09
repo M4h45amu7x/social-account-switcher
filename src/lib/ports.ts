@@ -83,7 +83,8 @@ export interface CookiesApi {
     name?: string;
     partitionKey?: CookiePartitionKey;
   }): Promise<BrowserCookie[]>;
-  set(details: CookieSetDetails): Promise<BrowserCookie | null>;
+  /** Resolves with no cookie (null or undefined) when Chrome stored nothing, e.g. an expired cookie. */
+  set(details: CookieSetDetails): Promise<BrowserCookie | null | undefined>;
   /**
    * A partitioned cookie is only removed when its partitionKey is passed. Without it Chrome still
    * resolves with the details, so the result can't tell you whether anything was deleted.
@@ -102,11 +103,36 @@ export interface BrowserTab {
   status?: string | undefined;
 }
 
+export interface TabUpdateInfo {
+  status?: string | undefined;
+  url?: string | undefined;
+}
+
 export interface TabsApi {
+  get(tabId: number): Promise<BrowserTab>;
+  /** Subscribes to chrome.tabs.onUpdated. Returns a function that unsubscribes. */
+  onUpdated(listener: (tabId: number, info: TabUpdateInfo, tab: BrowserTab) => void): () => void;
   query(query: { url?: string | string[]; active?: boolean }): Promise<BrowserTab[]>;
   reload(tabId: number): Promise<void>;
   update(tabId: number, props: { url: string }): Promise<BrowserTab | undefined>;
   create(props: { url: string }): Promise<BrowserTab>;
+}
+
+/** Who sent a runtime message (the fields of chrome.runtime.MessageSender this code reads). */
+export interface MessageSender {
+  id?: string | undefined;
+  url?: string | undefined;
+  tab?: unknown;
+}
+
+export interface RuntimeApi {
+  /** This extension's ID. */
+  readonly id: string;
+  /**
+   * Answers each runtime message with what `handler` resolves to. The handler must not reject; the
+   * adapter keeps the message channel open until it settles.
+   */
+  onMessage(handler: (message: unknown, sender: MessageSender) => Promise<unknown>): void;
 }
 
 export interface ScriptingApi {

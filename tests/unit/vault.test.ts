@@ -5,10 +5,13 @@ import {
   createVault,
   fromBase64,
   importSessionKey,
+  isSupportedKdf,
+  MAX_PBKDF2_ITERATIONS,
   openCookies,
   PBKDF2_ITERATIONS,
   readVault,
   type SessionMap,
+  seal,
   sealCookies,
   toBase64,
   unlock,
@@ -152,6 +155,58 @@ describe('vault', () => {
     const other = await createVault(PASSWORD, data);
     expect(other.vault.kdf.salt).not.toBe(vault.kdf.salt);
     expect(other.rawKeyB64).not.toBe(rawKeyB64);
+  });
+});
+
+describe('unlock reads the KDF settings stored in the vault (QC t-535 note 2)', () => {
+  test('a vault written with more iterations than today still unlocks', async () => {
+    // Build a vault the way a later version with 700,000 iterations would.
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const material = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(PASSWORD),
+      'PBKDF2',
+      false,
+      ['deriveKey'],
+    );
+    const key = await crypto.subtle.deriveKey(
+      { name: 'PBKDF2', hash: 'SHA-256', iterations: 700000, salt },
+      material,
+      { name: 'AES-GCM', length: 256 },
+      true,
+      ['encrypt', 'decrypt'],
+    );
+    const raw = toBase64(new Uint8Array(await crypto.subtle.exportKey('raw', key)));
+    const working = await importSessionKey(raw);
+    const later: Vault = {
+      ...(await writeVault(
+        working,
+        { ...vault, kdf: { ...vault.kdf, iterations: 700000, salt: toBase64(salt) } },
+        data,
+      )),
+      check: await seal(working, 'social-account-switcher vault v1'),
+    };
+    expect(await unlock(PASSWORD, later)).toEqual({ ok: true, value: raw });
+  });
+
+  test.each([
+    ['too few iterations', { iterations: 1000 }],
+    ['a fractional count', { iterations: 600000.5 }],
+    ['an absurd count', { iterations: MAX_PBKDF2_ITERATIONS + 1 }],
+    ['another hash', { hash: 'SHA-1' }],
+    ['another KDF', { name: 'scrypt' }],
+    ['no salt', { salt: 7 }],
+  ])('%s gives unsupported_vault without deriving', async (_why, kdf) => {
+    expect(
+      await unlock(PASSWORD, { ...vault, kdf: { ...vault.kdf, ...kdf } as Vault['kdf'] }),
+    ).toEqual({
+      ok: false,
+      error: 'unsupported_vault',
+    });
+  });
+
+  test('the current settings are supported', () => {
+    expect(isSupportedKdf(vault.kdf)).toBe(true);
   });
 });
 

@@ -16,3 +16,5 @@ export interface CookiePlatform {
   /** True for /checkpoint/, /challenge/ and similar pages. */
   isCheckpointUrl(url: string): boolean;
 }
+
+export type CookiePlatformId = CookiePlatform['id'];

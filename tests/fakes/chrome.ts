@@ -6,7 +6,13 @@
 //   - remove() without the partitionKey leaves a partitioned cookie alone and still resolves;
 //   - set() with `domain` makes a domain cookie (".example.com"), without it a host-only cookie;
 //   - secure cookies need an https URL, SameSite=None and partitioned cookies need secure,
-//     __Secure- and __Host- prefixes are enforced, and expired cookies disappear.
+//     __Secure- and __Host- prefixes are enforced, and expired cookies disappear;
+//   - the partition is topLevelSite plus hasCrossSiteAncestor: two cookies that differ only in the
+//     flag are separate, and remove() with the wrong flag deletes nothing;
+//   - set() with a path the URL doesn't reach, or an expired date, resolves with undefined;
+//   - without host permission for the URL, set() and remove() throw and getAll() leaves those
+//     cookies out.
+// QC t-535 compared these cases with Chromium.
 import type {
   BrowserCookie,
   BrowserTab,
@@ -14,6 +20,8 @@ import type {
   CookieSetDetails,
   CookiesApi,
   LifecycleApi,
+  MessageSender,
+  RuntimeApi,
   ScriptingApi,
   SessionAccessLevel,
   SessionStorageApi,
@@ -40,8 +48,23 @@ const defaultPath = (pathname: string): string =>
   pathname.lastIndexOf('/') > 0 ? pathname.slice(0, pathname.lastIndexOf('/')) : '/';
 /** Good enough for the test domains: the last two labels. */
 const siteOf = (host: string): string => `https://${host.split('.').slice(-2).join('.')}`;
-const partitionOf = (c: { partitionKey?: CookiePartitionKey }): string =>
-  c.partitionKey?.topLevelSite ?? '';
+const partitionOf = (c: { partitionKey?: CookiePartitionKey | undefined }): string =>
+  c.partitionKey?.topLevelSite === undefined
+    ? ''
+    : `${c.partitionKey.topLevelSite}|${c.partitionKey.hasCrossSiteAncestor === true}`;
+/** Chromium's default for a missing flag: true when the cookie's site isn't the top-level site. */
+function fillPartition(host: string, key?: CookiePartitionKey): CookiePartitionKey | undefined {
+  if (key?.topLevelSite === undefined) return undefined;
+  const flag = key.hasCrossSiteAncestor ?? siteOf(host) !== key.topLevelSite;
+  return { topLevelSite: key.topLevelSite, hasCrossSiteAncestor: flag };
+}
+
+/** The extension's host_permissions (src/manifest.json). */
+export const MANIFEST_HOSTS = [
+  '*://*.facebook.com/*',
+  '*://*.instagram.com/*',
+  '*://*.youtube.com/*',
+];
 
 export interface FakeCookies extends CookiesApi {
   /** Every live cookie in the jar, as copies. */
@@ -50,8 +73,13 @@ export interface FakeCookies extends CookiesApi {
   removeCalls: Parameters<CookiesApi['remove']>[0][];
 }
 
-export function fakeCookies(clock: Clock = { now: Date.now() }): FakeCookies {
+export function fakeCookies(
+  clock: Clock = { now: Date.now() },
+  hostPermissions: readonly string[] = MANIFEST_HOSTS,
+): FakeCookies {
   let jar: BrowserCookie[] = [];
+  const allowed = (host: string) =>
+    hostPermissions.some((p) => matchesPattern(p, `https://${host}/`));
   const copy = (c: BrowserCookie): BrowserCookie => structuredClone(c);
   const live = (): BrowserCookie[] => {
     jar = jar.filter((c) => c.expirationDate === undefined || c.expirationDate * 1000 > clock.now);
@@ -70,6 +98,7 @@ export function fakeCookies(clock: Clock = { now: Date.now() }): FakeCookies {
 
     async getAll(details) {
       return live()
+        .filter((c) => allowed(bare(c.domain)))
         .filter(
           (c) => details.domain === undefined || domainMatches(bare(c.domain), details.domain),
         )
@@ -91,6 +120,7 @@ export function fakeCookies(clock: Clock = { now: Date.now() }): FakeCookies {
       }
       if (url.protocol !== 'https:' && url.protocol !== 'http:') return fail('bad scheme');
       const host = url.hostname;
+      if (!allowed(host)) return fail('no host permission for url');
       if (details.domain !== undefined && !domainMatches(host, details.domain)) {
         return fail('domain does not match url');
       }
@@ -100,6 +130,7 @@ export function fakeCookies(clock: Clock = { now: Date.now() }): FakeCookies {
         return fail('SameSite=None needs secure');
       const path = details.path ?? defaultPath(url.pathname);
       const hostOnly = details.domain === undefined;
+      if (!pathMatches(url.pathname, path)) return Promise.resolve(undefined);
       if (details.name.startsWith('__Secure-') && !secure) return fail('__Secure- needs secure');
       if (details.name.startsWith('__Host-') && (!secure || !hostOnly || path !== '/')) {
         return fail('__Host- needs secure, host-only, path /');
@@ -116,17 +147,14 @@ export function fakeCookies(clock: Clock = { now: Date.now() }): FakeCookies {
         session: details.expirationDate === undefined,
       };
       if (details.expirationDate !== undefined) cookie.expirationDate = details.expirationDate;
-      const site = details.partitionKey?.topLevelSite;
-      if (site !== undefined) {
+      const partitionKey = fillPartition(host, details.partitionKey);
+      if (partitionKey) {
         if (!secure) return fail('partitioned cookie needs secure');
-        cookie.partitionKey = {
-          topLevelSite: site,
-          hasCrossSiteAncestor: details.partitionKey?.hasCrossSiteAncestor ?? siteOf(host) !== site,
-        };
+        cookie.partitionKey = partitionKey;
       }
       jar = jar.filter((c) => !sameIdentity(c, cookie));
       if (cookie.expirationDate !== undefined && cookie.expirationDate * 1000 <= clock.now) {
-        return Promise.resolve(null); // setting an expired cookie deletes it
+        return Promise.resolve(undefined); // setting an expired cookie deletes it
       }
       jar.push(cookie);
       return Promise.resolve(copy(cookie));
@@ -135,7 +163,8 @@ export function fakeCookies(clock: Clock = { now: Date.now() }): FakeCookies {
     async remove(details) {
       api.removeCalls.push(structuredClone(details));
       const url = new URL(details.url);
-      const site = details.partitionKey?.topLevelSite ?? '';
+      if (!allowed(url.hostname)) throw new Error('fake cookies.remove: no host permission');
+      const site = partitionOf({ partitionKey: fillPartition(url.hostname, details.partitionKey) });
       jar = jar.filter(
         (c) =>
           !(
@@ -243,19 +272,38 @@ export function matchesPattern(pattern: string, href: string): boolean {
 export interface FakeTabs extends TabsApi {
   tabs: BrowserTab[];
   reloaded: number[];
+  /**
+   * Runs while a reloaded tab "loads", before it reports complete. Tests use it to play the server:
+   * change the tab's URL (a checkpoint redirect) or drop cookies (a revoked session).
+   */
+  onLoad: ((tab: BrowserTab) => void | Promise<void>) | null;
+  /** When false, a reload never finishes loading (to test the verify timeout). */
+  finishLoading: boolean;
 }
 
 export function fakeTabs(initial: { url: string; active?: boolean }[] = []): FakeTabs {
   let nextId = 1;
+  const listeners = new Set<Parameters<TabsApi['onUpdated']>[0]>();
   const make = (url: string, active = false): BrowserTab => ({
     id: nextId++,
     url,
     active,
     status: 'complete',
   });
+  const find = (tabId: number) => {
+    const tab = fake.tabs.find((t) => t.id === tabId);
+    if (!tab) throw new Error(`No tab with id: ${tabId}`);
+    return tab;
+  };
+  const emit = (tab: BrowserTab, info: { status: string }) => {
+    tab.status = info.status;
+    for (const l of [...listeners]) l(tab.id ?? -1, { ...info, url: tab.url }, { ...tab });
+  };
   const fake: FakeTabs = {
     tabs: initial.map((t) => make(t.url, t.active)),
     reloaded: [],
+    onLoad: null,
+    finishLoading: true,
     async query(query) {
       const patterns = query.url === undefined ? undefined : [query.url].flat();
       return fake.tabs
@@ -263,13 +311,25 @@ export function fakeTabs(initial: { url: string; active?: boolean }[] = []): Fak
         .filter((t) => !patterns || patterns.some((p) => matchesPattern(p, t.url ?? '')))
         .map((t) => ({ ...t }));
     },
+    async get(tabId) {
+      return { ...find(tabId) };
+    },
+    onUpdated(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
     async reload(tabId) {
-      if (!fake.tabs.some((t) => t.id === tabId)) throw new Error(`No tab with id: ${tabId}`);
+      const tab = find(tabId);
       fake.reloaded.push(tabId);
+      emit(tab, { status: 'loading' });
+      // Like Chrome, the page loads after reload() has resolved.
+      setTimeout(async () => {
+        await fake.onLoad?.(tab);
+        if (fake.finishLoading) emit(tab, { status: 'complete' });
+      }, 0);
     },
     async update(tabId, props) {
-      const tab = fake.tabs.find((t) => t.id === tabId);
-      if (!tab) throw new Error(`No tab with id: ${tabId}`);
+      const tab = find(tabId);
       tab.url = props.url;
       return { ...tab };
     },
@@ -280,6 +340,31 @@ export function fakeTabs(initial: { url: string; active?: boolean }[] = []): Fak
     },
   };
   return fake;
+}
+
+// --- runtime ---
+
+export interface FakeRuntime extends RuntimeApi {
+  /** Delivers a message the way Chrome would and resolves with the handler's answer. */
+  send(message: unknown, sender?: MessageSender): Promise<unknown>;
+  /** The sender a message from this extension's own popup has. */
+  readonly popupSender: MessageSender;
+}
+
+export function fakeRuntime(id = 'abcdefghijklmnopabcdefghijklmnop'): FakeRuntime {
+  let handler: Parameters<RuntimeApi['onMessage']>[0] | null = null;
+  const popupSender = { id, url: `chrome-extension://${id}/popup/index.html` };
+  return {
+    id,
+    popupSender,
+    onMessage(h) {
+      handler = h;
+    },
+    send(message, sender = popupSender) {
+      if (!handler) return Promise.reject(new Error('no onMessage handler'));
+      return handler(structuredClone(message), sender);
+    },
+  };
 }
 
 // --- scripting ---
@@ -312,18 +397,24 @@ export interface FakeChrome {
   tabs: FakeTabs;
   scripting: FakeScripting;
   lifecycle: FakeLifecycle;
+  runtime: FakeRuntime;
 }
 
 export function fakeChrome(
-  options: { now?: number; tabs?: { url: string; active?: boolean }[] } = {},
+  options: {
+    now?: number;
+    tabs?: { url: string; active?: boolean }[];
+    hostPermissions?: readonly string[];
+  } = {},
 ): FakeChrome {
   const clock: Clock = { now: options.now ?? Date.UTC(2026, 0, 1) };
   return {
     clock,
-    cookies: fakeCookies(clock),
+    cookies: fakeCookies(clock, options.hostPermissions),
     storage: { local: fakeStorageArea(), session: fakeSessionStorage() },
     tabs: fakeTabs(options.tabs),
     scripting: fakeScripting(),
     lifecycle: fakeLifecycle(),
+    runtime: fakeRuntime(),
   };
 }

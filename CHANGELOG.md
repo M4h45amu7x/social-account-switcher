@@ -19,6 +19,11 @@ Nothing has been released yet. Version 0.1.0 in `package.json` is the developmen
   - `src/background/keyring.ts` keeps the unlocked key in `storage.session` only.
   - `src/lib/store.ts` holds the account list (schema v1, migration, duplicate and label checks) and the theme and language settings.
   - In-memory fakes of the Chrome APIs for unit tests, and a Chromium test of the cookie behaviour the library relies on.
+- Facebook and Instagram switching in the service worker (not wired to the popup yet):
+  - `src/background/switcher.ts` runs the switch steps of design 3.0. One lock per platform blocks a double press while Facebook and Instagram can switch at the same time. If the platform rejects the new session, the previous cookies go back and the account is marked expired. A checkpoint page is reported and left to the user.
+  - `src/background/journal.ts` keeps an encrypted backup in `storage.session` during each switch, and a new service worker puts it back if the old one stopped halfway.
+  - `src/lib/messages.ts` and `src/background/router.ts` accept only this extension's own pages and well-formed messages, and always answer with a Result. After five wrong master passwords, each attempt waits 30 seconds.
+  - YouTube goes through a `YoutubeSwitcher` interface until card B4's code is wired in.
 - Release tooling: a permission allow-list check and a deterministic Chrome Web Store zip with its SHA-256.
 - GitHub Actions for CI and tagged releases, plus Dependabot.
 - README, privacy policy, security policy and MIT license.

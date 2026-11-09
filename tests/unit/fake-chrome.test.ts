@@ -30,7 +30,8 @@ describe('fake cookies', () => {
       }),
       d({ name: '__Secure-a', secure: false, url: 'http://www.facebook.com/' }),
       d({ name: '__Host-a', domain: 'facebook.com' }),
-      d({ name: '__Host-a', path: '/x' }),
+      d({ name: '__Host-a', url: 'https://www.facebook.com/x/', path: '/x' }),
+      d({ url: 'https://www.notfacebook.com/' }), // no host permission
     ]) {
       await expect(c.set(bad)).rejects.toThrow();
     }
@@ -60,7 +61,7 @@ describe('fake cookies', () => {
     expect(c.all()).toHaveLength(3);
     clock.now = 2_000_000; // expirationDate is in seconds
     expect(c.all()).toHaveLength(2);
-    expect(await c.set(d({ expirationDate: 1 }))).toBeNull(); // setting an expired cookie deletes it
+    expect(await c.set(d({ expirationDate: 1 }))).toBeUndefined(); // an expired cookie deletes it
     expect(c.all().map((x) => x.value)).toEqual(['w']);
   });
 
@@ -104,6 +105,75 @@ describe('fake cookies', () => {
       partitionKey: { topLevelSite: 'https://instagram.com' },
     });
     expect(await names({})).toEqual(['plain', 'same']);
+  });
+});
+
+describe('fake cookies match Chromium where QC t-535 found differences', () => {
+  const twin = (flag: boolean) =>
+    d({
+      name: 'twin',
+      value: `x-${flag}`,
+      sameSite: 'no_restriction',
+      partitionKey: { topLevelSite: 'https://instagram.com', hasCrossSiteAncestor: flag },
+    });
+
+  test('two cookies that differ only in hasCrossSiteAncestor are kept apart', async () => {
+    const c = fakeCookies();
+    await c.set(twin(false));
+    await c.set(twin(true));
+    expect(
+      c
+        .all()
+        .map((x) => x.value)
+        .sort(),
+    ).toEqual(['x-false', 'x-true']);
+  });
+
+  test('remove() with the wrong flag deletes nothing; with the right one, only that cookie', async () => {
+    const c = fakeCookies();
+    await c.set(twin(true));
+    await c.remove({
+      url: 'https://www.facebook.com/',
+      name: 'twin',
+      partitionKey: { topLevelSite: 'https://instagram.com', hasCrossSiteAncestor: false },
+    });
+    expect(c.all()).toHaveLength(1);
+    await c.set(twin(false));
+    await c.remove({
+      url: 'https://www.facebook.com/',
+      name: 'twin',
+      partitionKey: { topLevelSite: 'https://instagram.com', hasCrossSiteAncestor: true },
+    });
+    expect(c.all().map((x) => x.value)).toEqual(['x-false']);
+    // Without a flag Chromium works it out from the URL: facebook.com is cross-site to instagram.com.
+    await c.set(twin(true));
+    await c.remove({
+      url: 'https://www.facebook.com/',
+      name: 'twin',
+      partitionKey: { topLevelSite: 'https://instagram.com' },
+    });
+    expect(c.all().map((x) => x.value)).toEqual(['x-false']);
+  });
+
+  test('a path the URL does not reach, or an expired date, resolves with undefined', async () => {
+    const c = fakeCookies({ now: 10_000 });
+    expect(await c.set(d({ url: 'https://www.facebook.com/a', path: '/b' }))).toBeUndefined();
+    expect(await c.set(d({ expirationDate: 1 }))).toBeUndefined();
+    expect(c.all()).toEqual([]);
+  });
+
+  test('no host permission: set and remove throw, getAll hides the cookie', async () => {
+    const all = fakeCookies(undefined, ['*://*/*']);
+    await all.set(d({ url: 'https://www.notfacebook.com/', name: 'x' }));
+    const limited = fakeCookies(undefined, ['*://*.facebook.com/*']);
+    await expect(limited.set(d({ url: 'https://www.notfacebook.com/' }))).rejects.toThrow(
+      'no host permission',
+    );
+    await expect(
+      limited.remove({ url: 'https://www.notfacebook.com/', name: 'x' }),
+    ).rejects.toThrow('no host permission');
+    expect(await all.getAll({ domain: 'notfacebook.com' })).toHaveLength(1);
+    expect(await limited.getAll({})).toEqual([]);
   });
 });
 

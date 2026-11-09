@@ -1,0 +1,411 @@
+// The service worker's message handling end to end, on the fakes (design 2, 6 and 8.2).
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { getKey } from '../../src/background/keyring';
+import type { PopupState } from '../../src/background/router';
+import { err } from '../../src/lib/result';
+import { loadStore } from '../../src/lib/store';
+import { readVault } from '../../src/lib/vault';
+import { loginAs, PASSWORD, secretOf, startWorker, whoIs, withAccounts } from '../fakes/harness';
+
+type H = Awaited<ReturnType<typeof withAccounts>>['h'];
+const state = (h: H) => h.must<PopupState>({ type: 'state.get' });
+
+async function vaultOf(h: H) {
+  const s = await loadStore(h.chrome.storage.local);
+  const key = await getKey(h.deps.session);
+  if (!s.ok || !s.value.vault || !key) throw new Error('no vault');
+  return readVault(key, s.value.vault);
+}
+
+// Every console line during these tests, to prove no cookie value or password is printed.
+const printed: string[] = [];
+const originals = {
+  log: console.log,
+  info: console.info,
+  warn: console.warn,
+  error: console.error,
+};
+beforeEach(() => {
+  for (const m of ['log', 'info', 'warn', 'error'] as const) {
+    console[m] = (...a: unknown[]) =>
+      printed.push(
+        a.map((x) => (x instanceof Error ? `${x.message}` : JSON.stringify(x))).join(' '),
+      );
+  }
+});
+afterEach(() => {
+  Object.assign(console, originals);
+  const all = printed.join('\n');
+  printed.length = 0;
+  expect(all).not.toContain('SECRET');
+  expect(all).not.toContain(PASSWORD);
+});
+
+describe('state and vault', () => {
+  test('a fresh install: no vault, no accounts, default settings', async () => {
+    const h = await startWorker();
+    expect(await state(h)).toEqual({
+      accounts: [],
+      active: { facebook: null, instagram: null, youtube: null },
+      settings: { theme: 'system', language: 'auto' },
+      hasVault: false,
+      locked: true,
+      busy: [],
+      quarantined: 0,
+      unlockRetryAt: null,
+    });
+    expect(await h.send({ type: 'vault.unlock', password: PASSWORD })).toEqual(err('no_vault'));
+  });
+
+  test('setup refuses a weak password and a second vault', async () => {
+    const h = await startWorker();
+    expect(await h.send({ type: 'vault.setup', password: 'short' })).toEqual(err('too_short'));
+    expect(await h.send({ type: 'vault.setup', password: '0123456789' })).toEqual(
+      err('too_simple'),
+    );
+    await h.must({ type: 'vault.setup', password: PASSWORD });
+    expect(await state(h)).toMatchObject({ hasVault: true, locked: false });
+    expect(await h.send({ type: 'vault.setup', password: 'another long password' })).toEqual(
+      err('vault_exists'),
+    );
+  });
+
+  test('lock, wrong passwords with the 30-second delay, then unlock', async () => {
+    const { h } = await withAccounts();
+    await h.must({ type: 'vault.lock' });
+    expect((await state(h)).locked).toBe(true);
+    // Literal numbers on purpose: the design promises five free attempts and 30 seconds.
+    for (let i = 0; i < 5; i += 1) {
+      expect(await h.send({ type: 'vault.unlock', password: 'wrong password!' })).toEqual(
+        err('wrong_password'),
+      );
+    }
+    const retry = (await state(h)).unlockRetryAt;
+    expect(retry).toBe(h.chrome.clock.now + 30_000);
+    expect(await h.send({ type: 'vault.unlock', password: PASSWORD })).toEqual(
+      err('too_many_attempts'),
+    );
+    h.chrome.clock.now += 29_999;
+    expect(await h.send({ type: 'vault.unlock', password: PASSWORD })).toEqual(
+      err('too_many_attempts'),
+    );
+    h.chrome.clock.now += 1;
+    expect(await h.send({ type: 'vault.unlock', password: 'still wrong!!' })).toEqual(
+      err('wrong_password'),
+    );
+    expect(await h.send({ type: 'vault.unlock', password: PASSWORD })).toEqual(
+      err('too_many_attempts'),
+    );
+    h.chrome.clock.now += 30_000;
+    await h.must({ type: 'vault.unlock', password: PASSWORD });
+    expect(await state(h)).toMatchObject({ locked: false, unlockRetryAt: null });
+  });
+
+  test('a vault with unsupported KDF settings says so instead of wrong_password', async () => {
+    const { h } = await withAccounts();
+    await h.must({ type: 'vault.lock' });
+    const s = await loadStore(h.chrome.storage.local);
+    if (!s.ok || !s.value.vault) throw new Error();
+    await h.chrome.storage.local.set({
+      store: {
+        ...s.value,
+        vault: { ...s.value.vault, kdf: { ...s.value.vault.kdf, iterations: 1000 } },
+      },
+    });
+    expect(await h.send({ type: 'vault.unlock', password: PASSWORD })).toEqual(
+      err('unsupported_vault'),
+    );
+    expect((await state(h)).unlockRetryAt).toBeNull();
+  });
+
+  test('wipe deletes the store, the key and the journals, but not the cookies', async () => {
+    const { h } = await withAccounts();
+    await h.deps.session.set({ 'journal.facebook': { x: 1 } });
+    await h.must({ type: 'vault.wipe' });
+    expect(h.chrome.storage.local.dump()).toEqual({});
+    expect(h.chrome.storage.session.dump()).toEqual({});
+    expect(await state(h)).toMatchObject({ hasVault: false, accounts: [], locked: true });
+    expect(whoIs(h.chrome, 'facebook')).toBe('1002');
+  });
+
+  test('wipe also works when the store is unreadable', async () => {
+    const { h } = await withAccounts();
+    await h.chrome.storage.local.set({ store: { schemaVersion: 99 } });
+    expect(await h.send({ type: 'state.get' })).toEqual(err('store_unreadable'));
+    await h.must({ type: 'vault.wipe' });
+    expect((await state(h)).accounts).toEqual([]);
+  });
+
+  test('settings.set saves theme and language, one or both', async () => {
+    const h = await startWorker();
+    await h.must({ type: 'settings.set', theme: 'dark' });
+    await h.must({ type: 'settings.set', language: 'th' });
+    expect((await state(h)).settings).toEqual({ theme: 'dark', language: 'th' });
+  });
+});
+
+describe('accounts', () => {
+  test('add the current Facebook login: saved in the vault, active, with initials', async () => {
+    const { h, ids } = await withAccounts();
+    const s = await state(h);
+    expect(s.accounts.map((a) => [a.label, a.initials, a.platformUserId])).toEqual([
+      ['Alice', 'A', '1001'],
+      ['Bob', 'B', '1002'],
+      ['Shop', 'S', '2001'],
+      ['Studio', 'S', '2002'],
+    ]);
+    expect(s.active).toEqual({
+      facebook: ids['1002'] ?? '',
+      instagram: ids['2002'] ?? '',
+      youtube: null,
+    });
+    const vault = await vaultOf(h);
+    expect(vault[ids['1001'] ?? '']?.cookies.find((c) => c.name === 'xs')?.value).toBe(
+      secretOf('1001'),
+    );
+    expect(JSON.stringify(h.chrome.storage.local.dump())).not.toContain('SECRET');
+  });
+
+  test('add refuses: not logged in, duplicate, no vault, locked, bad label', async () => {
+    const { h } = await withAccounts();
+    expect(
+      await h.send({ type: 'account.addCurrent', platform: 'facebook', label: 'Again' }),
+    ).toEqual(err('duplicate'));
+    expect(
+      await h.send({ type: 'account.addCurrent', platform: 'facebook', label: 'x'.repeat(41) }),
+    ).toEqual(err('invalid_label'));
+    await loginAs(h.chrome, 'facebook', '7777');
+    await h.must({ type: 'vault.lock' });
+    expect(
+      await h.send({ type: 'account.addCurrent', platform: 'facebook', label: 'New' }),
+    ).toEqual(err('locked'));
+
+    const fresh = await startWorker();
+    expect(
+      await fresh.send({ type: 'account.addCurrent', platform: 'instagram', label: 'x' }),
+    ).toEqual(err('not_logged_in'));
+    await loginAs(fresh.chrome, 'instagram', '2001');
+    expect(
+      await fresh.send({ type: 'account.addCurrent', platform: 'instagram', label: 'x' }),
+    ).toEqual(err('no_vault'));
+  });
+
+  test('update session: only for the same user, and it refreshes the saved cookies', async () => {
+    const { h, ids } = await withAccounts();
+    expect(await h.send({ type: 'account.updateSession', accountId: ids['1001'] })).toEqual(
+      err('wrong_account'),
+    );
+    await loginAs(h.chrome, 'facebook', '1001');
+    await h.chrome.cookies.set({
+      url: 'https://www.facebook.com/',
+      name: 'xs',
+      value: 'xs-SECRET-new',
+      domain: 'facebook.com',
+      path: '/',
+      secure: true,
+      httpOnly: true,
+      sameSite: 'lax',
+    });
+    h.chrome.clock.now += 5000;
+    await h.must({ type: 'account.updateSession', accountId: ids['1001'] });
+    expect((await vaultOf(h))[ids['1001'] ?? '']?.cookies.find((c) => c.name === 'xs')?.value).toBe(
+      'xs-SECRET-new',
+    );
+    expect((await state(h)).accounts.find((a) => a.id === ids['1001'])).toMatchObject({
+      status: 'ok',
+      sessionCapturedAt: h.chrome.clock.now,
+    });
+    expect(await h.send({ type: 'account.updateSession', accountId: 'nope' })).toEqual(
+      err('not_found'),
+    );
+    await h.must({ type: 'vault.lock' });
+    expect(await h.send({ type: 'account.updateSession', accountId: ids['1001'] })).toEqual(
+      err('locked'),
+    );
+  });
+
+  test('update session when nobody is logged in', async () => {
+    const { h, ids } = await withAccounts();
+    await h.must({ type: 'account.switch', accountId: ids['1001'] });
+    for (const c of h.chrome.cookies.all().filter((x) => x.name === 'c_user')) {
+      await h.chrome.cookies.remove({
+        url: `https://${c.domain.replace(/^\./, '')}/`,
+        name: 'c_user',
+      });
+    }
+    expect(await h.send({ type: 'account.updateSession', accountId: ids['1001'] })).toEqual(
+      err('not_logged_in'),
+    );
+  });
+
+  test('rename and remove; removing deletes the saved session and needs the vault open', async () => {
+    const { h, ids } = await withAccounts();
+    await h.must({ type: 'account.rename', accountId: ids['1001'], label: 'Alice W' });
+    expect((await state(h)).accounts[0]).toMatchObject({ label: 'Alice W', initials: 'AW' });
+    expect(await h.send({ type: 'account.rename', accountId: ids['1001'], label: ' ' })).toEqual(
+      err('invalid_label'),
+    );
+    await h.must({ type: 'vault.lock' });
+    expect(await h.send({ type: 'account.remove', accountId: ids['1002'] })).toEqual(err('locked'));
+    await h.must({ type: 'vault.unlock', password: PASSWORD });
+    await h.must({ type: 'account.remove', accountId: ids['1002'] });
+    expect((await state(h)).active.facebook).toBeNull();
+    expect(Object.keys(await vaultOf(h))).not.toContain(ids['1002']);
+    expect(whoIs(h.chrome, 'facebook')).toBe('1002'); // removing never logs anyone out
+    expect(await h.send({ type: 'account.remove', accountId: 'nope' })).toEqual(err('not_found'));
+  });
+
+  test('switch through the router, and its errors', async () => {
+    const { h, ids } = await withAccounts();
+    expect(await h.send({ type: 'account.switch', accountId: ids['1001'] })).toEqual({
+      ok: true,
+      value: { reloadedTabs: 2 },
+    });
+    expect(whoIs(h.chrome, 'facebook')).toBe('1001');
+    await loginAs(h.chrome, 'facebook', '4444');
+    expect(await h.send({ type: 'account.switch', accountId: ids['1002'] })).toEqual(
+      err('unsaved_current'),
+    );
+    expect(
+      await h.send({ type: 'account.switch', accountId: ids['1002'], force: true }),
+    ).toMatchObject({ ok: true });
+    expect(await h.send({ type: 'account.switch', accountId: 'nope' })).toEqual(err('not_found'));
+  });
+
+  test('while a platform switches, changes to it give busy and wipe waits', async () => {
+    const { h, ids } = await withAccounts();
+    let release: () => void = () => {};
+    const reload = h.chrome.tabs.reload;
+    h.chrome.tabs.reload = (id) =>
+      new Promise<void>((r) => {
+        release = () => {
+          reload(id).then(r, r);
+        };
+      });
+    const running = h.send({ type: 'account.switch', accountId: ids['1001'] });
+    await new Promise((r) => setTimeout(r, 20));
+    expect((await state(h)).busy).toEqual(['facebook']);
+    await loginAs(h.chrome, 'instagram', '2009');
+    for (const m of [
+      { type: 'account.switch', accountId: ids['1002'] },
+      { type: 'account.updateSession', accountId: ids['1002'] },
+      { type: 'account.remove', accountId: ids['1002'] },
+      { type: 'account.addCurrent', platform: 'facebook', label: 'X' },
+      { type: 'vault.wipe' },
+    ]) {
+      expect(await h.send(m)).toEqual(err('busy'));
+    }
+    // Instagram is not blocked.
+    expect(
+      (await h.send({ type: 'account.addCurrent', platform: 'instagram', label: 'Other' })).ok,
+    ).toBe(true);
+    h.chrome.tabs.reload = reload;
+    release();
+    expect((await running).ok).toBe(true);
+  });
+
+  test('adding the current login holds the platform, so a switch at that moment gets busy', async () => {
+    const { h, ids } = await withAccounts();
+    await loginAs(h.chrome, 'facebook', '1009');
+    const adding = h.send({ type: 'account.addCurrent', platform: 'facebook', label: 'Dan' });
+    const switching = h.send({ type: 'account.switch', accountId: ids['1001'] });
+    expect(await switching).toEqual(err('busy'));
+    expect((await adding).ok).toBe(true);
+    expect(whoIs(h.chrome, 'facebook')).toBe('1009');
+    expect((await state(h)).busy).toEqual([]);
+  });
+
+  test('a store that cannot be read stops account messages', async () => {
+    const { h, ids } = await withAccounts();
+    await h.chrome.storage.local.set({ store: { schemaVersion: 99 } });
+    for (const m of [
+      { type: 'account.switch', accountId: ids['1001'] },
+      { type: 'account.remove', accountId: ids['1001'] },
+      { type: 'account.updateSession', accountId: ids['1001'] },
+      { type: 'vault.unlock', password: PASSWORD },
+    ]) {
+      expect(await h.send(m)).toEqual(err('store_unreadable'));
+    }
+  });
+
+  test('an unexpected exception becomes `internal`, with no details printed', async () => {
+    const { h, ids } = await withAccounts();
+    h.chrome.cookies.getAll = () => Promise.reject(new Error(`broken ${secretOf('1001')}`));
+    expect(await h.send({ type: 'account.switch', accountId: ids['1001'] })).toEqual(
+      err('internal'),
+    );
+    expect(printed).toEqual(['"Request account.switch failed"']);
+  });
+
+  test('quarantined accounts are counted for the popup', async () => {
+    const { h } = await withAccounts();
+    const s = await loadStore(h.chrome.storage.local);
+    if (!s.ok) throw new Error();
+    await h.chrome.storage.local.set({
+      store: { ...s.value, accounts: [...s.value.accounts, { broken: true }] },
+    });
+    expect((await state(h)).quarantined).toBe(1);
+  });
+});
+
+describe('YouTube goes through the YoutubeSwitcher interface', () => {
+  test('add, switch, update and remove without the vault', async () => {
+    const h = await startWorker();
+    const added = await h.must<{ id: string; youtube: object }>({
+      type: 'account.addCurrent',
+      platform: 'youtube',
+      label: 'Brand',
+    });
+    expect(added.youtube).toEqual({ authuser: 1, pageid: 'brand-7' });
+    expect((await state(h)).active.youtube).toBe(added.id);
+    expect(
+      await h.send({ type: 'account.addCurrent', platform: 'youtube', label: 'Again' }),
+    ).toEqual(err('duplicate'));
+
+    expect(await h.send({ type: 'account.switch', accountId: added.id })).toEqual({
+      ok: true,
+      value: { reloadedTabs: 1 },
+    });
+    expect(h.youtube.switched).toEqual([{ authuser: 1, pageid: 'brand-7' }]);
+
+    h.youtube.next = err('mismatch');
+    expect(await h.send({ type: 'account.switch', accountId: added.id })).toEqual(err('mismatch'));
+    expect((await state(h)).accounts[0]?.status).toBe('expired');
+    h.youtube.next = err('no_youtube_tab');
+    expect(await h.send({ type: 'account.switch', accountId: added.id })).toEqual(
+      err('no_youtube_tab'),
+    );
+    expect((await state(h)).accounts[0]?.status).toBe('expired');
+
+    h.youtube.current = { ok: true, value: { authuser: 3 } };
+    await h.must({ type: 'account.updateSession', accountId: added.id });
+    expect((await state(h)).accounts[0]).toMatchObject({ youtube: { authuser: 3 }, status: 'ok' });
+
+    h.youtube.current = err('no_youtube_tab');
+    expect(await h.send({ type: 'account.updateSession', accountId: added.id })).toEqual(
+      err('no_youtube_tab'),
+    );
+    expect(await h.send({ type: 'account.addCurrent', platform: 'youtube', label: 'x' })).toEqual(
+      err('no_youtube_tab'),
+    );
+
+    await h.must({ type: 'account.remove', accountId: added.id });
+    expect((await state(h)).accounts).toEqual([]);
+  });
+
+  test('a YouTube account without its identity cannot be switched', async () => {
+    const h = await startWorker();
+    const added = await h.must<{ id: string }>({
+      type: 'account.addCurrent',
+      platform: 'youtube',
+      label: 'Brand',
+    });
+    const s = await loadStore(h.chrome.storage.local);
+    if (!s.ok) throw new Error();
+    // A YouTube account without `youtube` is quarantined on load, so it is simply not found.
+    await h.chrome.storage.local.set({
+      store: { ...s.value, accounts: [{ ...s.value.accounts[0], youtube: undefined }] },
+    });
+    expect(await h.send({ type: 'account.switch', accountId: added.id })).toEqual(err('not_found'));
+  });
+});

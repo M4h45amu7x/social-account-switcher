@@ -39,6 +39,11 @@ export interface StoreV1 {
   /** null until a master password is set. */
   vault: Vault | null;
   settings: Settings;
+  /**
+   * Stored accounts that failed validation on load. They are kept as they were, so loading and saving
+   * never drops data silently; the popup can say how many there are.
+   */
+  quarantine?: unknown[];
 }
 
 export const STORE_KEY = 'store';
@@ -60,6 +65,44 @@ export function emptyStore(): StoreV1 {
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
+const isString = (v: unknown): v is string => typeof v === 'string';
+const isNullableNumber = (v: unknown): boolean => v === null || typeof v === 'number';
+
+function isVault(v: unknown): v is Vault {
+  if (!isRecord(v) || !isRecord(v.kdf)) return false;
+  return (
+    v.kdf.name === 'PBKDF2' &&
+    v.kdf.hash === 'SHA-256' &&
+    typeof v.kdf.iterations === 'number' &&
+    isString(v.kdf.salt) &&
+    isString(v.iv) &&
+    isString(v.ciphertext) &&
+    isString(v.check)
+  );
+}
+
+/** The shape loadStore() accepts for one account. */
+export function isAccount(v: unknown): v is Account {
+  if (!isRecord(v)) return false;
+  const { id, platform, label, initials, status, createdAt, platformUserId, youtube } = v;
+  if (!isString(id) || id === '' || !PLATFORMS.includes(platform as Platform)) return false;
+  if (!isString(label) || !normalizeLabel(label).ok || !isString(initials)) return false;
+  if (status !== 'ok' && status !== 'expired' && status !== 'checkpoint') return false;
+  if (typeof createdAt !== 'number') return false;
+  if (!isNullableNumber(v.lastUsedAt) || !isNullableNumber(v.sessionCapturedAt)) return false;
+  if (platform === 'youtube') {
+    if (
+      !isRecord(youtube) ||
+      !Number.isInteger(youtube.authuser) ||
+      (youtube.authuser as number) < 0
+    ) {
+      return false;
+    }
+    return youtube.pageid === undefined || isString(youtube.pageid);
+  }
+  return isString(platformUserId) && platformUserId !== '';
+}
+
 /** Fills settings saved before they existed (or with unknown values) with the defaults. */
 function readSettings(raw: unknown): Settings {
   const s = isRecord(raw) ? raw : {};
@@ -79,18 +122,43 @@ export function migrate(raw: unknown): Result<StoreV1, 'unknown_schema'> {
   if (!isRecord(raw) || raw.schemaVersion !== 1 || !Array.isArray(raw.accounts)) {
     return err('unknown_schema');
   }
+  // A vault that is present but malformed can't be read and must not be replaced, so refuse the load.
+  if (raw.vault !== null && raw.vault !== undefined && !isVault(raw.vault)) {
+    return err('unknown_schema');
+  }
+  const accounts: Account[] = [];
+  const quarantine: unknown[] = Array.isArray(raw.quarantine) ? [...raw.quarantine] : [];
+  const seen = new Set<string>();
+  for (const a of raw.accounts as unknown[]) {
+    if (isAccount(a) && !seen.has(a.id)) {
+      seen.add(a.id);
+      accounts.push(a);
+    } else {
+      quarantine.push(a);
+    }
+  }
   const base = emptyStore();
   const active = isRecord(raw.active) ? raw.active : {};
   for (const p of PLATFORMS) {
     const id = active[p];
     base.active[p] = typeof id === 'string' ? id : null;
   }
-  return ok({
+  for (const p of PLATFORMS) {
+    if (
+      base.active[p] !== null &&
+      !accounts.some((a) => a.id === base.active[p] && a.platform === p)
+    ) {
+      base.active[p] = null;
+    }
+  }
+  const store: StoreV1 = {
     ...base,
-    accounts: raw.accounts as Account[],
-    vault: isRecord(raw.vault) ? (raw.vault as unknown as Vault) : null,
+    accounts,
+    vault: isVault(raw.vault) ? raw.vault : null,
     settings: readSettings(raw.settings),
-  });
+  };
+  if (quarantine.length > 0) store.quarantine = quarantine;
+  return ok(store);
 }
 
 export async function loadStore(local: StorageAreaApi): Promise<Result<StoreV1, 'unknown_schema'>> {
@@ -225,9 +293,12 @@ export function setActive(
 
 export function updateSettings(
   store: StoreV1,
-  patch: Partial<Settings>,
+  patch: { theme?: Settings['theme'] | undefined; language?: Settings['language'] | undefined },
 ): Result<StoreV1, 'invalid_setting'> {
-  const next = { ...store.settings, ...patch };
+  const next = { ...store.settings };
+  // An explicit `undefined` (an optional field left out by the sender) changes nothing.
+  if (patch.theme !== undefined) next.theme = patch.theme;
+  if (patch.language !== undefined) next.language = patch.language;
   if (!THEMES.includes(next.theme) || !LANGUAGES.includes(next.language)) {
     return err('invalid_setting');
   }
