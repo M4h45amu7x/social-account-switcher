@@ -1,0 +1,14 @@
+bun --version: 1.4.4
+# super2 harness, unchanged, on the new code
+ 37 pass
+ 0 fail
+✓ built in 218ms
+  ✓  1 tests/e2e/qc-reconcile.spec.ts:48:38 › QC setup committed with lost answer reconciles actual page (11.7s)
+  ✓  2 tests/e2e/qc-reconcile.spec.ts:48:38 › QC unlock committed with lost answer reconciles actual page (12.9s)
+  ✓  3 tests/e2e/qc-reconcile.spec.ts:72:49 › QC stale same-state recovery setup (19.3s)
+  ✓  4 tests/e2e/qc-reconcile.spec.ts:72:49 › QC stale same-state recovery locked (20.6s)
+  ✓  5 tests/e2e/qc-reconcile.spec.ts:72:49 › QC stale same-state recovery settings (21.3s)
+  ✓  6 tests/e2e/qc-reconcile.spec.ts:86:36 › QC stale Escape retains retry setup (17.4s)
+  ✓  7 tests/e2e/qc-reconcile.spec.ts:86:36 › QC stale Escape retains retry main (13.3s)
+  ✓  8 tests/e2e/qc-recovery.spec.ts:49:1 › QC write and reconcile timeout: retry is read-only and late answers are ignored (22.3s)
+  8 passed (2.3m)

@@ -1,136 +1,136 @@
-[   635ms] open mockup/popup.html · browser 149.0.7827.55
-[   636ms] PASS  file: no chrome.* call, no alert/confirm/prompt, no outside URL, no fetch
-[   641ms] PASS  file: Thai only inside the th table (plus the language name and the th page title)
-[  1091ms]       109 keys, en = th
-[  1091ms] PASS  i18n: en and th have the same keys, placeholders and bold markers
-[  1094ms] PASS  i18n: English has no Thai (except the language name), Thai strings contain Thai
-[  1120ms] PASS  i18n: Auto follows the browser language (en-US -> English)
-[  1258ms] PASS  i18n: Auto follows the browser language (th-TH -> Thai) and sets <html lang>
-[  1403ms] PASS  theme: saved Dark is applied before the body exists (no light flash)
-[  1525ms] PASS  [en] list: Facebook shows 3 accounts, the active one is first with its badge
-[  1617ms] PASS  [en] empty: Instagram shows the 3 steps
-[  3188ms] PASS  [en] add: not logged in -> inline warning
-[  3653ms] PASS  [en] add: empty name rejected, valid name saved as the active account
-[  5164ms] PASS  [en] tab: pill glides + panel slides (animation 2)
-[  6691ms] PASS  [en] switching: spinner, step label, other controls disabled
-[  7603ms] PASS  [en] success: toast with the new name, badge moves, row shows the success badge
-[ 12817ms] PASS  [en] toast slides out and leaves within 4.5 s, the badge returns to the actions
-[ 14690ms] PASS  [en] error: expired session -> error bar, old account still active
-[ 15616ms] PASS  [en] error: Update session clears the Log in again badge
-[ 18464ms] PASS  [en] rename: inline editor expands (animation 5), empty rejected, hint resets, Enter saves, Esc cancels
-[ 22400ms] PASS  [en] delete: inline confirm, cancel keeps it, confirm fades it out and the rest glide (animation 3)
-[ 24430ms] PASS  [en] add: new row pops in (animation 3)
-[ 27085ms] PASS  [en] YouTube: Google steps + note, switch works
-[ 29182ms] PASS  [en] settings: opens with a slide, back returns, Lock now locks
-[ 29266ms] PASS  [en] lock: master password field (no PIN), show/hide toggles type and aria-pressed
-[ 31101ms] PASS  [en] lock: unlock button morphs idle -> loading -> error, hint shows, typing clears it
-[ 32563ms] PASS  [en] lock: right password -> loading -> success -> list
-[ 33229ms] PASS  [en] forgot password: a stale wrong-password message is gone once the wipe confirm opens (QC n4)
-[ 35863ms] PASS  [en] forgot password: inline wipe confirm, buttons stay inside, cancel, then wipe keeps YouTube
-[ 39445ms] PASS  [en] settings: theme + language saved, Circle Reveal grows from the click point (animation 1)
-[ 41750ms] PASS  [en] settings: Wipe all data expands a confirm, then clears every platform
-[ 41750ms] PASS  [en] no dialog / network / console error in this pass
-[ 41855ms] PASS  [th] list: Facebook shows 3 accounts, the active one is first with its badge
-[ 41915ms] PASS  [th] empty: Instagram shows the 3 steps
-[ 43547ms] PASS  [th] add: not logged in -> inline warning
-[ 43998ms] PASS  [th] add: empty name rejected, valid name saved as the active account
-[ 45512ms] PASS  [th] tab: pill glides + panel slides (animation 2)
-[ 47034ms] PASS  [th] switching: spinner, step label, other controls disabled
-[ 47952ms] PASS  [th] success: toast with the new name, badge moves, row shows the success badge
-[ 53604ms] PASS  [th] error: expired session -> error bar, old account still active
-[ 54531ms] PASS  [th] error: Update session clears the Log in again badge
-[ 57304ms] PASS  [th] rename: inline editor expands (animation 5), empty rejected, hint resets, Enter saves, Esc cancels
-[ 61266ms] PASS  [th] delete: inline confirm, cancel keeps it, confirm fades it out and the rest glide (animation 3)
-[ 63295ms] PASS  [th] add: new row pops in (animation 3)
-[ 65945ms] PASS  [th] YouTube: Google steps + note, switch works
-[ 68028ms] PASS  [th] settings: opens with a slide, back returns, Lock now locks
-[ 68106ms] PASS  [th] lock: master password field (no PIN), show/hide toggles type and aria-pressed
-[ 69931ms] PASS  [th] lock: unlock button morphs idle -> loading -> error, hint shows, typing clears it
-[ 71362ms] PASS  [th] lock: right password -> loading -> success -> list
-[ 72028ms] PASS  [th] forgot password: a stale wrong-password message is gone once the wipe confirm opens (QC n4)
-[ 74645ms] PASS  [th] forgot password: inline wipe confirm, buttons stay inside, cancel, then wipe keeps YouTube
-[ 78244ms] PASS  [th] settings: theme + language saved, Circle Reveal grows from the click point (animation 1)
-[ 80593ms] PASS  [th] settings: Wipe all data expands a confirm, then clears every platform
-[ 80593ms] PASS  [th] no dialog / network / console error in this pass
-[ 81028ms] PASS  [en] language button switches the UI
-[ 81680ms] PASS  [en/light] theme button switches the theme
-[ 81686ms] PASS  [en/light] theme switch recolours the popup
-[ 81917ms] PASS  [en/light] list: layout, text, shot
-[ 82137ms] PASS  [en/light] empty: layout, text, shot
-[ 82356ms] PASS  [en/light] add-form: layout, text, shot
-[ 82578ms] PASS  [en/light] add-not-logged-in: layout, text, shot
-[ 83296ms] PASS  [en/light] switching: layout, text, shot
-[ 84004ms] PASS  [en/light] success: layout, text, shot
-[ 84711ms] PASS  [en/light] error: layout, text, shot
-[ 84934ms] PASS  [en/light] rename: layout, text, shot
-[ 85170ms] PASS  [en/light] delete: layout, text, shot
-[ 85902ms] PASS  [en/light] youtube: layout, text, shot
-[ 86115ms] PASS  [en/light] locked: layout, text, shot
-[ 86338ms] PASS  [en/light] locked-wrong: layout, text, shot
-[ 86573ms] PASS  [en/light] wipe-confirm: layout, text, shot
-[ 86783ms] PASS  [en/light] settings: layout, text, shot
-[ 87001ms] PASS  [en/light] settings-wipe: layout, text, shot
-[ 87644ms] PASS  [en/dark] theme button switches the theme
-[ 87650ms] PASS  [en/dark] theme switch recolours the popup
-[ 87903ms] PASS  [en/dark] list: layout, text, shot
-[ 88139ms] PASS  [en/dark] empty: layout, text, shot
-[ 88380ms] PASS  [en/dark] add-form: layout, text, shot
-[ 88619ms] PASS  [en/dark] add-not-logged-in: layout, text, shot
-[ 89330ms] PASS  [en/dark] switching: layout, text, shot
-[ 90059ms] PASS  [en/dark] success: layout, text, shot
-[ 90837ms] PASS  [en/dark] error: layout, text, shot
-[ 91080ms] PASS  [en/dark] rename: layout, text, shot
-[ 91330ms] PASS  [en/dark] delete: layout, text, shot
-[ 92067ms] PASS  [en/dark] youtube: layout, text, shot
-[ 92307ms] PASS  [en/dark] locked: layout, text, shot
-[ 92533ms] PASS  [en/dark] locked-wrong: layout, text, shot
-[ 92754ms] PASS  [en/dark] wipe-confirm: layout, text, shot
-[ 92964ms] PASS  [en/dark] settings: layout, text, shot
-[ 93187ms] PASS  [en/dark] settings-wipe: layout, text, shot
-[ 93574ms] PASS  [th] language button switches the UI
-[ 94227ms] PASS  [th/light] theme button switches the theme
-[ 94231ms] PASS  [th/light] theme switch recolours the popup
-[ 94472ms] PASS  [th/light] list: layout, text, shot
-[ 94683ms] PASS  [th/light] empty: layout, text, shot
-[ 94922ms] PASS  [th/light] add-form: layout, text, shot
-[ 95175ms] PASS  [th/light] add-not-logged-in: layout, text, shot
-[ 95864ms] PASS  [th/light] switching: layout, text, shot
-[ 96572ms] PASS  [th/light] success: layout, text, shot
-[ 97280ms] PASS  [th/light] error: layout, text, shot
-[ 97514ms] PASS  [th/light] rename: layout, text, shot
-[ 97732ms] PASS  [th/light] delete: layout, text, shot
-[ 98436ms] PASS  [th/light] youtube: layout, text, shot
-[ 98651ms] PASS  [th/light] locked: layout, text, shot
-[ 98863ms] PASS  [th/light] locked-wrong: layout, text, shot
-[ 99063ms] PASS  [th/light] wipe-confirm: layout, text, shot
-[ 99263ms] PASS  [th/light] settings: layout, text, shot
-[ 99466ms] PASS  [th/light] settings-wipe: layout, text, shot
-[100110ms] PASS  [th/dark] theme button switches the theme
-[100112ms] PASS  [th/dark] theme switch recolours the popup
-[100311ms] PASS  [th/dark] list: layout, text, shot
-[100514ms] PASS  [th/dark] empty: layout, text, shot
-[100735ms] PASS  [th/dark] add-form: layout, text, shot
-[100947ms] PASS  [th/dark] add-not-logged-in: layout, text, shot
-[101632ms] PASS  [th/dark] switching: layout, text, shot
-[102332ms] PASS  [th/dark] success: layout, text, shot
-[103034ms] PASS  [th/dark] error: layout, text, shot
-[103244ms] PASS  [th/dark] rename: layout, text, shot
-[103464ms] PASS  [th/dark] delete: layout, text, shot
-[104169ms] PASS  [th/dark] youtube: layout, text, shot
-[104360ms] PASS  [th/dark] locked: layout, text, shot
-[104579ms] PASS  [th/dark] locked-wrong: layout, text, shot
-[104781ms] PASS  [th/dark] wipe-confirm: layout, text, shot
-[104977ms] PASS  [th/dark] settings: layout, text, shot
-[105177ms] PASS  [th/dark] settings-wipe: layout, text, shot
-[105177ms]       shots  mockup/shots/{en,th}-{light,dark}-{list,empty,add-form,add-not-logged-in,switching,success,error,rename,delete,youtube,locked,locked-wrong,wipe-confirm,settings,settings-wipe}.png
-[106284ms]       en/light: sub 6.20 · foot 6.20 · label 6.20
-[107064ms]       en/dark: sub 6.71 · foot 6.71 · label 6.71
-[108192ms]       th/light: sub 6.20 · foot 6.20 · label 6.20
-[108955ms]       th/dark: sub 6.71 · foot 6.71 · label 6.71
-[108955ms] PASS  contrast: secondary text and footer >= 4.5:1 in en/th x light/dark
-[108955ms] PASS  whole matrix: no dialog / network / console error
-[116323ms] PASS  reduced motion: tab, switch, theme, delete, toast, settings run with no animation at all
-[116333ms] PASS  reduced motion: the state still changes (theme applied, account switched)
-[116333ms] PASS  reduced motion: no console error / dialog / network
-[117934ms] PASS  no View Transitions support: everything changes instantly and nothing throws
-[118046ms] summary: pass 128 - fail 0
+[   993ms] open mockup/popup.html · browser 158.0.8127.18
+[   994ms] PASS  file: no chrome.* call, no alert/confirm/prompt, no outside URL, no fetch
+[   998ms] PASS  file: Thai only inside the th table (plus the language name and the th page title)
+[  2450ms]       109 keys, en = th
+[  2450ms] PASS  i18n: en and th have the same keys, placeholders and bold markers
+[  2456ms] PASS  i18n: English has no Thai (except the language name), Thai strings contain Thai
+[  2511ms] PASS  i18n: Auto follows the browser language (en-US -> English)
+[  2705ms] PASS  i18n: Auto follows the browser language (th-TH -> Thai) and sets <html lang>
+[  2908ms] PASS  theme: saved Dark is applied before the body exists (no light flash)
+[  3040ms] PASS  [en] list: Facebook shows 3 accounts, the active one is first with its badge
+[  3262ms] PASS  [en] empty: Instagram shows the 3 steps
+[  4883ms] PASS  [en] add: not logged in -> inline warning
+[  5401ms] PASS  [en] add: empty name rejected, valid name saved as the active account
+[  6917ms] PASS  [en] tab: pill glides + panel slides (animation 2)
+[  8446ms] PASS  [en] switching: spinner, step label, other controls disabled
+[  9364ms] PASS  [en] success: toast with the new name, badge moves, row shows the success badge
+[ 14572ms] PASS  [en] toast slides out and leaves within 4.5 s, the badge returns to the actions
+[ 16476ms] PASS  [en] error: expired session -> error bar, old account still active
+[ 17440ms] PASS  [en] error: Update session clears the Log in again badge
+[ 20288ms] PASS  [en] rename: inline editor expands (animation 5), empty rejected, hint resets, Enter saves, Esc cancels
+[ 24224ms] PASS  [en] delete: inline confirm, cancel keeps it, confirm fades it out and the rest glide (animation 3)
+[ 26252ms] PASS  [en] add: new row pops in (animation 3)
+[ 28956ms] PASS  [en] YouTube: Google steps + note, switch works
+[ 31018ms] PASS  [en] settings: opens with a slide, back returns, Lock now locks
+[ 31093ms] PASS  [en] lock: master password field (no PIN), show/hide toggles type and aria-pressed
+[ 32936ms] PASS  [en] lock: unlock button morphs idle -> loading -> error, hint shows, typing clears it
+[ 34368ms] PASS  [en] lock: right password -> loading -> success -> list
+[ 35053ms] PASS  [en] forgot password: a stale wrong-password message is gone once the wipe confirm opens (QC n4)
+[ 37701ms] PASS  [en] forgot password: inline wipe confirm, buttons stay inside, cancel, then wipe keeps YouTube
+[ 41284ms] PASS  [en] settings: theme + language saved, Circle Reveal grows from the click point (animation 1)
+[ 43592ms] PASS  [en] settings: Wipe all data expands a confirm, then clears every platform
+[ 43592ms] PASS  [en] no dialog / network / console error in this pass
+[ 43707ms] PASS  [th] list: Facebook shows 3 accounts, the active one is first with its badge
+[ 43753ms] PASS  [th] empty: Instagram shows the 3 steps
+[ 45387ms] PASS  [th] add: not logged in -> inline warning
+[ 45838ms] PASS  [th] add: empty name rejected, valid name saved as the active account
+[ 47351ms] PASS  [th] tab: pill glides + panel slides (animation 2)
+[ 48879ms] PASS  [th] switching: spinner, step label, other controls disabled
+[ 49811ms] PASS  [th] success: toast with the new name, badge moves, row shows the success badge
+[ 55528ms] PASS  [th] error: expired session -> error bar, old account still active
+[ 56477ms] PASS  [th] error: Update session clears the Log in again badge
+[ 59322ms] PASS  [th] rename: inline editor expands (animation 5), empty rejected, hint resets, Enter saves, Esc cancels
+[ 63271ms] PASS  [th] delete: inline confirm, cancel keeps it, confirm fades it out and the rest glide (animation 3)
+[ 65353ms] PASS  [th] add: new row pops in (animation 3)
+[ 68020ms] PASS  [th] YouTube: Google steps + note, switch works
+[ 70100ms] PASS  [th] settings: opens with a slide, back returns, Lock now locks
+[ 70204ms] PASS  [th] lock: master password field (no PIN), show/hide toggles type and aria-pressed
+[ 72026ms] PASS  [th] lock: unlock button morphs idle -> loading -> error, hint shows, typing clears it
+[ 73450ms] PASS  [th] lock: right password -> loading -> success -> list
+[ 74133ms] PASS  [th] forgot password: a stale wrong-password message is gone once the wipe confirm opens (QC n4)
+[ 76987ms] PASS  [th] forgot password: inline wipe confirm, buttons stay inside, cancel, then wipe keeps YouTube
+[ 80802ms] PASS  [th] settings: theme + language saved, Circle Reveal grows from the click point (animation 1)
+[ 83167ms] PASS  [th] settings: Wipe all data expands a confirm, then clears every platform
+[ 83167ms] PASS  [th] no dialog / network / console error in this pass
+[ 83533ms] PASS  [en] language button switches the UI
+[ 84191ms] PASS  [en/light] theme button switches the theme
+[ 84211ms] PASS  [en/light] theme switch recolours the popup
+[ 84585ms] PASS  [en/light] list: layout, text, shot
+[ 84945ms] PASS  [en/light] empty: layout, text, shot
+[ 85236ms] PASS  [en/light] add-form: layout, text, shot
+[ 85528ms] PASS  [en/light] add-not-logged-in: layout, text, shot
+[ 86245ms] PASS  [en/light] switching: layout, text, shot
+[ 86983ms] PASS  [en/light] success: layout, text, shot
+[ 87729ms] PASS  [en/light] error: layout, text, shot
+[ 87942ms] PASS  [en/light] rename: layout, text, shot
+[ 88157ms] PASS  [en/light] delete: layout, text, shot
+[ 88905ms] PASS  [en/light] youtube: layout, text, shot
+[ 89137ms] PASS  [en/light] locked: layout, text, shot
+[ 89361ms] PASS  [en/light] locked-wrong: layout, text, shot
+[ 89579ms] PASS  [en/light] wipe-confirm: layout, text, shot
+[ 89833ms] PASS  [en/light] settings: layout, text, shot
+[ 90067ms] PASS  [en/light] settings-wipe: layout, text, shot
+[ 90715ms] PASS  [en/dark] theme button switches the theme
+[ 90722ms] PASS  [en/dark] theme switch recolours the popup
+[ 90971ms] PASS  [en/dark] list: layout, text, shot
+[ 91180ms] PASS  [en/dark] empty: layout, text, shot
+[ 91506ms] PASS  [en/dark] add-form: layout, text, shot
+[ 91811ms] PASS  [en/dark] add-not-logged-in: layout, text, shot
+[ 92619ms] PASS  [en/dark] switching: layout, text, shot
+[ 93352ms] PASS  [en/dark] success: layout, text, shot
+[ 94112ms] PASS  [en/dark] error: layout, text, shot
+[ 94321ms] PASS  [en/dark] rename: layout, text, shot
+[ 94583ms] PASS  [en/dark] delete: layout, text, shot
+[ 95331ms] PASS  [en/dark] youtube: layout, text, shot
+[ 95598ms] PASS  [en/dark] locked: layout, text, shot
+[ 95826ms] PASS  [en/dark] locked-wrong: layout, text, shot
+[ 96054ms] PASS  [en/dark] wipe-confirm: layout, text, shot
+[ 96268ms] PASS  [en/dark] settings: layout, text, shot
+[ 96512ms] PASS  [en/dark] settings-wipe: layout, text, shot
+[ 96851ms] PASS  [th] language button switches the UI
+[ 97501ms] PASS  [th/light] theme button switches the theme
+[ 97507ms] PASS  [th/light] theme switch recolours the popup
+[ 97732ms] PASS  [th/light] list: layout, text, shot
+[ 97980ms] PASS  [th/light] empty: layout, text, shot
+[ 98208ms] PASS  [th/light] add-form: layout, text, shot
+[ 98440ms] PASS  [th/light] add-not-logged-in: layout, text, shot
+[ 99135ms] PASS  [th/light] switching: layout, text, shot
+[ 99866ms] PASS  [th/light] success: layout, text, shot
+[100605ms] PASS  [th/light] error: layout, text, shot
+[100828ms] PASS  [th/light] rename: layout, text, shot
+[101099ms] PASS  [th/light] delete: layout, text, shot
+[101845ms] PASS  [th/light] youtube: layout, text, shot
+[102097ms] PASS  [th/light] locked: layout, text, shot
+[102369ms] PASS  [th/light] locked-wrong: layout, text, shot
+[102654ms] PASS  [th/light] wipe-confirm: layout, text, shot
+[102914ms] PASS  [th/light] settings: layout, text, shot
+[103200ms] PASS  [th/light] settings-wipe: layout, text, shot
+[103869ms] PASS  [th/dark] theme button switches the theme
+[103880ms] PASS  [th/dark] theme switch recolours the popup
+[104159ms] PASS  [th/dark] list: layout, text, shot
+[104374ms] PASS  [th/dark] empty: layout, text, shot
+[104611ms] PASS  [th/dark] add-form: layout, text, shot
+[104849ms] PASS  [th/dark] add-not-logged-in: layout, text, shot
+[105538ms] PASS  [th/dark] switching: layout, text, shot
+[106284ms] PASS  [th/dark] success: layout, text, shot
+[107031ms] PASS  [th/dark] error: layout, text, shot
+[107289ms] PASS  [th/dark] rename: layout, text, shot
+[107504ms] PASS  [th/dark] delete: layout, text, shot
+[108226ms] PASS  [th/dark] youtube: layout, text, shot
+[108439ms] PASS  [th/dark] locked: layout, text, shot
+[108650ms] PASS  [th/dark] locked-wrong: layout, text, shot
+[108902ms] PASS  [th/dark] wipe-confirm: layout, text, shot
+[109120ms] PASS  [th/dark] settings: layout, text, shot
+[109335ms] PASS  [th/dark] settings-wipe: layout, text, shot
+[109335ms]       shots  mockup/shots/{en,th}-{light,dark}-{list,empty,add-form,add-not-logged-in,switching,success,error,rename,delete,youtube,locked,locked-wrong,wipe-confirm,settings,settings-wipe}.png
+[110457ms]       en/light: sub 6.20 · foot 6.20 · label 6.20
+[111226ms]       en/dark: sub 6.71 · foot 6.71 · label 6.71
+[112369ms]       th/light: sub 6.20 · foot 6.20 · label 6.20
+[113164ms]       th/dark: sub 6.71 · foot 6.71 · label 6.71
+[113164ms] PASS  contrast: secondary text and footer >= 4.5:1 in en/th x light/dark
+[113164ms] PASS  whole matrix: no dialog / network / console error
+[120457ms] PASS  reduced motion: tab, switch, theme, delete, toast, settings run with no animation at all
+[120468ms] PASS  reduced motion: the state still changes (theme applied, account switched)
+[120468ms] PASS  reduced motion: no console error / dialog / network
+[122058ms] PASS  no View Transitions support: everything changes instantly and nothing throws
+[122145ms] summary: pass 128 - fail 0

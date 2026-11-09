@@ -1,9 +1,11 @@
 // Pure render: PopupState → DOM. No chrome.*, no timers, no storage. The markup, class names, data-testid
 // and data-act values are the ones in mockup/popup.html, so popup.css and the e2e selectors carry over.
 // Every dynamic value goes through the escaping `html` builder (html.ts).
+import { ERROR_TEXT } from './errors';
 import { esc, html, raw, type Safe } from './html';
 import type { MessageKey, Translator } from './i18n';
 import {
+  type AccountProblem,
   type AccountView,
   type AddView,
   type Platform,
@@ -11,6 +13,7 @@ import {
   type SubLine,
   screenOf,
   type UsedLine,
+  WRITE_ACTIONS,
 } from './state';
 
 export const PLATFORM_ORDER: readonly Platform[] = ['facebook', 'instagram', 'youtube'];
@@ -27,16 +30,14 @@ const stroke = (size: number, body: string, width = 2, extra = ''): Safe =>
     `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"${extra}>${body}</svg>`,
   );
 
+/** The official marks, shipped inside the extension (public/brands, see SOURCES.md there). Never loaded from the web. */
+const logo = (p: Platform): Safe =>
+  raw(`<img class="mark" src="/brands/${p}.svg" alt="" aria-hidden="true" draggable="false">`);
+
 export const ICON = {
-  facebook: raw(
-    '<svg viewBox="0 0 24 24" class="mark" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="var(--fb)"/><path fill="#fff" d="M13.2 19v-6h2l.3-2.4h-2.3V9.1c0-.7.2-1.2 1.2-1.2h1.3V5.8c-.2 0-1-.1-1.9-.1-1.9 0-3.1 1.1-3.1 3.2v1.7H8.6V13h2.1v6z"/></svg>',
-  ),
-  instagram: raw(
-    '<svg viewBox="0 0 24 24" class="mark" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6" fill="var(--ig)"/><rect x="6" y="6" width="12" height="12" rx="3.6" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="12" cy="12" r="2.9" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="16.3" cy="7.7" r="1" fill="#fff"/></svg>',
-  ),
-  youtube: raw(
-    '<svg viewBox="0 0 24 24" class="mark" aria-hidden="true"><rect x="1" y="4.5" width="22" height="15" rx="4.5" fill="var(--yt)"/><path d="M10 8.8v6.4l5.4-3.2z" fill="#fff"/></svg>',
-  ),
+  facebook: logo('facebook'),
+  instagram: logo('instagram'),
+  youtube: logo('youtube'),
   pencil: stroke(16, '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>'),
   trash: stroke(16, '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>'),
   eye: stroke(
@@ -68,7 +69,8 @@ export const ICON = {
 } as const;
 
 /** The big platform mark on the empty screen (the same icon without its `mark` class). */
-const bigIcon = (p: Platform): Safe => raw(ICON[p].value.replace('class="mark"', ''));
+const bigIcon = (p: Platform): Safe =>
+  raw(ICON[p].value.replace('class="mark"', 'class="big-mark"'));
 
 // --- small text helpers ---
 
@@ -200,7 +202,7 @@ function row(tr: Translator, s: PopupState, a: AccountView): Safe {
         : '';
   const label = tr.text(active ? 'row_activeAria' : 'row_switchTo', { name: a.label });
   return html`<li class="row ${active ? 'active' : ''} ${busy ? 'busy' : ''}" data-id="${a.id}" data-testid="row-${a.id}">
-    <button class="main" data-act="switch" data-id="${a.id}" ${active || s.switching ? 'disabled' : ''} aria-label="${label}">
+    <button class="main" data-act="switch" data-id="${a.id}" ${active || s.switching || s.platforms[p].busy ? 'disabled' : ''} aria-label="${label}">
       ${avatar}<span class="who"><div class="name"><span class="nm">${a.label}</span>${chip}</div>${sub}</span>
     </button>${slot(tr, s, a, busy)}</li>`;
 }
@@ -210,15 +212,18 @@ function addView(tr: Translator, s: PopupState, adding: AddView): Safe {
   const info = PLATFORM_INFO[p];
   if (adding.kind === 'notLoggedIn') {
     return html`<div class="note warn" data-testid="add-not-logged-in">${ICON.alert}<span>${tr.html('add_notLoggedIn', { platform: info.name, site: info.site })}</span></div>
-      <div class="btns"><button class="btn" data-act="add-cancel" data-testid="add-cancel">${tr.html('common_close')}</button><button class="btn primary" data-act="open-site">${tr.html('add_open', { site: info.site })}</button></div>`;
+      <div class="btns"><button class="btn" data-act="add-cancel" data-testid="add-cancel">${tr.html('common_close')}</button><button class="btn primary" data-act="open-site">${ICON[p]}${tr.html('add_open', { site: info.site })}</button></div>`;
   }
+  // YouTube: only what the worker really read (which Google account, brand or not); nothing when it read none
   const who =
     p === 'youtube'
-      ? tr.text('add_metaYoutube')
+      ? adding.idTail
+        ? tr.text(adding.brand ? 'sub_googleBrand' : 'sub_google', { n: adding.idTail })
+        : ''
       : tr.text('add_metaCookie', { platform: info.name, tail: adding.idTail });
   return html`<div class="panel add-form" data-testid="add-form">
     <div class="ttl">${tr.html('add_found')}</div>
-    <div class="meta">${who}</div>
+    ${who && html`<div class="meta">${who}</div>`}
     <div class="edit">
       <label class="sr" for="add-input">${tr.html('add_label')}</label>
       <input id="add-input" dir="auto" data-testid="add-input" maxlength="40" placeholder="${tr.text('add_placeholder')}" value="${adding.value}" data-autofocus>
@@ -242,22 +247,57 @@ function emptyView(tr: Translator, p: Platform): Safe {
     </ol>
     <div class="note info">${tr.html('empty_note')}</div>
     <div class="row-btns">
-      <button class="btn" data-act="open-site" data-testid="open-site">${tr.html('add_open', { site: info.site })}</button>
+      <button class="btn" data-act="open-site" data-testid="open-site">${ICON[p]}${tr.html('add_open', { site: info.site })}</button>
       <button class="btn primary" data-act="add" data-testid="add-account">${tr.html('empty_addShort')}</button>
     </div></div>`;
 }
 
-function errorNote(tr: Translator, s: PopupState, id: string): Safe {
+function errorNote(tr: Translator, s: PopupState, id: string, code: AccountProblem): Safe {
   const a = s.platforms[s.platform].accounts.find((x) => x.id === id);
   const name = a?.label ?? '';
-  return html`<div class="note err" role="alert" data-testid="error">
-    <div class="t">${ICON.alert}${tr.html('error_title', { name })}</div>
-    <div class="d">${tr.html('error_detail', { platform: PLATFORM_INFO[s.platform].name })}
-      <br>${tr.html('error_fix', { name })}</div>
+  const info = PLATFORM_INFO[s.platform];
+  const wait = s.platforms[s.platform].busy ? 'disabled' : '';
+  const [title, detail] =
+    code === 'checkpoint'
+      ? [
+          tr.html('error_checkpointTitle', { platform: info.name }),
+          tr.html('error_checkpointDetail', { name }),
+        ]
+      : code === 'wrong_account'
+        ? [tr.html('error_wrongTitle'), tr.html('error_wrongDetail', { name })]
+        : [
+            tr.html('error_title', { name }),
+            html`${tr.html('error_detail', { platform: info.name })}<br>${tr.html('error_fix', { name })}`,
+          ];
+  const open =
+    code === 'checkpoint'
+      ? html`<button class="btn primary" data-act="open-site" data-testid="error-open">${ICON[s.platform]}${tr.html('add_open', { site: info.site })}</button>`
+      : html`<button class="btn" data-act="open-site" data-testid="error-open">${tr.html('error_openLogin')}</button>
+      <button class="btn primary" data-act="err-update" data-testid="error-update" ${wait}>${tr.html('error_update')}</button>`;
+  return html`<div class="note err" role="alert" data-testid="error" data-code="${code}">
+    <div class="t">${ICON.alert}${title}</div>
+    <div class="d">${detail}</div>
     <div class="btns">
       <button class="btn ghost" data-act="err-close" data-testid="error-close">${tr.html('common_close')}</button>
-      <button class="btn" data-act="open-site">${tr.html('error_openLogin')}</button>
-      <button class="btn primary" data-act="err-update" data-testid="error-update">${tr.html('error_update')}</button>
+      ${open}
+    </div></div>`;
+}
+
+/** Any other failure, in words. The retry button only shows when repeating the request can help. */
+function noticeNote(
+  tr: Translator,
+  notice: NonNullable<PopupState['notice']>,
+  stale: boolean,
+): Safe {
+  // stale: Try again is always there and always only reads (the reducer turns it into a load)
+  const again = notice.retry ?? (stale ? ({ type: 'load' } as const) : null);
+  const label =
+    again?.type === 'switch' && again.force ? 'err_switchAnyway' : ('common_retry' as const);
+  return html`<div class="note err" role="alert" data-testid="notice" data-code="${notice.code}">
+    <div class="t">${ICON.alert}${tr.html(ERROR_TEXT[notice.code])}</div>
+    <div class="btns">
+      <button class="btn ghost" data-act="notice-close" data-testid="notice-close">${tr.html('common_close')}</button>
+      ${again && html`<button class="btn primary" data-act="notice-retry" data-testid="notice-retry">${tr.html(label)}</button>`}
     </div></div>`;
 }
 
@@ -275,27 +315,63 @@ function unlockButton(tr: Translator, s: PopupState): Safe {
   return html`<button class="btn primary sbtn ${cls}" data-sbtn data-act="unlock" data-testid="unlock" data-btn-state="${k}" ${k === 'loading' ? 'disabled' : ''}>${face}</button>`;
 }
 
-function lockedBody(tr: Translator, s: PopupState): Safe {
+/** The words under the password box: the worker's reason, "wrong password", or the password rule. */
+export function lockHint(s: PopupState): MessageKey {
   const { lock } = s;
+  if (lock.error) return ERROR_TEXT[lock.error];
+  return lock.bad && s.page !== 'setup' ? 'lock_bad' : 'lock_hint';
+}
+
+function setupButton(tr: Translator, s: PopupState): Safe {
+  const k = s.lock.button;
+  const face =
+    k === 'loading'
+      ? html`<span class="spinner" aria-hidden="true"></span>${tr.html('setup_creating')}`
+      : k === 'ok'
+        ? html`${ICON.check}${tr.html('setup_created')}`
+        : k === 'err'
+          ? html`${ICON.cross}${tr.html('lock_tryAgain')}`
+          : tr.html('setup_create');
+  const cls = k === 'ok' ? 'is-ok' : k === 'err' ? 'is-err' : '';
+  return html`<button class="btn primary sbtn ${cls}" data-sbtn data-act="setup" data-testid="setup-create" data-btn-state="${k}" ${k === 'loading' ? 'disabled' : ''}>${face}</button>`;
+}
+
+function loadingBody(tr: Translator, s: PopupState): Safe {
   return html`
     ${header(tr, s, 'locked')}
-    <section class="lock" data-testid="locked" data-panel>
+    <section class="lock" data-testid="loading" data-panel>
+      <span class="spinner" role="progressbar" aria-label="${tr.text('loading_aria')}"></span>
+    </section>
+    ${footer(tr)}`;
+}
+
+function lockedBody(tr: Translator, s: PopupState): Safe {
+  const { lock } = s;
+  const setup = s.page === 'setup';
+  const hint = lockHint(s);
+  return html`
+    ${header(tr, s, 'locked')}
+    <section class="lock" data-testid="${setup ? 'setup' : 'locked'}" data-panel>
       <div class="big">${ICON.lockBig}</div>
-      <div><b>${tr.html('lock_title')}</b><div class="hint">${tr.html('lock_sub')}</div></div>
+      <div><b>${tr.html(setup ? 'setup_title' : 'lock_title')}</b><div class="hint">${tr.html(setup ? 'setup_sub' : 'lock_sub')}</div></div>
       <div class="pw ${lock.bad ? 'bad' : ''}">
-        <label class="sr" for="pw-input">${tr.html('lock_label')}</label>
-        <input id="pw-input" type="${lock.show ? 'text' : 'password'}" autocomplete="current-password" placeholder="${tr.text('lock_placeholder')}" value="${lock.password}" data-testid="pw-input" data-autofocus>
+        <label class="sr" for="pw-input">${tr.html(setup ? 'setup_label' : 'lock_label')}</label>
+        <input id="pw-input" type="${lock.show ? 'text' : 'password'}" autocomplete="${setup ? 'new-password' : 'current-password'}" placeholder="${tr.text(setup ? 'setup_label' : 'lock_placeholder')}" value="${lock.password}" data-testid="pw-input" data-autofocus>
         <button class="icon-btn" data-act="pw-toggle" data-testid="pw-toggle" aria-pressed="${String(lock.show)}" aria-label="${tr.text(lock.show ? 'lock_hide' : 'lock_show')}" title="${tr.text(lock.show ? 'lock_hide' : 'lock_show')}">${lock.show ? ICON.eyeOff : ICON.eye}</button>
       </div>
-      <div class="hint ${lock.bad ? 'bad' : ''}" data-testid="pw-hint">${tr.html(lock.bad ? 'lock_bad' : 'lock_hint')}</div>
+      <div class="hint ${lock.bad ? 'bad' : ''}" data-testid="pw-hint">${tr.html(hint)}</div>
       ${
-        lock.wipeConfirm
-          ? html`<div class="row confirm wipe" data-testid="wipe-confirm">
+        s.stale
+          ? html`<button class="btn primary" data-act="notice-retry" data-testid="notice-retry">${tr.html('common_retry')}</button>`
+          : setup
+            ? setupButton(tr, s)
+            : lock.wipeConfirm
+              ? html`<div class="row confirm wipe" data-testid="wipe-confirm">
           <p>${tr.html('wipe_title')}
             <small>${tr.html('wipe_detail')}</small></p>
           <div class="btns"><button class="btn" data-act="wipe-cancel" data-testid="wipe-cancel">${tr.html('common_cancel')}</button>
           <button class="btn danger" data-act="wipe-ok" data-testid="wipe-ok">${tr.html('wipe_ok')}</button></div></div>`
-          : html`${unlockButton(tr, s)}
+              : html`${unlockButton(tr, s)}
       <button class="btn ghost small" data-act="forgot" data-testid="forgot">${tr.html('lock_forgot')}</button>`
       }
     </section>
@@ -322,6 +398,7 @@ function settingsBody(tr: Translator, s: PopupState): Safe {
   return html`
     ${header(tr, s, 'settings')}
     <section class="body settings" data-panel data-testid="settings">
+      ${s.notice && noticeNote(tr, s.notice, s.stale)}
       <div class="set-card" data-card="theme">
         <h2>${tr.html('settings_theme')}</h2>
         ${segment(
@@ -387,7 +464,8 @@ function mainBody(tr: Translator, s: PopupState): Safe {
   );
 
   const parts: unknown[] = [];
-  if (s.error) parts.push(errorNote(tr, s, s.error.id));
+  if (s.error) parts.push(errorNote(tr, s, s.error.id, s.error.code));
+  if (s.notice) parts.push(noticeNote(tr, s.notice, s.stale));
   if (list.length === 0 && !s.adding) {
     parts.push(emptyView(tr, p));
   } else {
@@ -397,14 +475,14 @@ function mainBody(tr: Translator, s: PopupState): Safe {
         (a, b) => Number(b.id === view.activeId) - Number(a.id === view.activeId),
       );
       parts.push(
-        html`<div class="section-label"><span>${tr.html('list_label', { platform: info.name, n: list.length })}</span><span>${tr.html(p === 'youtube' ? 'list_hintYoutube' : 'list_hintTap')}</span></div>`,
+        html`<div class="section-label"><span class="with-mark">${ICON[p]}${tr.html('list_label', { platform: info.name, n: list.length })}</span><span>${tr.html(p === 'youtube' ? 'list_hintYoutube' : 'list_hintTap')}</span></div>`,
         html`<ul class="list ${busy ? 'dim' : ''}" data-testid="account-list">${ordered.map((a) => row(tr, s, a))}</ul>`,
       );
     }
     parts.push(
       s.adding
         ? addView(tr, s, s.adding)
-        : html`<button class="add" data-act="add" data-testid="add-account" ${busy ? 'disabled' : ''}>${ICON.plus}${tr.html('list_add')}</button>`,
+        : html`<button class="add" data-act="add" data-testid="add-account" ${busy || view.busy ? 'disabled' : ''}>${ICON.plus}${tr.html('list_add')}</button>`,
     );
     if (p === 'youtube') parts.push(html`<div class="note info">${tr.html('youtube_note')}</div>`);
   }
@@ -426,12 +504,41 @@ export function renderPopup(root: HTMLElement, state: PopupState, tr: Translator
   root.dataset.platform = state.platform;
   root.dataset.state = screenOf(state);
   const body =
-    state.page === 'locked'
-      ? lockedBody(tr, state)
-      : state.page === 'settings'
-        ? settingsBody(tr, state)
-        : mainBody(tr, state);
+    state.page === 'loading'
+      ? loadingBody(tr, state)
+      : state.page === 'locked' || state.page === 'setup'
+        ? lockedBody(tr, state)
+        : state.page === 'settings'
+          ? settingsBody(tr, state)
+          : mainBody(tr, state);
+  // A field the person is typing in keeps its caret and selection when the screen is drawn again under them
+  // (a recovery redraw while a password is half typed).
+  const typing = document.activeElement;
+  const kept =
+    typing instanceof HTMLInputElement && root.contains(typing) && typing.id
+      ? {
+          id: typing.id,
+          value: typing.value,
+          start: typing.selectionStart,
+          end: typing.selectionEnd,
+          direction: typing.selectionDirection ?? undefined,
+        }
+      : null;
   root.innerHTML = body.value;
+  // stale state (the extension did not answer and nothing could be read): nothing may write until a load works
+  if (state.stale) {
+    for (const el of root.querySelectorAll<HTMLButtonElement>(
+      'button[data-act], button[data-pref]',
+    )) {
+      if (el.dataset.pref || WRITE_ACTIONS.has(el.dataset.act ?? '')) el.disabled = true;
+    }
+  }
+  const again = kept ? root.querySelector<HTMLInputElement>(`#${CSS.escape(kept.id)}`) : null;
+  if (kept && again && again.value === kept.value && kept.start !== null && kept.end !== null) {
+    again.focus();
+    again.setSelectionRange(kept.start, kept.end, kept.direction);
+    return;
+  }
   const target = root.querySelector<HTMLInputElement>('[data-autofocus]');
   if (target) {
     target.focus();
@@ -468,8 +575,8 @@ export function patchHints(root: HTMLElement, state: PopupState, tr: Translator)
   if (state.editing) setHint('rename-hint', state.editing.bad, 'rename_hint', 'rename_bad');
   if (state.adding?.kind === 'form')
     setHint('add-hint', state.adding.bad, 'add_hint', 'rename_bad');
-  if (state.page === 'locked') {
-    setHint('pw-hint', state.lock.bad, 'lock_hint', 'lock_bad');
+  if (state.page === 'locked' || state.page === 'setup') {
+    setHint('pw-hint', state.lock.bad, 'lock_hint', lockHint(state));
     root.querySelector('.pw')?.classList.toggle('bad', state.lock.bad);
   }
 }

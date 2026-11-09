@@ -345,10 +345,6 @@
       }
     }
   },
-  "add_metaYoutube": {
-    "message": "บัญชี Google ลำดับ 2 · ช่องส่วนตัว",
-    "description": "Add account form"
-  },
   "add_label": {
     "message": "ตั้งชื่อบัญชี",
     "description": "Add account form"
@@ -606,5 +602,195 @@
   "lock_hint": {
     "message": "อย่างน้อย 10 ตัวอักษร",
     "description": "Lock screen"
+  },
+  "common_retry": {
+    "message": "ลองอีกครั้ง",
+    "description": "Popup: new in B5b"
+  },
+  "err_switchAnyway": {
+    "message": "สลับต่อไป",
+    "description": "Popup: error message"
+  },
+  "loading_aria": {
+    "message": "กำลังโหลด",
+    "description": "Popup: new in B5b"
+  },
+  "setup_title": {
+    "message": "ตั้งรหัสผ่านหลัก",
+    "description": "Popup: new in B5b"
+  },
+  "setup_sub": {
+    "message": "รหัสนี้ใช้เข้ารหัส session ของ Facebook และ Instagram ในเครื่องนี้ กู้คืนไม่ได้ จึงควรเก็บไว้ให้ดี",
+    "description": "Popup: new in B5b"
+  },
+  "setup_label": {
+    "message": "รหัสผ่านหลักใหม่",
+    "description": "Popup: new in B5b"
+  },
+  "setup_create": {
+    "message": "สร้างรหัสผ่าน",
+    "description": "Popup: new in B5b"
+  },
+  "setup_creating": {
+    "message": "กำลังสร้าง…",
+    "description": "Popup: new in B5b"
+  },
+  "setup_created": {
+    "message": "สร้างแล้ว",
+    "description": "Popup: new in B5b"
+  },
+  "error_checkpointTitle": {
+    "message": "$PLATFORM$ ขอตรวจสอบความปลอดภัย",
+    "description": "Popup: new in B5b",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "x"
+      }
+    }
+  },
+  "error_checkpointDetail": {
+    "message": "สลับเป็นบัญชี “$NAME$” ในเบราว์เซอร์แล้ว แต่เว็บขอให้ตรวจสอบความปลอดภัยก่อนจึงจะใช้งานได้ เปิดเว็บแล้วตรวจสอบให้เสร็จ",
+    "description": "Popup: new in B5b",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "x"
+      }
+    }
+  },
+  "error_wrongTitle": {
+    "message": "มีบัญชีอื่น login อยู่",
+    "description": "Popup: new in B5b"
+  },
+  "error_wrongDetail": {
+    "message": "แท็บนี้ไม่ได้ login บัญชี “$NAME$” ให้ login “$NAME$” ในแท็บนั้น แล้วกด [[อัปเดต session]]",
+    "description": "Popup: new in B5b",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "x"
+      }
+    }
+  },
+  "err_bad_request": {
+    "message": "ส่วนขยายอ่านคำขอนั้นไม่ได้ ปิดป๊อปอัปแล้วเปิดใหม่",
+    "description": "Popup: error message"
+  },
+  "err_forbidden": {
+    "message": "ส่วนขยายปฏิเสธคำขอนั้น โหลดส่วนขยายใหม่แล้วลองอีกครั้ง",
+    "description": "Popup: error message"
+  },
+  "err_internal": {
+    "message": "เกิดข้อผิดพลาดภายในส่วนขยาย ลองอีกครั้ง",
+    "description": "Popup: error message"
+  },
+  "err_store_unreadable": {
+    "message": "เวอร์ชันนี้อ่านข้อมูลที่บันทึกไว้ไม่ได้ จึงยังไม่มีอะไรเปลี่ยนแปลง อัปเดตส่วนขยายแล้วลองอีกครั้ง",
+    "description": "Popup: error message"
+  },
+  "err_not_found": {
+    "message": "บัญชีนั้นไม่อยู่ในรายการแล้ว รีเฟรชรายการให้แล้ว",
+    "description": "Popup: error message"
+  },
+  "err_invalid_label": {
+    "message": "ชื่อต้องยาว 1 ถึง 40 ตัวอักษร",
+    "description": "Popup: error message"
+  },
+  "err_invalid_setting": {
+    "message": "ส่วนขยายไม่รู้จักการตั้งค่านั้น",
+    "description": "Popup: error message"
+  },
+  "err_duplicate": {
+    "message": "บัญชีนี้บันทึกไว้แล้ว กด [[อัปเดต session]] เพื่อรีเฟรช",
+    "description": "Popup: error message"
+  },
+  "err_no_vault": {
+    "message": "ยังไม่ได้ตั้งรหัสผ่านหลัก กรุณาตั้งรหัสผ่านหลักก่อน",
+    "description": "Popup: error message"
+  },
+  "err_vault_exists": {
+    "message": "มีรหัสผ่านหลักอยู่แล้ว ให้ใช้รหัสนั้นปลดล็อก",
+    "description": "Popup: error message"
+  },
+  "err_locked": {
+    "message": "ปลดล็อกด้วยรหัสผ่านหลักก่อน",
+    "description": "Popup: error message"
+  },
+  "err_too_many_attempts": {
+    "message": "ใส่รหัสผิดหลายครั้งเกินไป รอประมาณ 30 วินาที แล้วลองอีกครั้ง",
+    "description": "Popup: error message"
+  },
+  "err_too_short": {
+    "message": "ต้องมีอย่างน้อย 10 ตัวอักษร",
+    "description": "Popup: error message"
+  },
+  "err_too_simple": {
+    "message": "หลีกเลี่ยงอักขระซ้ำตัวเดียว หรือเลขเรียงอย่าง 1234567890",
+    "description": "Popup: error message"
+  },
+  "err_unsupported_vault": {
+    "message": "ข้อมูลนี้ถูกบันทึกโดยเวอร์ชันที่ใหม่กว่า จึงเปิดในเวอร์ชันนี้ไม่ได้ กรุณาอัปเดตส่วนขยาย",
+    "description": "Popup: error message"
+  },
+  "err_busy": {
+    "message": "ระบบกำลังดำเนินการกับเว็บนี้อยู่ รอสักครู่แล้วลองอีกครั้ง",
+    "description": "Popup: error message"
+  },
+  "err_expired": {
+    "message": "session ที่บันทึกไว้หมดอายุแล้ว ให้ login ใหม่ แล้วกด [[อัปเดต session]]",
+    "description": "Popup: error message"
+  },
+  "err_checkpoint": {
+    "message": "เว็บขอตรวจสอบความปลอดภัย เปิดเว็บแล้วตรวจสอบให้เสร็จก่อน",
+    "description": "Popup: error message"
+  },
+  "err_unsaved_current": {
+    "message": "บัญชีที่ใช้อยู่ตอนนี้ยังไม่ได้บันทึก ถ้าสลับ คุณจะหลุดจากการ login ในบัญชีนั้น",
+    "description": "Popup: error message"
+  },
+  "err_wrong_account": {
+    "message": "มีบัญชีอื่น login อยู่ ให้ login บัญชีที่ถูกต้อง แล้วกด [[อัปเดต session]]",
+    "description": "Popup: error message"
+  },
+  "err_not_logged_in": {
+    "message": "ยังไม่พบบัญชีที่ login บนเว็บนี้ ให้ login ในแท็บก่อน แล้วลองอีกครั้ง",
+    "description": "Popup: error message"
+  },
+  "err_no_youtube_tab": {
+    "message": "เปิด youtube.com ในแท็บ แล้วลองอีกครั้ง",
+    "description": "Popup: error message"
+  },
+  "err_unknown": {
+    "message": "เกิดข้อผิดพลาด ลองอีกครั้ง",
+    "description": "Popup: error message"
+  },
+  "err_not_signed_in": {
+    "message": "บัญชี Google นั้นยังไม่ได้ login บน YouTube ให้ login ในแท็บ YouTube แล้วลองอีกครั้ง",
+    "description": "Popup: error message"
+  },
+  "err_invalid_session": {
+    "message": "ข้อมูลบัญชี YouTube ที่บันทึกไว้ใช้ไม่ได้ ลบออกแล้วเพิ่มบัญชีใหม่",
+    "description": "Popup: error message"
+  },
+  "err_invalid_tab": {
+    "message": "ใช้แท็บ YouTube นี้ไม่ได้ เปิด youtube.com ในแท็บแล้วลองอีกครั้ง",
+    "description": "Popup: error message"
+  },
+  "err_api_error": {
+    "message": "YouTube ไม่ตอบกลับ เปิด youtube.com ในแท็บแล้วลองอีกครั้ง",
+    "description": "Popup: error message"
+  },
+  "err_timeout": {
+    "message": "ส่วนขยายไม่ตอบกลับภายในเวลาที่กำหนด จึงยังไม่แน่ชัดว่าดำเนินการสำเร็จหรือไม่ ระบบแสดงสถานะล่าสุดในรายการให้แล้ว กรุณาตรวจสอบก่อนลองอีกครั้ง",
+    "description": "Popup: error message"
+  },
+  "err_timeoutStale": {
+    "message": "ส่วนขยายไม่ตอบกลับภายในเวลาที่กำหนด จึงยังไม่แน่ชัดว่าดำเนินการสำเร็จหรือไม่ และยังไม่สามารถโหลดสถานะล่าสุดได้ กรุณาโหลดสถานะใหม่อีกครั้งก่อนทำรายการอื่น",
+    "description": "Popup: error message"
+  },
+  "err_timeoutPassword": {
+    "message": "ส่วนขยายไม่ตอบกลับภายในเวลาที่กำหนด ลองอีกครั้ง",
+    "description": "Popup: error message"
   }
 }

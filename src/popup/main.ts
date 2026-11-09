@@ -1,5 +1,6 @@
 import { mountPopup } from './app';
-import { i18nApi } from './runtime';
+import { createBridge, tabPattern } from './bridge';
+import { countTabs, i18nApi, openTab, sendRequest } from './runtime';
 
 function localCache(): Storage | null {
   try {
@@ -11,7 +12,22 @@ function localCache(): Storage | null {
 
 const root = document.getElementById('app');
 if (root) {
-  // B5a draws and navigates only. B5b passes `onEffect` to send each effect to the service worker and
-  // feeds the answers back with app.dispatch({ type: 'platform-loaded' | 'switch-done' | ... }).
-  mountPopup({ root, cache: localCache(), uiLanguage: i18nApi.getUILanguage() });
+  const onEffect = createBridge({
+    send: sendRequest,
+    openTab,
+    countTabs: (platform) => countTabs([tabPattern(platform)]),
+    later: (fn, ms) => {
+      setTimeout(fn, ms);
+    },
+    now: () => Date.now(),
+  });
+  // Opening the popup asks the worker what it holds (state.get) and draws the answer.
+  const app = mountPopup({
+    root,
+    cache: localCache(),
+    uiLanguage: i18nApi.getUILanguage(),
+    startPage: 'loading',
+    onEffect,
+  });
+  onEffect({ type: 'load' }, app);
 }

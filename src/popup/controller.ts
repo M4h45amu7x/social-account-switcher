@@ -2,15 +2,20 @@
 // the background worker has to carry out. No DOM, no timers, no chrome.*. B5a only draws and navigates;
 // B5b turns `effects` into messages for the service worker and feeds its answers back as the
 // "result" actions below.
+import { isErrorCode } from '../lib/messages';
 import { initialsOf, MAX_LABEL_LENGTH } from '../lib/store';
+import { validatePassword } from '../lib/vault';
 import type { LanguagePref } from './i18n';
 import type { MotionMode } from './motion';
 import {
+  type AccountProblem,
   type AccountView,
+  type ErrorKey,
   emptyPlatform,
   type Platform,
   type PlatformView,
   type PopupState,
+  WRITE_ACTIONS,
 } from './state';
 import type { ThemePref } from './theme';
 
@@ -34,6 +39,9 @@ export type UserAction =
         | 'err-update'
         | 'open-site'
         | 'unlock'
+        | 'setup'
+        | 'notice-close'
+        | 'notice-retry'
         | 'pw-toggle'
         | 'forgot'
         | 'wipe-cancel'
@@ -47,20 +55,39 @@ export type UserAction =
 
 // --- what the background tells the popup (B5b feeds these in) ---
 
+/** Everything state.get tells the popup, already in the popup's own shapes. */
+export interface Loaded {
+  hasVault: boolean;
+  locked: boolean;
+  theme: ThemePref;
+  language: LanguagePref;
+  platforms: Record<Platform, { accounts: AccountView[]; activeId: string | null; busy: boolean }>;
+  openTabs: Record<Platform, number>;
+  /** An add or an update went through: the form that started it is done. */
+  closeForms?: boolean;
+}
+
 export type ResultAction =
+  | { type: 'loaded'; data: Loaded; closeForms?: boolean }
+  /** A request failed: `code` is what the worker said (anything unknown becomes the generic message). */
+  | { type: 'failed'; code: string; id?: string; retry?: Effect }
   | { type: 'settings-loaded'; theme: ThemePref; language: LanguagePref; uiLanguage: 'en' | 'th' }
   | { type: 'platform-loaded'; platform: Platform; view: PlatformView }
   | { type: 'switch-step'; step: number }
-  | { type: 'switch-done'; ok: boolean }
+  | { type: 'switch-done'; ok: boolean; tabs?: number }
   | { type: 'flash-clear' | 'toast-clear' | 'unlock-reset' | 'unlock-done' }
-  | { type: 'unlock-result'; ok: boolean }
-  | { type: 'add-probed'; found: { idTail: string; defaultName: string } | null }
+  /** A request timed out: drop what the popup set while waiting (switching, spinner) before the state is fetched. */
+  | { type: 'settle' }
+  | { type: 'unlock-result'; ok: boolean; code?: string }
+  | { type: 'add-probed'; found: { idTail: string; defaultName: string; brand?: boolean } | null }
   | { type: 'locked'; locked: boolean };
 
 export type PopupAction = UserAction | ResultAction;
 
 export type Effect =
-  | { type: 'switch'; platform: Platform; id: string }
+  | { type: 'load' }
+  | { type: 'setup'; password: string }
+  | { type: 'switch'; platform: Platform; id: string; force?: boolean }
   | { type: 'rename'; platform: Platform; id: string; label: string }
   | { type: 'delete'; platform: Platform; id: string }
   | { type: 'probe-add'; platform: Platform }
@@ -115,6 +142,9 @@ export function parseAction(el: HTMLElement): UserAction | null {
     case 'err-update':
     case 'open-site':
     case 'unlock':
+    case 'setup':
+    case 'notice-close':
+    case 'notice-retry':
     case 'pw-toggle':
     case 'forgot':
     case 'wipe-cancel':
@@ -137,13 +167,33 @@ function calm(s: PopupState): PopupState {
     flash: null,
     toast: null,
     error: null,
+    // a stale state keeps its notice (and the lock hint) through navigation: they hold Try again
+    notice: s.stale ? s.notice : null,
     editing: null,
     confirmDelete: null,
     adding: null,
-    lock: { password: '', show: false, bad: false, wipeConfirm: false, button: 'idle' },
+    lock: {
+      password: '',
+      show: false,
+      bad: false,
+      wipeConfirm: false,
+      button: 'idle',
+      error: s.stale ? s.lock.error : null,
+    },
     settings: { ...s.settings, wipeConfirm: false },
   };
 }
+
+const PROBLEMS: readonly string[] = [
+  'expired',
+  'checkpoint',
+  'wrong_account',
+] satisfies AccountProblem[];
+const isProblem = (code: ErrorKey): code is AccountProblem => PROBLEMS.includes(code);
+
+/** A code from the worker, or `unknown` when it is not one this popup has a message for. */
+export const toErrorKey = (code: string | undefined): ErrorKey =>
+  code === 'timeout' || code === 'timeoutStale' ? code : isErrorCode(code) ? code : 'unknown';
 
 const find = (s: PopupState, id: string): AccountView | undefined =>
   s.platforms[s.platform].accounts.find((a) => a.id === id);
@@ -169,6 +219,7 @@ const clipLabel = (v: string): string => [...v.trim()].slice(0, MAX_LABEL_LENGTH
 
 export function reduce(s: PopupState, a: PopupAction): Step {
   const p = s.platform;
+  if (s.stale && WRITE_ACTIONS.has(a.type)) return same(s, 'none', { render: false });
   switch (a.type) {
     case 'tab': {
       if (a.platform === p) return same(s, 'none', { render: false });
@@ -192,12 +243,8 @@ export function reduce(s: PopupState, a: PopupAction): Step {
         effects: [{ type: 'settings', language: a.value }],
       });
 
-    case 'switch': {
-      if (s.switching || !find(s, a.id)) return same(s, 'none', { render: false });
-      return same({ ...calm(s), switching: { id: a.id, step: 0 } }, 'status', {
-        effects: [{ type: 'switch', platform: p, id: a.id }],
-      });
-    }
+    case 'switch':
+      return startSwitch(s, a.id, false);
     case 'switch-step':
       return same(s.switching ? { ...s, switching: { ...s.switching, step: a.step } } : s, 'none', {
         render: false,
@@ -211,7 +258,7 @@ export function reduce(s: PopupState, a: PopupAction): Step {
         switching: null,
         flash: { id: sw.id, kind: a.ok ? 'ok' : 'bad' },
       };
-      if (!a.ok) return same({ ...base, error: { id: sw.id } }, 'status');
+      if (!a.ok) return same({ ...base, error: { id: sw.id, code: 'expired' } }, 'status');
       const view = s.platforms[p];
       let next: PopupState = base;
       next = mapAccounts(next, p, (x) =>
@@ -222,8 +269,30 @@ export function reduce(s: PopupState, a: PopupAction): Step {
             : x,
       );
       next = withPlatform(next, p, { activeId: sw.id });
-      return same({ ...next, toast: { name: acct?.label ?? '', tabs: view.openTabs } }, 'status');
+      return same(
+        { ...next, toast: { name: acct?.label ?? '', tabs: a.tabs ?? view.openTabs } },
+        'status',
+      );
     }
+    case 'failed':
+      return fail(s, a);
+    case 'loaded':
+      return load(s, a.data, a.closeForms === true);
+    case 'settle':
+      return same(
+        {
+          ...s,
+          switching: null,
+          lock: { ...s.lock, button: s.lock.button === 'loading' ? 'idle' : s.lock.button },
+        },
+        'status',
+      );
+    case 'notice-close':
+      // while the state is stale the notice carries the only way forward (Try again): it stays
+      if (s.stale) return same(s, 'none', { render: false });
+      return same({ ...s, notice: null }, 'expand');
+    case 'notice-retry':
+      return retry(s);
     case 'flash-clear':
       return s.flash ? same({ ...s, flash: null }, 'status') : same(s, 'none', { render: false });
     case 'toast-clear':
@@ -272,7 +341,13 @@ export function reduce(s: PopupState, a: PopupAction): Step {
         {
           ...s,
           adding: a.found
-            ? { kind: 'form', value: a.found.defaultName, bad: false, idTail: a.found.idTail }
+            ? {
+                kind: 'form',
+                value: a.found.defaultName,
+                bad: false,
+                idTail: a.found.idTail,
+                ...(a.found.brand ? { brand: true } : {}),
+              }
             : { kind: 'notLoggedIn' },
         },
         'expand',
@@ -321,9 +396,13 @@ export function reduce(s: PopupState, a: PopupAction): Step {
         );
       }
       if (a.field === 'password') {
-        return same({ ...s, lock: { ...s.lock, password: a.value, bad: false } }, 'none', {
-          render: false,
-        });
+        return same(
+          { ...s, lock: { ...s.lock, password: a.value, bad: false, error: null } },
+          'none',
+          {
+            render: false,
+          },
+        );
       }
       return same(s, 'none', { render: false });
     }
@@ -336,14 +415,33 @@ export function reduce(s: PopupState, a: PopupAction): Step {
       });
     case 'unlock': {
       if (s.lock.button === 'loading') return same(s, 'none', { render: false });
-      return same({ ...s, lock: { ...s.lock, button: 'loading' } }, 'status', {
+      return same({ ...s, lock: { ...s.lock, button: 'loading', error: null } }, 'status', {
         effects: [{ type: 'unlock', password: s.lock.password }],
       });
     }
-    case 'unlock-result':
-      return a.ok
-        ? same({ ...s, lock: { ...s.lock, button: 'ok' } }, 'status')
-        : same({ ...s, lock: { ...s.lock, button: 'err', bad: true, password: '' } }, 'status');
+    case 'setup': {
+      if (s.lock.button === 'loading') return same(s, 'none', { render: false });
+      // The worker is the real check; this only saves a round trip for a password it would refuse.
+      const valid = validatePassword(s.lock.password);
+      if (!valid.ok) {
+        return same({ ...s, lock: { ...s.lock, bad: true, error: valid.error } }, 'status');
+      }
+      return same(
+        { ...s, lock: { ...s.lock, button: 'loading', bad: false, error: null } },
+        'status',
+        {
+          effects: [{ type: 'setup', password: s.lock.password }],
+        },
+      );
+    }
+    case 'unlock-result': {
+      if (a.ok) return same({ ...s, lock: { ...s.lock, button: 'ok' } }, 'status');
+      const code = a.code === undefined || a.code === 'wrong_password' ? null : toErrorKey(a.code);
+      return same(
+        { ...s, lock: { ...s.lock, button: 'err', bad: true, password: '', error: code } },
+        'status',
+      );
+    }
     case 'unlock-reset':
       return same({ ...s, lock: { ...s.lock, button: 'idle' } }, 'status');
     case 'unlock-done':
@@ -351,7 +449,10 @@ export function reduce(s: PopupState, a: PopupAction): Step {
     case 'pw-toggle':
       return same({ ...s, lock: { ...s.lock, show: !s.lock.show } });
     case 'forgot':
-      return same({ ...s, lock: { ...s.lock, wipeConfirm: true, bad: false } }, 'expand');
+      return same(
+        { ...s, lock: { ...s.lock, wipeConfirm: true, bad: false, error: null } },
+        'expand',
+      );
     case 'wipe-cancel':
       return same({ ...s, lock: { ...s.lock, wipeConfirm: false } }, 'expand');
     case 'wipe-ok': {
@@ -389,6 +490,124 @@ export function reduce(s: PopupState, a: PopupAction): Step {
   }
 }
 
+function startSwitch(s: PopupState, id: string, force: boolean): Step {
+  if (s.switching || s.platforms[s.platform].busy || !find(s, id)) {
+    return same(s, 'none', { render: false });
+  }
+  return same({ ...calm(s), switching: { id, step: 0 } }, 'status', {
+    effects: [{ type: 'switch', platform: s.platform, id, ...(force ? { force } : {}) }],
+  });
+}
+
+/** A request failed. Some codes change the page, some explain a session, the rest are said in words. */
+function fail(s: PopupState, a: Extract<ResultAction, { type: 'failed' }>): Step {
+  const code = toErrorKey(a.code);
+  if (code === 'locked') return same({ ...calm(s), page: 'locked' }, 'page', { dir: 1 });
+  if (code === 'no_vault') return same({ ...calm(s), page: 'setup' }, 'page', { dir: 1 });
+  const sw = s.switching;
+  const id = a.id ?? sw?.id;
+  const base: PopupState = {
+    ...s,
+    // a failure before the first answer still has to show: the loading page has no room for it
+    page: s.page === 'loading' ? 'main' : s.page,
+    switching: null,
+    flash: id ? { id, kind: 'bad' } : null,
+  };
+  if (id && isProblem(code)) return same({ ...base, error: { id, code } }, 'status');
+  if (code === 'timeout' || code === 'timeoutStale') {
+    // the lock pages have no notice box: the words go under the password field
+    const onLock = s.page === 'locked' || s.page === 'setup';
+    return same(
+      {
+        ...base,
+        stale: code === 'timeoutStale',
+        // a password page has no list: its hint must not point at one
+        lock: onLock
+          ? { ...s.lock, button: 'idle', error: code === 'timeout' ? 'timeoutPassword' : code }
+          : s.lock,
+        notice: { code, retry: a.retry ?? null },
+      },
+      'status',
+    );
+  }
+  return same({ ...base, notice: { code, retry: a.retry ?? null } }, 'status');
+}
+
+/** "Try again" on a notice: repeat what failed. */
+function retry(s: PopupState): Step {
+  // stale: the way out is a read, whatever the notice remembers
+  const again = s.notice?.retry ?? (s.stale ? ({ type: 'load' } as const) : null);
+  const cleared: PopupState = { ...s, notice: null };
+  if (!again) return same(cleared, 'expand');
+  if (again.type === 'switch') {
+    const next = startSwitch(cleared, again.id, again.force === true);
+    return next.effects.length ? next : same(cleared, 'expand');
+  }
+  if (again.type === 'load') {
+    return same(
+      { ...cleared, page: cleared.page === 'main' ? 'loading' : cleared.page },
+      'status',
+      {
+        effects: [again],
+      },
+    );
+  }
+  return same(cleared, 'expand', { effects: [again] });
+}
+
+/** What state.get said replaces the lists, the settings and (when the data is locked or new) the page. */
+function load(s: PopupState, d: Loaded, closeForms: boolean): Step {
+  const platforms = { ...s.platforms };
+  for (const p of PLATFORM_ORDER) {
+    platforms[p] = { ...d.platforms[p], openTabs: d.openTabs[p] };
+  }
+  // keep an open editor, delete confirm or form only when what it points at is still there
+  const has = (id: string): boolean => platforms[s.platform].accounts.some((x) => x.id === id);
+  // the "Unlocked ✓" moment is not cut short by the lists arriving
+  const finishing = s.lock.button === 'ok' || s.lock.button === 'loading';
+  let page = s.page;
+  if (!d.hasVault) page = 'setup';
+  else if (d.locked) page = 'locked';
+  else if (!finishing && (page === 'loading' || page === 'locked' || page === 'setup'))
+    page = 'main';
+  const next: PopupState = {
+    ...s,
+    page,
+    stale: false,
+    lock:
+      s.lock.error === 'timeout' ||
+      s.lock.error === 'timeoutStale' ||
+      s.lock.error === 'timeoutPassword'
+        ? { ...s.lock, error: null }
+        : s.lock,
+    platforms,
+    settings: { ...s.settings, theme: d.theme, language: d.language },
+    adding: closeForms ? null : s.adding,
+    editing: !closeForms && s.editing && has(s.editing.id) ? s.editing : null,
+    confirmDelete: s.confirmDelete && has(s.confirmDelete) ? s.confirmDelete : null,
+    error: s.error && has(s.error.id) ? s.error : null,
+  };
+  if (page !== s.page) return same(next, 'page', { dir: page === 'main' ? -1 : 1 });
+  const changed = PLATFORM_ORDER.some(
+    (p) => platforms[p].accounts.length !== s.platforms[p].accounts.length,
+  );
+  // Nothing differs at all: no redraw, so a caret in a field is not disturbed. Anything that differs (including
+  // `stale`, the lock hint and the notice, which the view reads) draws again; comparing the whole state means a
+  // field the view starts to read can never be forgotten here.
+  return same(next, changed ? 'list' : 'none', {
+    render: canonical(next) !== canonical(s),
+  });
+}
+
+/** JSON with sorted keys: two states are the same when every field is, whatever order it was built in. */
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_k, v: unknown) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1)))
+      : v,
+  );
+}
+
 function clearPlatforms(s: PopupState, list: readonly Platform[]): PopupState {
   let next = s;
   for (const p of list) next = withPlatform(next, p, { ...emptyPlatform(s.platforms[p].openTabs) });
@@ -409,14 +628,18 @@ export interface EscapeTarget {
  * (closing the popup) is left alone.
  */
 export function escapeTarget(s: PopupState): EscapeTarget | null {
+  if (s.page === 'loading') return null;
   if (s.page === 'locked') {
     return s.lock.wipeConfirm
       ? { action: { type: 'wipe-cancel' }, focus: '[data-testid="forgot"]' }
       : null;
   }
   if (s.page === 'settings') {
-    return s.settings.wipeConfirm
-      ? { action: { type: 's-wipe-cancel' }, focus: '[data-testid="s-wipe"]' }
+    if (s.settings.wipeConfirm) {
+      return { action: { type: 's-wipe-cancel' }, focus: '[data-testid="s-wipe"]' };
+    }
+    return s.notice && !s.stale
+      ? { action: { type: 'notice-close' }, focus: '[data-testid="settings-back"]' }
       : null;
   }
   if (s.switching) return null;
@@ -432,6 +655,9 @@ export function escapeTarget(s: PopupState): EscapeTarget | null {
   }
   if (s.error) {
     return { action: { type: 'err-close' }, focus: `.row[data-id="${s.error.id}"] .main` };
+  }
+  if (s.notice && !s.stale) {
+    return { action: { type: 'notice-close' }, focus: '[role="tab"][aria-selected="true"]' };
   }
   return null;
 }

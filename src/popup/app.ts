@@ -31,6 +31,8 @@ export interface AppDeps {
   uiLanguage: string;
   /** Start from this state instead of an empty one (the e2e page and tests use it). */
   state?: PopupState;
+  /** First page to draw when no `state` is given (`loading` until the worker has answered). */
+  startPage?: PopupState['page'];
   /** Called for each thing the background has to do. B5b sends them to the service worker. */
   onEffect?: (effect: Effect, app: App) => void;
 }
@@ -81,6 +83,7 @@ export function mountPopup(deps: AppDeps): App {
     };
   }
   state = { ...state, settings: { ...state.settings, uiLanguage } };
+  if (!deps.state && deps.startPage) state = { ...state, page: deps.startPage };
   reconcileTheme(html, cache, state.settings.theme);
   let tr = createTranslator(resolveLanguage(state.settings.language, deps.uiLanguage));
 
@@ -159,7 +162,8 @@ export function mountPopup(deps: AppDeps): App {
     if (ev.key === 'Enter') {
       if (field === 'rename') app.dispatch({ type: 'rename-save' });
       else if (field === 'add') app.dispatch({ type: 'add-save' });
-      else if (field === 'password') app.dispatch({ type: 'unlock' });
+      else if (field === 'password')
+        app.dispatch({ type: state.page === 'setup' ? 'setup' : 'unlock' });
     }
   });
 

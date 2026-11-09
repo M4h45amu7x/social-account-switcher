@@ -1,5 +1,6 @@
 // docs/design.md 8.3 item 11: every popup state renders in happy-dom, in English and Thai.
 import { describe, expect, test } from 'bun:test';
+import { reduce } from '../../src/popup/controller';
 import { createTranslator, type Language } from '../../src/popup/i18n';
 import {
   baseState,
@@ -234,6 +235,7 @@ describe('screens', () => {
     expect((q(root, 'add-input') as HTMLInputElement).value).toBe('Facebook 4');
     const state = sampleState('add-form', 'en', 'x');
     state.platform = 'youtube';
+    if (state.adding?.kind === 'form') state.adding = { ...state.adding, idTail: '2' };
     expect(draw(state, 'en').querySelector('.panel .meta')?.textContent).toContain(
       'Google account 2',
     );
@@ -344,11 +346,11 @@ describe('safety', () => {
       const s = structuredClone(state);
       if (name === 'delete') s.confirmDelete = 'fb2';
       if (name === 'rename') s.editing = { id: 'fb2', value: evil, bad: false };
-      if (name === 'error') s.error = { id: 'fb2' };
+      if (name === 'error') s.error = { id: 'fb2', code: 'expired' };
       if (name === 'success') s.toast = { name: evil, tabs: 2 };
       const root = draw(s, 'en');
-      expect(root.querySelector('img')).toBeNull();
-      expect(root.querySelectorAll('img, script, svg[onload]').length).toBe(0);
+      expect(root.querySelector('img:not(.mark)')).toBeNull();
+      expect(root.querySelectorAll('img:not(.mark), script, svg[onload]').length).toBe(0);
     }
     const root = draw(state, 'en');
     expect(root.querySelector('.row[data-id="fb2"] .nm')?.textContent).toBe(evil);
@@ -364,13 +366,13 @@ describe('safety', () => {
     const s = sampleState('add-form', 'en', evil);
     const root = draw(s, 'en');
     expect((q(root, 'add-input') as HTMLInputElement).value).toBe(evil);
-    expect(root.querySelector('img')).toBeNull();
+    expect(root.querySelector('img:not(.mark)')).toBeNull();
   });
 
   test('a bad id in an effect-free state still renders', () => {
     const s = initialState();
     expect(draw(s, 'en').dataset.state).toBe('empty');
-    s.error = { id: 'gone' };
+    s.error = { id: 'gone', code: 'expired' };
     expect(vis(q(draw(s, 'en'), 'error'))).toContain('The session for “” has expired');
   });
 });
@@ -485,6 +487,16 @@ describe('extra states used by the contrast gate render in en and th', () => {
     'yt-error': 'error',
     'yt-rename': 'rename-input',
     'yt-delete': 'confirm-delete',
+    loading: 'loading',
+    setup: 'setup',
+    'setup-short': 'setup-create',
+    'setup-creating': 'setup-create',
+    'locked-blocked': 'unlock',
+    checkpoint: 'error',
+    'wrong-account': 'error',
+    notice: 'notice',
+    'notice-unsaved': 'notice',
+    'platform-busy': 'account-list',
     'lock-loading': 'unlock',
     'lock-ok': 'unlock',
     'lock-err': 'unlock',
@@ -519,5 +531,77 @@ describe('extra states used by the contrast gate render in en and th', () => {
     expect(
       q(draw(sampleState('delete-active', 'en'), 'en'), 'confirm-delete')?.textContent,
     ).toContain('stay logged in');
+  });
+});
+
+describe('official logos', () => {
+  test('every platform mark is a hidden image from inside the extension, next to the text name', () => {
+    for (const platform of ['facebook', 'instagram', 'youtube'] as const) {
+      const s = baseState('en');
+      s.platform = platform;
+      const root = draw(s, 'en');
+      const marks = [...root.querySelectorAll<HTMLImageElement>('img.mark')];
+      expect(marks.length).toBeGreaterThan(0);
+      for (const m of marks) {
+        expect(m.getAttribute('src')).toMatch(/^\/brands\/(facebook|instagram|youtube)\.svg$/);
+        expect(m.getAttribute('alt')).toBe('');
+        expect(m.getAttribute('aria-hidden')).toBe('true');
+      }
+      expect(root.querySelector(`[data-tab="${platform}"] img.mark`)?.getAttribute('src')).toBe(
+        `/brands/${platform}.svg`,
+      );
+      expect(root.querySelector(`[data-tab="${platform}"]`)?.textContent).toContain(
+        platform === 'youtube' ? 'YouTube' : platform === 'facebook' ? 'Facebook' : 'Instagram',
+      );
+    }
+  });
+});
+
+describe('YouTube add form shows only real data', () => {
+  const youtubeForm = (found: { idTail: string; defaultName: string; brand?: boolean }) => {
+    let s = baseState('en');
+    s = reduce(s, { type: 'tab', platform: 'youtube' }).state;
+    s = reduce(s, { type: 'add-probed', found }).state;
+    return draw(s, 'en');
+  };
+  test('the Google account number the worker read, with Brand when there is a channel', () => {
+    expect(
+      q(youtubeForm({ idTail: '2', defaultName: 'x' }), 'add-form')?.querySelector('.meta')
+        ?.textContent,
+    ).toBe('Google account 2');
+    expect(
+      q(youtubeForm({ idTail: '3', defaultName: 'x', brand: true }), 'add-form')?.querySelector(
+        '.meta',
+      )?.textContent,
+    ).toBe('Brand · Google account 3');
+  });
+  test('nothing read, no line (and never the old fixed text)', () => {
+    const root = youtubeForm({ idTail: '', defaultName: 'x' });
+    expect(q(root, 'add-form')?.querySelector('.meta')).toBeNull();
+    expect(root.textContent).not.toContain('personal channel');
+  });
+});
+
+describe('drawing again under a field the person is typing in', () => {
+  test.each([
+    ['rename', 'rename', 'rename-input'],
+    ['add', 'add', 'add-input'],
+  ] as const)('%s field keeps its value, caret and focus', (_n, kind, id) => {
+    const s = sampleState('list', 'en');
+    const fb = s.platforms.facebook.accounts[0]?.id ?? '';
+    const opened =
+      kind === 'rename'
+        ? reduce(s, { type: 'rename', id: fb }).state
+        : sampleState('add-form', 'en', 'Shop');
+    const root = draw(opened, 'en');
+    const input = root.querySelector<HTMLInputElement>(`#${id}`);
+    if (!input) throw new Error(`no #${id}`);
+    input.focus();
+    input.setSelectionRange(2, 4);
+    renderPopup(root, { ...opened, stale: false, toast: null }, createTranslator('en'));
+    const again = root.querySelector<HTMLInputElement>(`#${id}`);
+    expect(again?.value).toBe(input.value);
+    expect(document.activeElement).toBe(again);
+    expect([again?.selectionStart, again?.selectionEnd]).toEqual([2, 4]);
   });
 });

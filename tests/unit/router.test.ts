@@ -138,6 +138,56 @@ describe('state and vault', () => {
     expect(whoIs(h.chrome, 'facebook')).toBe('1002');
   });
 
+  test('forgot-password wipe (scope sessions) keeps the YouTube shortcuts and drops the rest', async () => {
+    const { h } = await withAccounts();
+    h.youtube.current = { ok: true, value: { authuser: 1 } };
+    const yt = await h.must<{ id: string }>({
+      type: 'account.addCurrent',
+      platform: 'youtube',
+      label: 'Channel',
+    });
+    await h.deps.session.set({ 'journal.facebook': { x: 1 } });
+    await h.must({ type: 'vault.wipe', scope: 'sessions' });
+    const after = await state(h);
+    expect(after).toMatchObject({ hasVault: false, locked: true });
+    expect(after.accounts.map((a) => a.id)).toEqual([yt.id]);
+    expect(after.active).toEqual({ facebook: null, instagram: null, youtube: yt.id });
+    expect(h.chrome.storage.session.dump()).toEqual({});
+    // and the user can set a new password straight away
+    await h.must({ type: 'vault.setup', password: PASSWORD });
+  });
+
+  test('forgot-password wipe of an unreadable store removes it whole', async () => {
+    const { h } = await withAccounts();
+    await h.chrome.storage.local.set({ store: { schemaVersion: 99 } });
+    await h.must({ type: 'vault.wipe', scope: 'sessions' });
+    expect(h.chrome.storage.local.dump()).toEqual({});
+  });
+
+  test('probe says who is logged in without saving anything', async () => {
+    const h = await startWorker();
+    expect(await h.must({ type: 'account.probe', platform: 'facebook' })).toEqual({ tail: null });
+    await loginAs(h.chrome, 'facebook', '1234567');
+    expect(await h.must({ type: 'account.probe', platform: 'facebook' })).toEqual({ tail: '4567' });
+    expect((await state(h)).accounts).toEqual([]);
+    h.youtube.current = { ok: true, value: { authuser: 2 } };
+    expect(await h.must({ type: 'account.probe', platform: 'youtube' })).toEqual({
+      tail: '3',
+      brand: false,
+    });
+    h.youtube.current = { ok: true, value: { authuser: 0, pageid: 'brand-9' } };
+    expect(await h.must({ type: 'account.probe', platform: 'youtube' })).toEqual({
+      tail: '1',
+      brand: true,
+    });
+    h.youtube.current = err('not_signed_in');
+    expect(await h.must({ type: 'account.probe', platform: 'youtube' })).toEqual({ tail: null });
+    h.youtube.current = err('no_youtube_tab');
+    expect(await h.send({ type: 'account.probe', platform: 'youtube' })).toEqual(
+      err('no_youtube_tab'),
+    );
+  });
+
   test('wipe also works when the store is unreadable', async () => {
     const { h } = await withAccounts();
     await h.chrome.storage.local.set({ store: { schemaVersion: 99 } });

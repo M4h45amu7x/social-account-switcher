@@ -1,0 +1,14 @@
+bun --version: 1.4.4
+# super2 t-565 caret/recovery harness + new view/caret tests on bd73544 (expected red)
+(fail) QC recovery redraw preserves caret while typing setup [59.42ms]
+(fail) QC recovery redraw preserves caret while typing locked [95.90ms]
+(fail) drawing again under a field the person is typing in > rename field keeps its value, caret and focus [4.74ms]
+(fail) drawing again under a field the person is typing in > add field keeps its value, caret and focus [2.66ms]
+(fail) recovery redraw preserves caret while typing setup [47.28ms]
+(fail) recovery redraw preserves caret while typing locked [86.89ms]
+ 148 pass
+ 6 fail
+✓ built in 242ms
+  ✘  1 tests/e2e/qc-caret.spec.ts:60:38 › QC caret during delayed same-state retry setup (18.3s)
+  ✘  2 tests/e2e/qc-caret.spec.ts:60:38 › QC caret during delayed same-state retry locked (20.1s)
+  2 failed

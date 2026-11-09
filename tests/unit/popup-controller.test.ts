@@ -142,7 +142,7 @@ describe('switching', () => {
       { type: 'switch-done', ok: false },
     );
     expect(state.platforms.facebook.activeId).toBe('fb1');
-    expect(state.error).toEqual({ id: 'fb3' });
+    expect(state.error).toEqual({ id: 'fb3', code: 'expired' });
     expect(state.flash?.kind).toBe('bad');
     expect(state.toast).toBeNull();
   });
@@ -448,5 +448,206 @@ describe('escapeTarget: one Esc rule', () => {
     expect(t(sampleState('locked', 'en'))).toBeNull();
     expect(t(sampleState('locked-wrong', 'en'))).toBeNull();
     expect(t(sampleState('switching', 'en'))).toBeNull();
+  });
+});
+
+describe('B5b: results from the worker', () => {
+  const base = () => baseState('en');
+  test('failed: locked and no_vault change the page, others become a notice with an optional retry', () => {
+    expect(reduce(base(), { type: 'failed', code: 'locked' }).state.page).toBe('locked');
+    expect(reduce(base(), { type: 'failed', code: 'no_vault' }).state.page).toBe('setup');
+    const retry: Effect = { type: 'load' };
+    const { state } = reduce(base(), { type: 'failed', code: 'busy', retry });
+    expect(state.notice).toEqual({ code: 'busy', retry });
+    expect(reduce(base(), { type: 'failed', code: 'not-a-code' }).state.notice?.code).toBe(
+      'unknown',
+    );
+    // a failure while still loading leaves the loading page, or the notice would have no room
+    expect(
+      reduce({ ...base(), page: 'loading' }, { type: 'failed', code: 'unknown' }).state.page,
+    ).toBe('main');
+  });
+
+  test('retry repeats the effect; without one it just closes', () => {
+    const effect: Effect = { type: 'settings', theme: 'dark' };
+    const failed = reduce(base(), { type: 'failed', code: 'internal', retry: effect }).state;
+    const again = reduce(failed, { type: 'notice-retry' });
+    expect(again.effects).toEqual([effect]);
+    expect(again.state.notice).toBeNull();
+    const noRetry = reduce(reduce(base(), { type: 'failed', code: 'duplicate' }).state, {
+      type: 'notice-retry',
+    });
+    expect(noRetry.effects).toEqual([]);
+    expect(noRetry.state.notice).toBeNull();
+    expect(reduce(failed, { type: 'notice-close' }).state.notice).toBeNull();
+    // a retried switch that can no longer start (the account is gone) just closes the notice
+    const gone = reduce(base(), {
+      type: 'failed',
+      code: 'unsaved_current',
+      retry: { type: 'switch', platform: 'facebook', id: 'ghost', force: true },
+    }).state;
+    expect(reduce(gone, { type: 'notice-retry' }).effects).toEqual([]);
+    const load = reduce(base(), { type: 'failed', code: 'unknown', retry: { type: 'load' } }).state;
+    const retried = reduce(load, { type: 'notice-retry' });
+    expect(retried.state.page).toBe('loading');
+    expect(retried.effects).toEqual([{ type: 'load' }]);
+  });
+
+  test('Esc closes a notice and gives focus back to the tab (or the settings back button)', () => {
+    const s = reduce(base(), { type: 'failed', code: 'busy' }).state;
+    expect(escapeTarget(s)).toEqual({
+      action: { type: 'notice-close' },
+      focus: '[role="tab"][aria-selected="true"]',
+    });
+    const inSettings = { ...reduce(base(), { type: 'settings-open' }).state, notice: s.notice };
+    expect(escapeTarget(inSettings)?.focus).toBe('[data-testid="settings-back"]');
+    expect(escapeTarget({ ...base(), page: 'loading' })).toBeNull();
+    expect(escapeTarget({ ...base(), page: 'setup' })).toBeNull();
+  });
+
+  test('the setup page checks the password before sending, and Enter or the button send once', () => {
+    const setup = { ...base(), page: 'setup' as const };
+    const weak = reduce(reduce(setup, { type: 'input', field: 'password', value: 'abc' }).state, {
+      type: 'setup',
+    });
+    expect(weak.effects).toEqual([]);
+    expect(weak.state.lock.error).toBe('too_short');
+    const good = reduce(
+      reduce(setup, { type: 'input', field: 'password', value: 'orange-cat-2026' }).state,
+      { type: 'setup' },
+    );
+    expect(good.effects).toEqual([{ type: 'setup', password: 'orange-cat-2026' }]);
+    expect(reduce(good.state, { type: 'setup' }).effects).toEqual([]);
+  });
+
+  test('loaded: keeps an open editor only while its account exists, and skips a redraw when nothing changed', () => {
+    const s = base();
+    const data = {
+      hasVault: true,
+      locked: false,
+      theme: 'system' as const,
+      language: 'auto' as const,
+      platforms: {
+        facebook: { accounts: s.platforms.facebook.accounts, activeId: 'fb1', busy: false },
+        instagram: { accounts: [], activeId: null, busy: false },
+        youtube: { accounts: s.platforms.youtube.accounts, activeId: 'yt1', busy: false },
+      },
+      openTabs: { facebook: 2, instagram: 1, youtube: 3 },
+    };
+    expect(reduce(s, { type: 'loaded', data }).render).toBe(false);
+    const editing = reduce(s, { type: 'rename', id: 'fb2' }).state;
+    expect(reduce(editing, { type: 'loaded', data }).state.editing?.id).toBe('fb2');
+    const without = {
+      ...data,
+      platforms: { ...data.platforms, facebook: { ...data.platforms.facebook, accounts: [] } },
+    };
+    const dropped = reduce(editing, { type: 'loaded', data: without }).state;
+    expect(dropped.editing).toBeNull();
+    // a form that just saved is closed
+    const adding = reduce(s, {
+      type: 'add-probed',
+      found: { idTail: '1', defaultName: 'x' },
+    }).state;
+    expect(reduce(adding, { type: 'loaded', data, closeForms: true }).state.adding).toBeNull();
+  });
+  test.each([
+    ['main', { hasVault: true, locked: false }],
+    ['settings', { hasVault: true, locked: false }],
+    ['locked', { hasVault: true, locked: true }],
+    ['setup', { hasVault: false, locked: false }],
+  ] as const)(
+    'loaded on %s with the same data draws again whenever a field the view reads changes (stale, hint)',
+    (page, vault) => {
+      const s = { ...base(), page };
+      const data = {
+        ...vault,
+        theme: s.settings.theme,
+        language: s.settings.language,
+        platforms: {
+          facebook: {
+            accounts: s.platforms.facebook.accounts,
+            activeId: s.platforms.facebook.activeId,
+            busy: false,
+          },
+          instagram: {
+            accounts: s.platforms.instagram.accounts,
+            activeId: s.platforms.instagram.activeId,
+            busy: false,
+          },
+          youtube: {
+            accounts: s.platforms.youtube.accounts,
+            activeId: s.platforms.youtube.activeId,
+            busy: false,
+          },
+        },
+        openTabs: {
+          facebook: s.platforms.facebook.openTabs,
+          instagram: s.platforms.instagram.openTabs,
+          youtube: s.platforms.youtube.openTabs,
+        },
+      };
+      // nothing differs: no redraw (a caret in a field is not disturbed)
+      expect(reduce(s, { type: 'loaded', data }).render).toBe(false);
+      // one field at a time, each the view reads: every one draws again
+      const changes: [string, PopupState][] = [
+        ['stale', { ...s, stale: true }],
+        ['lock.error stale', { ...s, lock: { ...s.lock, error: 'timeoutStale' } }],
+        ['lock.error password', { ...s, lock: { ...s.lock, error: 'timeoutPassword' } }],
+        ['lock.error timeout', { ...s, lock: { ...s.lock, error: 'timeout' } }],
+      ];
+      for (const [field, before] of changes) {
+        const step = reduce(before, { type: 'loaded', data });
+        expect([field, step.render]).toEqual([field, true]);
+        expect(step.state.stale).toBe(false);
+        expect(step.state.lock.error).toBeNull();
+      }
+    },
+  );
+
+  test('while stale, closing the notice, Esc and moving around keep Try again, and Try again only reads', () => {
+    const stale: PopupState = {
+      ...base(),
+      stale: true,
+      notice: { code: 'timeoutStale', retry: { type: 'load' } },
+    };
+    expect(reduce(stale, { type: 'notice-close' }).state.notice).not.toBeNull();
+    expect(escapeTarget(stale)).toBeNull();
+    expect(escapeTarget({ ...stale, page: 'settings' })).toBeNull();
+    const moved = reduce(stale, { type: 'tab', platform: 'youtube' }).state;
+    expect(moved.notice?.code).toBe('timeoutStale');
+    expect(reduce(stale, { type: 'settings-open' }).state.notice?.code).toBe('timeoutStale');
+    // the retry works even when the notice forgot what to repeat
+    const forgot: PopupState = { ...stale, notice: { code: 'timeoutStale', retry: null } };
+    expect(reduce(forgot, { type: 'notice-retry' }).effects).toEqual([{ type: 'load' }]);
+    // not stale: Esc closes the notice as before
+    expect(escapeTarget({ ...stale, stale: false })?.action).toEqual({ type: 'notice-close' });
+  });
+
+  test('unlock-result carries the reason; typing clears it', () => {
+    const locked = { ...base(), page: 'locked' as const };
+    const blocked = reduce(locked, {
+      type: 'unlock-result',
+      ok: false,
+      code: 'too_many_attempts',
+    }).state;
+    expect(blocked.lock.error).toBe('too_many_attempts');
+    expect(
+      reduce(blocked, { type: 'input', field: 'password', value: 'x' }).state.lock.error,
+    ).toBeNull();
+    expect(
+      reduce(locked, { type: 'unlock-result', ok: false, code: 'wrong_password' }).state.lock.error,
+    ).toBeNull();
+    expect(
+      reduce(locked, { type: 'unlock-result', ok: false, code: 'nonsense' }).state.lock.error,
+    ).toBe('unknown');
+  });
+
+  test('a platform the worker marks busy cannot start a switch', () => {
+    const s = base();
+    const busy = {
+      ...s,
+      platforms: { ...s.platforms, facebook: { ...s.platforms.facebook, busy: true } },
+    };
+    expect(reduce(busy, { type: 'switch', id: 'fb2' }).effects).toEqual([]);
   });
 });

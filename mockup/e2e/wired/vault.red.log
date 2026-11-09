@@ -1,0 +1,273 @@
+
+Running 7 tests using 1 worker
+
+  ✘  1 tests/e2e/vault.spec.ts:65:1 › first run asks for a master password, then lock, a wrong password and the right one (13.3s)
+  ✘  2 tests/e2e/vault.spec.ts:96:1 › too many wrong passwords is said in words, not as a code (5.9s)
+  ✘  3 tests/e2e/vault.spec.ts:115:1 › stopping the service worker does not ask for the password again (5.3s)
+  ✘  4 tests/e2e/vault.spec.ts:147:1 › theme and language are kept by the worker and come back in a new popup (5.3s)
+  ✘  5 tests/e2e/vault.spec.ts:180:1 › add, rename and remove an account; a duplicate is explained (5.4s)
+  ✘  6 tests/e2e/vault.spec.ts:223:1 › add while nobody is logged in shows the note (5.3s)
+  ✘  7 tests/e2e/vault.spec.ts:232:1 › wipe all data from Settings, and the forgot-password wipe, both return to setup (5.3s)
+
+
+  1) tests/e2e/vault.spec.ts:65:1 › first run asks for a master password, then lock, a wrong password and the right one 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  getByTestId('popup')
+    Expected: "setup"
+    Received: "empty"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" getByTestId('popup') with timeout 5000ms
+      - waiting for getByTestId('popup')
+        14 × locator resolved to <main id="app" class="popup" aria-live="polite" data-state="empty" data-testid="popup" data-platform="facebook">…</main>
+           - unexpected value "empty"
+
+
+      69 |   const { problems } = watch(context);
+      70 |   const page = await open(context, extensionId);
+    > 71 |   await expect(screen(page)).toHaveAttribute('data-state', 'setup');
+         |                              ^
+      72 |
+      73 |   // the popup warns first, the worker is the real check
+      74 |   await page.getByTestId('pw-input').fill('short');
+        at /home/n1/Desktop/sam-worktrees/t-541/tests/e2e/vault.spec.ts:71:30
+
+    Tearing down "context" exceeded the test timeout of 8000ms.
+
+    Error Context: test-results/vault-first-run-asks-for-a-6557f--password-and-the-right-one/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/vault-first-run-asks-for-a-6557f--password-and-the-right-one/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/vault-first-run-asks-for-a-6557f--password-and-the-right-one/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) tests/e2e/vault.spec.ts:96:1 › too many wrong passwords is said in words, not as a code ───────
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  getByTestId('popup')
+    Expected: "setup"
+    Received: "empty"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" getByTestId('popup') with timeout 5000ms
+      - waiting for getByTestId('popup')
+        14 × locator resolved to <main id="app" class="popup" aria-live="polite" data-state="empty" data-testid="popup" data-platform="facebook">…</main>
+           - unexpected value "empty"
+
+
+      44 |
+      45 | async function setUp(page: Page): Promise<void> {
+    > 46 |   await expect(screen(page)).toHaveAttribute('data-state', 'setup');
+         |                              ^
+      47 |   await page.getByTestId('pw-input').fill(PASSWORD);
+      48 |   await page.getByTestId('setup-create').click();
+      49 |   await expect(screen(page)).toHaveAttribute('data-state', 'empty');
+        at setUp (/home/n1/Desktop/sam-worktrees/t-541/tests/e2e/vault.spec.ts:46:30)
+        at /home/n1/Desktop/sam-worktrees/t-541/tests/e2e/vault.spec.ts:102:9
+
+    Error Context: test-results/vault-too-many-wrong-passw-885d6-said-in-words-not-as-a-code/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/vault-too-many-wrong-passw-885d6-said-in-words-not-as-a-code/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/vault-too-many-wrong-passw-885d6-said-in-words-not-as-a-code/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) tests/e2e/vault.spec.ts:115:1 › stopping the service worker does not ask for the password again 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  getByTestId('popup')
+    Expected: "setup"
+    Received: "empty"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" getByTestId('popup') with timeout 5000ms
+      - waiting for getByTestId('popup')
+        14 × locator resolved to <main id="app" class="popup" aria-live="polite" data-state="empty" data-testid="popup" data-platform="facebook">…</main>
+           - unexpected value "empty"
+
+
+      44 |
+      45 | async function setUp(page: Page): Promise<void> {
+    > 46 |   await expect(screen(page)).toHaveAttribute('data-state', 'setup');
+         |                              ^
+      47 |   await page.getByTestId('pw-input').fill(PASSWORD);
+      48 |   await page.getByTestId('setup-create').click();
+      49 |   await expect(screen(page)).toHaveAttribute('data-state', 'empty');
+        at setUp (/home/n1/Desktop/sam-worktrees/t-541/tests/e2e/vault.spec.ts:46:30)
+        at /home/n1/Desktop/sam-worktrees/t-541/tests/e2e/vault.spec.ts:121:9
+
+    Error Context: test-results/vault-stopping-the-service-9436e--ask-for-the-password-again/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/vault-stopping-the-service-9436e--ask-for-the-password-again/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/vault-stopping-the-service-9436e--ask-for-the-password-again/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) tests/e2e/vault.spec.ts:147:1 › theme and language are kept by the worker and come back in a new popup 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  getByTestId('popup')
+    Expected: "setup"
+    Received: "empty"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" getByTestId('popup') with timeout 5000ms
+      - waiting for getByTestId('popup')
+        14 × locator resolved to <main id="app" class="popup" aria-live="polite" data-state="empty" data-testid="popup" data-platform="facebook">…</main>
+           - unexpected value "empty"
+
+
+      44 |
+      45 | async function setUp(page: Page): Promise<void> {
+    > 46 |   await expect(screen(page)).toHaveAttribute('data-state', 'setup');
+         |                              ^
+      47 |   await page.getByTestId('pw-input').fill(PASSWORD);
+      48 |   await page.getByTestId('setup-create').click();
+      49 |   await expect(screen(page)).toHaveAttribute('data-state', 'empty');
+        at setUp (/home/n1/Desktop/sam-worktrees/t-541/tests/e2e/vault.spec.ts:46:30)
+        at /home/n1/Desktop/sam-worktrees/t-541/tests/e2e/vault.spec.ts:153:9
+
+    Error Context: test-results/vault-theme-and-language-a-f36ee-nd-come-back-in-a-new-popup/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/vault-theme-and-language-a-f36ee-nd-come-back-in-a-new-popup/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/vault-theme-and-language-a-f36ee-nd-come-back-in-a-new-popup/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) tests/e2e/vault.spec.ts:180:1 › add, rename and remove an account; a duplicate is explained ───
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  getByTestId('popup')
+    Expected: "setup"
+    Received: "empty"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" getByTestId('popup') with timeout 5000ms
+      - waiting for getByTestId('popup')
+        14 × locator resolved to <main id="app" class="popup" aria-live="polite" data-state="empty" data-testid="popup" data-platform="facebook">…</main>
+           - unexpected value "empty"
+
+
+      44 |
+      45 | async function setUp(page: Page): Promise<void> {
+    > 46 |   await expect(screen(page)).toHaveAttribute('data-state', 'setup');
+         |                              ^
+      47 |   await page.getByTestId('pw-input').fill(PASSWORD);
+      48 |   await page.getByTestId('setup-create').click();
+      49 |   await expect(screen(page)).toHaveAttribute('data-state', 'empty');
+        at setUp (/home/n1/Desktop/sam-worktrees/t-541/tests/e2e/vault.spec.ts:46:30)
+        at /home/n1/Desktop/sam-worktrees/t-541/tests/e2e/vault.spec.ts:187:9
+
+    Error Context: test-results/vault-add-rename-and-remov-87798-nt-a-duplicate-is-explained/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/vault-add-rename-and-remov-87798-nt-a-duplicate-is-explained/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/vault-add-rename-and-remov-87798-nt-a-duplicate-is-explained/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) tests/e2e/vault.spec.ts:223:1 › add while nobody is logged in shows the note ──────────────────
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  getByTestId('popup')
+    Expected: "setup"
+    Received: "empty"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" getByTestId('popup') with timeout 5000ms
+      - waiting for getByTestId('popup')
+        14 × locator resolved to <main id="app" class="popup" aria-live="polite" data-state="empty" data-testid="popup" data-platform="facebook">…</main>
+           - unexpected value "empty"
+
+
+      44 |
+      45 | async function setUp(page: Page): Promise<void> {
+    > 46 |   await expect(screen(page)).toHaveAttribute('data-state', 'setup');
+         |                              ^
+      47 |   await page.getByTestId('pw-input').fill(PASSWORD);
+      48 |   await page.getByTestId('setup-create').click();
+      49 |   await expect(screen(page)).toHaveAttribute('data-state', 'empty');
+        at setUp (/home/n1/Desktop/sam-worktrees/t-541/tests/e2e/vault.spec.ts:46:30)
+        at /home/n1/Desktop/sam-worktrees/t-541/tests/e2e/vault.spec.ts:226:9
+
+    Error Context: test-results/vault-add-while-nobody-is-logged-in-shows-the-note/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/vault-add-while-nobody-is-logged-in-shows-the-note/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/vault-add-while-nobody-is-logged-in-shows-the-note/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  7) tests/e2e/vault.spec.ts:232:1 › wipe all data from Settings, and the forgot-password wipe, both return to setup 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  getByTestId('popup')
+    Expected: "setup"
+    Received: "empty"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" getByTestId('popup') with timeout 5000ms
+      - waiting for getByTestId('popup')
+        14 × locator resolved to <main id="app" class="popup" aria-live="polite" data-state="empty" data-testid="popup" data-platform="facebook">…</main>
+           - unexpected value "empty"
+
+
+      44 |
+      45 | async function setUp(page: Page): Promise<void> {
+    > 46 |   await expect(screen(page)).toHaveAttribute('data-state', 'setup');
+         |                              ^
+      47 |   await page.getByTestId('pw-input').fill(PASSWORD);
+      48 |   await page.getByTestId('setup-create').click();
+      49 |   await expect(screen(page)).toHaveAttribute('data-state', 'empty');
+        at setUp (/home/n1/Desktop/sam-worktrees/t-541/tests/e2e/vault.spec.ts:46:30)
+        at /home/n1/Desktop/sam-worktrees/t-541/tests/e2e/vault.spec.ts:239:9
+
+    Error Context: test-results/vault-wipe-all-data-from-S-ad056-d-wipe-both-return-to-setup/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/vault-wipe-all-data-from-S-ad056-d-wipe-both-return-to-setup/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/vault-wipe-all-data-from-S-ad056-d-wipe-both-return-to-setup/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  7 failed
+    tests/e2e/vault.spec.ts:65:1 › first run asks for a master password, then lock, a wrong password and the right one 
+    tests/e2e/vault.spec.ts:96:1 › too many wrong passwords is said in words, not as a code ────────
+    tests/e2e/vault.spec.ts:115:1 › stopping the service worker does not ask for the password again 
+    tests/e2e/vault.spec.ts:147:1 › theme and language are kept by the worker and come back in a new popup 
+    tests/e2e/vault.spec.ts:180:1 › add, rename and remove an account; a duplicate is explained ────
+    tests/e2e/vault.spec.ts:223:1 › add while nobody is logged in shows the note ───────────────────
+    tests/e2e/vault.spec.ts:232:1 › wipe all data from Settings, and the forgot-password wipe, both return to setup 

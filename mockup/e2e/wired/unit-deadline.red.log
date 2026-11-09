@@ -1,0 +1,12 @@
+(fail) deadlines: a worker that never answers does not freeze the popup > state.get that never answers: notice with Try again, which asks again [5.86ms]
+(fail) deadlines: a worker that never answers does not freeze the popup > a switch that never answers: switching and disabled buttons are cleared, state.get runs once, no write is repeated [57.72ms]
+(fail) deadlines: a worker that never answers does not freeze the popup > worker still busy: the platform stays off because the worker says so, not because the popup guessed [2118.20ms]
+(fail) deadlines: a worker that never answers does not freeze the popup > rename that never answers ends in the timeout notice, once, with its write sent once [88.35ms]
+(fail) deadlines: a worker that never answers does not freeze the popup > remove that never answers ends in the timeout notice, once, with its write sent once [67.90ms]
+(fail) deadlines: a worker that never answers does not freeze the popup > settings that never answers ends in the timeout notice, once, with its write sent once [57.73ms]
+(fail) deadlines: a worker that never answers does not freeze the popup > lock that never answers ends in the timeout notice, once, with its write sent once [60.70ms]
+(fail) deadlines: a worker that never answers does not freeze the popup > wipe that never answers ends in the timeout notice, once, with its write sent once [64.49ms]
+(fail) deadlines: a worker that never answers does not freeze the popup > an answer that arrives after the deadline does not overwrite the reconciled state [2200.55ms]
+(fail) deadlines: a worker that never answers does not freeze the popup > an unlock that never answers resets the button and says so [2109.47ms]
+ 1 pass
+ 10 fail

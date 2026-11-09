@@ -1,18 +1,20 @@
 // Answers the popup's messages (docs/design.md 2, 6 and 8.2). Every message is checked for its sender
 // and shape first, and every answer is a Result: nothing is thrown back across the message channel.
 import { currentUserId, snapshot } from '../lib/cookies';
-import { isTrustedSender, parseRequest, type Request } from '../lib/messages';
+import { type ErrorCode, isTrustedSender, parseRequest, type Request } from '../lib/messages';
 import type { MessageSender } from '../lib/ports';
 import { err, ok, type Result } from '../lib/result';
 import {
   type Account,
   addAccount,
   findAccount,
+  loadStore,
   type Platform,
   removeAccount,
   renameAccount,
   STORE_KEY,
   type StoreV1,
+  saveStore,
   setActive,
   updateAccount,
   updateSettings,
@@ -54,7 +56,7 @@ const FAILURES_KEY = 'unlockFailures';
 export interface Router {
   /** Settles when journal recovery at start-up has finished. Messages wait for it. */
   ready: Promise<RecoverReport | null>;
-  handle(message: unknown, sender: MessageSender): Promise<Result<unknown, string>>;
+  handle(message: unknown, sender: MessageSender): Promise<Result<unknown, ErrorCode>>;
 }
 
 export function createRouter(deps: RouterDeps): Router {
@@ -89,7 +91,7 @@ function dispatch(
   deps: RouterDeps,
   request: Request,
   recover: () => Promise<RecoverReport | null>,
-): Promise<Result<unknown, string>> {
+): Promise<Result<unknown, ErrorCode>> {
   switch (request.type) {
     case 'state.get':
       return getState(deps);
@@ -100,11 +102,13 @@ function dispatch(
     case 'vault.lock':
       return lock(deps.session).then(() => ok(undefined));
     case 'vault.wipe':
-      return wipe(deps);
+      return wipe(deps, request.scope ?? 'all');
     case 'settings.set':
       return patchStore(deps, (store) =>
         updateSettings(store, { theme: request.theme, language: request.language }),
       );
+    case 'account.probe':
+      return probe(deps, request.platform);
     case 'account.addCurrent':
       return addCurrent(deps, request.platform, request.label);
     case 'account.updateSession':
@@ -118,7 +122,7 @@ function dispatch(
   }
 }
 
-async function getState(deps: RouterDeps): Promise<Result<PopupState, string>> {
+async function getState(deps: RouterDeps): Promise<Result<PopupState, ErrorCode>> {
   const loaded = await readStore(deps);
   if (!loaded.ok) return loaded;
   const store = loaded.value;
@@ -189,11 +193,12 @@ async function unlockVault(
   return ok(undefined);
 }
 
-async function wipe(deps: RouterDeps) {
+async function wipe(deps: RouterDeps, scope: 'sessions' | 'all') {
   if (deps.busy.size > 0) return err('busy');
   await deps.storeMutex.run(async () => {
     await lock(deps.session);
-    await deps.local.remove(STORE_KEY);
+    if (scope === 'sessions') await dropSessions(deps);
+    else await deps.local.remove(STORE_KEY);
     await deps.session.remove([
       FAILURES_KEY,
       ...Object.values(deps.platforms).map((p) => journalKey(p.id)),
@@ -202,7 +207,35 @@ async function wipe(deps: RouterDeps) {
   return ok(undefined);
 }
 
+/** Forgot-password wipe: the vault and every Facebook/Instagram account go; YouTube shortcuts hold no session and stay. */
+async function dropSessions(deps: RouterDeps): Promise<void> {
+  const loaded = await loadStore(deps.local);
+  // An unreadable store can't be edited safely, so it is wiped whole (the user asked to start over).
+  if (!loaded.ok) return deps.local.remove(STORE_KEY);
+  const store = loaded.value;
+  await saveStore(deps.local, {
+    ...store,
+    vault: null,
+    accounts: store.accounts.filter((a) => a.platform === 'youtube'),
+    active: { facebook: null, instagram: null, youtube: store.active.youtube },
+  });
+}
+
 // --- accounts ---
+
+/** Who is logged in now. `tail` is the last four characters of the ID (YouTube: the Google account number). */
+async function probe(deps: RouterDeps, platform: Platform) {
+  if (platform === 'youtube') {
+    const current = await deps.youtube.readCurrent();
+    if (!current.ok) return current.error === 'not_signed_in' ? ok({ tail: null }) : current;
+    return ok({
+      tail: String(current.value.authuser + 1),
+      brand: current.value.pageid !== undefined,
+    });
+  }
+  const userId = await currentUserId(deps.cookies, deps.platforms[platform]);
+  return ok({ tail: userId === null ? null : userId.slice(-4) });
+}
 
 async function addCurrent(deps: RouterDeps, platform: Platform, label: string) {
   // Held like a switch, so what is read here can't change half-way through.

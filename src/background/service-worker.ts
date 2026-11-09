@@ -3,6 +3,7 @@
 import { createMutex } from '../lib/mutex';
 import type { LifecycleApi, SessionStorageApi } from '../lib/ports';
 import type { Platform } from '../lib/store';
+import { TAB_LOAD_TIMEOUT_MS } from '../lib/timing';
 import {
   cookiesApi,
   lifecycleApi,
@@ -29,8 +30,7 @@ export function start(lifecycle: LifecycleApi, session: SessionStorageApi): void
   });
 }
 
-/** How long a switch waits for the first reloaded tab before it checks the cookies anyway. */
-export const TAB_LOAD_TIMEOUT_MS = 15_000;
+export { TAB_LOAD_TIMEOUT_MS };
 
 start(lifecycleApi, sessionStorageApi);
 

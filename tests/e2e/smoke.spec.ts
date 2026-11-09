@@ -18,13 +18,13 @@ test('extension loads unpacked: service worker starts and popup renders without 
   });
 
   await page.goto(`chrome-extension://${extensionId}/popup/index.html`);
-  // nothing is stored yet, so the real popup opens on the empty Facebook screen
+  // nothing is stored yet, so the real popup asks for a master password first
   const heading = await page.evaluate(() => chrome.i18n.getMessage('app_title'));
   expect(heading).not.toBe('');
   await expect(page.locator('h1')).toHaveText(heading);
   expect(await page.title()).toBe(await page.evaluate(() => chrome.i18n.getMessage('popupTitle')));
-  await expect(page.getByTestId('popup')).toHaveAttribute('data-state', 'empty');
-  await expect(page.getByTestId('empty')).toBeVisible();
+  await expect(page.getByTestId('popup')).toHaveAttribute('data-state', 'setup');
+  await expect(page.getByTestId('setup')).toBeVisible();
 
   const manifest = await page.evaluate(() => chrome.runtime.getManifest());
   expect(manifest.manifest_version).toBe(3);
@@ -45,7 +45,7 @@ test.describe('Thai UI', () => {
     const page = await context.newPage();
     await page.goto(`chrome-extension://${extensionId}/popup/index.html`);
     await expect(page.locator('h1')).toHaveText(th.app_title?.message ?? '');
-    await expect(page.getByTestId('empty')).toContainText('ยังไม่มีบัญชี Facebook');
+    await expect(page.getByTestId('setup')).toContainText('ตั้งรหัสผ่านหลัก');
     expect(await page.evaluate(() => document.documentElement.lang)).toMatch(/^th/);
   });
 });

@@ -1,0 +1,41 @@
+
+Running 1 test using 1 worker
+
+  ✘  1 tests/e2e/vault.spec.ts:260:1 › a worker stuck on chrome.cookies.getAll: the popup says it timed out in time and works again (11.0s)
+
+
+  1) tests/e2e/vault.spec.ts:260:1 › a worker stuck on chrome.cookies.getAll: the popup says it timed out in time and works again 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('notice')
+    Expected: visible
+    Timeout: 9000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByTestId('notice') with timeout 9000ms
+      - waiting for getByTestId('notice')
+
+
+      276 |   const started = Date.now();
+      277 |   await page.getByTestId('add-account').click();
+    > 278 |   await expect(page.getByTestId('notice')).toBeVisible({ timeout: 9000 });
+          |                                            ^
+      279 |   expect(Date.now() - started).toBeLessThan(9000); // the read deadline is 5 s
+      280 |   await expect(page.getByTestId('notice')).toHaveAttribute('data-code', 'timeout');
+      281 |   await expect(page.getByTestId('notice')).toContainText("didn't answer in time");
+        at /home/n1/Desktop/sam-worktrees/t-550/tests/e2e/vault.spec.ts:278:44
+
+    Error Context: test-results/vault-a-worker-stuck-on-ch-eb26e-out-in-time-and-works-again/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/vault-a-worker-stuck-on-ch-eb26e-out-in-time-and-works-again/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/vault-a-worker-stuck-on-ch-eb26e-out-in-time-and-works-again/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    tests/e2e/vault.spec.ts:260:1 › a worker stuck on chrome.cookies.getAll: the popup says it timed out in time and works again 

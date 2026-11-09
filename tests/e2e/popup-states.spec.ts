@@ -289,13 +289,24 @@ test.describe('behaviour in the real popup', () => {
     extensionId,
   }) => {
     const page = await context.newPage();
-    await page.addInitScript(() => localStorage.setItem('theme', 'dark'));
+    await page.addInitScript(() => {
+      localStorage.setItem('theme', 'dark');
+      // 'interactive' comes after the head scripts ran and before the module script does
+      document.addEventListener('readystatechange', () => {
+        if (document.readyState !== 'interactive') return;
+        const html = document.documentElement;
+        html.dataset.bootTheme = html.getAttribute('data-theme') ?? 'none';
+      });
+    });
     await page.goto(`chrome-extension://${extensionId}/popup/index.html`);
-    // the real popup: nothing stored yet, so it starts empty, in the cached theme
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-    const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    expect(bg).toBe('rgb(23, 26, 31)');
-    await expect(page.getByTestId('popup')).toHaveAttribute('data-state', 'empty');
+    await expect(page.getByTestId('popup')).toHaveAttribute('data-state', 'setup');
+    const boot = await page.evaluate(() => ({
+      theme: document.documentElement.dataset.bootTheme,
+    }));
+    // first paint used the cached theme...
+    expect(boot).toEqual({ theme: 'dark' });
+    // ...and then the worker's stored setting (System) won over the stale cache
+    await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/);
   });
 
   test('System follows the OS scheme live, without any data-theme attribute', async ({

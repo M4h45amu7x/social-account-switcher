@@ -241,6 +241,7 @@ button {
   height: 16px;
   flex: none;
 }
+
 .tab .count {
   font-size: 10.5px;
   min-width: 16px;
@@ -337,7 +338,7 @@ button {
   display: grid;
   place-items: center;
 }
-.avatar .pf svg {
+.avatar .pf img {
   width: 12px;
   height: 12px;
 }
@@ -636,9 +637,25 @@ button {
   display: grid;
   place-items: center;
 }
-.empty .big svg {
+.empty .big img {
   width: 28px;
   height: 28px;
+}
+.with-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.with-mark .mark,
+.btn .mark {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.btn .mark {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-inline-end: 6px;
 }
 .empty h2 {
   font-size: 15px;

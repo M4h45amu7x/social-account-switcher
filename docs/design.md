@@ -383,7 +383,7 @@ social-account-switcher/
 │  │  └─ result.ts             # type Result<T, E>, never throw across a message boundary
 │  └─ popup/
 │     ├─ index.html  popup.css # taken from mockup/popup.html (same CSS tokens, theme tokens and motion tokens)
-│     ├─ main.ts               # mounts the popup (B5a: draws and navigates; B5b adds the worker messages)
+│     ├─ main.ts               # mounts the popup, asks the worker for state.get and sends every effect through bridge.ts (B5b)
 │     ├─ app.ts                # glue: state ⇄ reducer ⇄ DOM, wraps each redraw in a view transition
 │     ├─ controller.ts         # pure reducer (state, action) → next state + motion mode + effects for the worker
 │     ├─ state.ts              # the popup's own view types (PopupState, AccountView) and screenOf()
@@ -490,14 +490,19 @@ export function circleReveal(x: number, y: number, update: () => void): ViewTran
 export type Request =
   | { type: 'state.get' }
   | { type: 'vault.unlock'; password: string } | { type: 'vault.lock' } | { type: 'vault.setup'; password: string }
-  | { type: 'vault.wipe' }   // "Wipe all data" and "Forgot password" (confirmed inline in the popup)
+  | { type: 'vault.wipe'; scope?: 'sessions' | 'all' }   // `all` (default) = "Wipe all data"; `sessions` = "Forgot password": the YouTube shortcuts stay (they hold no session). Both are confirmed inline in the popup
   | { type: 'settings.set'; theme?: ThemePref; language?: LanguagePref }
+  | { type: 'account.probe'; platform: Platform }   // who is logged in now, saves nothing: { tail: string | null }
   | { type: 'account.addCurrent'; platform: Platform; label: string }
   | { type: 'account.updateSession'; accountId: string }
   | { type: 'account.rename'; accountId: string; label: string }
   | { type: 'account.remove'; accountId: string }
   | { type: 'account.switch'; accountId: string; force?: boolean };
 ```
+
+Errors (B5b): every answer is a `Result<_, ErrorCode>`, and `ERROR_CODES` in `lib/messages.ts` lists every code the worker can answer with. The router's return type is that union, so a code that is not listed fails the typecheck. The popup maps each code to a message with `Record<ErrorKey, MessageKey>` (`popup/errors.ts`, `ErrorKey` = `ErrorCode | 'unknown'`), so a listed code without a message fails it too, and both catalogs need the text (`locales.test.ts`). The popup never shows a raw code. A code it does not know, an answer that is not a Result, or a port that cannot be reached all become `unknown`: a generic message with a "Try again" button, and the busy state is released. `popup/bridge.ts` holds the mapping effect → Request → action and receives its functions (`send`, `openTab`, `countTabs`, `later`), so it holds no `chrome`; `popup/runtime.ts` provides the real ones.
+
+First run (B5b): with no vault the popup opens on a setup page (a master password, the same rule as the worker: 10 characters, no repeat or run). The popup warns before sending; the worker's `validatePassword` is the real check. After a wipe the popup returns to setup.
 
 Code rules:
 - Every function in `lib/` and `switcher.ts` takes its dependencies (the ports, `now()`, `crypto`) as parameters, so it can be tested without mocking globals.

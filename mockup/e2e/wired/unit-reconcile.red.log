@@ -1,0 +1,15 @@
+(fail) every error code has a message, in both languages, and no raw code is shown > the table covers every code the worker can answer with, plus the generic one [2.40ms]
+(fail) deadlines: a worker that never answers does not freeze the popup > state.get that never answers: notice with Try again, which asks again [9.13ms]
+(fail) deadlines: a worker that never answers does not freeze the popup > an unlock that never answers resets the button and says so [58.64ms]
+(fail) a timed-out request is always reconciled with state.get (setup, unlock, writes, reads) > setup done by the worker, answer lost: the popup leaves the setup page after one state.get [2108.31ms]
+(fail) a timed-out request is always reconciled with state.get (setup, unlock, writes, reads) > unlock done by the worker, answer lost: the popup leaves the locked page after one state.get [2139.38ms]
+(fail) a timed-out request is always reconciled with state.get (setup, unlock, writes, reads) > unlock that really did not happen: the popup stays locked and says the state is current [52.78ms]
+(fail) a timed-out request is always reconciled with state.get (setup, unlock, writes, reads) > switch: when the reconcile read fails too, the state is stale: retry only reads, writes are off [2100.90ms]
+(fail) a timed-out request is always reconciled with state.get (setup, unlock, writes, reads) > rename: when the reconcile read fails too, the state is stale: retry only reads, writes are off [2103.95ms]
+(fail) a timed-out request is always reconciled with state.get (setup, unlock, writes, reads) > probe: when the reconcile read fails too, the state is stale: retry only reads, writes are off [2104.16ms]
+(fail) a timed-out request is always reconciled with state.get (setup, unlock, writes, reads) > unlock: when the reconcile read fails too, the state is stale: retry only reads, writes are off [2097.60ms]
+(fail) a timed-out request is always reconciled with state.get (setup, unlock, writes, reads) > setup: when the reconcile read fails too, the state is stale: retry only reads, writes are off [2054.13ms]
+(fail) a timed-out request is always reconciled with state.get (setup, unlock, writes, reads) > stale: a write that slips past the buttons is dropped by the bridge [2101.96ms]
+(fail) error texts are the literal words, in both languages (not read back from ERROR_TEXT) > timeoutStale [0.12ms]
+ 97 pass
+ 13 fail

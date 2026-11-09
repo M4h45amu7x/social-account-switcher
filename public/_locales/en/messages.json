@@ -345,10 +345,6 @@
       }
     }
   },
-  "add_metaYoutube": {
-    "message": "Google account 2 · personal channel",
-    "description": "Add account form"
-  },
   "add_label": {
     "message": "Name this account",
     "description": "Add account form"
@@ -606,5 +602,195 @@
   "lock_hint": {
     "message": "At least 10 characters.",
     "description": "Lock screen"
+  },
+  "common_retry": {
+    "message": "Try again",
+    "description": "Popup: new in B5b"
+  },
+  "err_switchAnyway": {
+    "message": "Switch anyway",
+    "description": "Popup: error message"
+  },
+  "loading_aria": {
+    "message": "Loading",
+    "description": "Popup: new in B5b"
+  },
+  "setup_title": {
+    "message": "Create a master password",
+    "description": "Popup: new in B5b"
+  },
+  "setup_sub": {
+    "message": "It encrypts your Facebook and Instagram sessions on this device. It can't be recovered, so keep it safe.",
+    "description": "Popup: new in B5b"
+  },
+  "setup_label": {
+    "message": "New master password",
+    "description": "Popup: new in B5b"
+  },
+  "setup_create": {
+    "message": "Create password",
+    "description": "Popup: new in B5b"
+  },
+  "setup_creating": {
+    "message": "Creating…",
+    "description": "Popup: new in B5b"
+  },
+  "setup_created": {
+    "message": "Created",
+    "description": "Popup: new in B5b"
+  },
+  "error_checkpointTitle": {
+    "message": "$PLATFORM$ is asking for a security check",
+    "description": "Popup: new in B5b",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "x"
+      }
+    }
+  },
+  "error_checkpointDetail": {
+    "message": "“$NAME$” is now the account in your browser, but the site wants a security check before you can use it. Open the site and finish the check.",
+    "description": "Popup: new in B5b",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "x"
+      }
+    }
+  },
+  "error_wrongTitle": {
+    "message": "A different account is logged in",
+    "description": "Popup: new in B5b"
+  },
+  "error_wrongDetail": {
+    "message": "The tab is not logged in to “$NAME$”. Log in to “$NAME$” there, then press [[Update session]].",
+    "description": "Popup: new in B5b",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "x"
+      }
+    }
+  },
+  "err_bad_request": {
+    "message": "The extension could not read that request. Close the popup and open it again.",
+    "description": "Popup: error message"
+  },
+  "err_forbidden": {
+    "message": "The extension refused that request. Reload the extension and try again.",
+    "description": "Popup: error message"
+  },
+  "err_internal": {
+    "message": "Something went wrong inside the extension. Try again.",
+    "description": "Popup: error message"
+  },
+  "err_store_unreadable": {
+    "message": "The saved data can't be read by this version, so nothing was changed. Update the extension and try again.",
+    "description": "Popup: error message"
+  },
+  "err_not_found": {
+    "message": "That account is no longer in the list. The list has been refreshed.",
+    "description": "Popup: error message"
+  },
+  "err_invalid_label": {
+    "message": "A name needs 1 to 40 characters.",
+    "description": "Popup: error message"
+  },
+  "err_invalid_setting": {
+    "message": "The extension does not know that setting.",
+    "description": "Popup: error message"
+  },
+  "err_duplicate": {
+    "message": "This account is already saved. Press [[Update session]] to refresh it.",
+    "description": "Popup: error message"
+  },
+  "err_no_vault": {
+    "message": "No master password is set yet. Create one first.",
+    "description": "Popup: error message"
+  },
+  "err_vault_exists": {
+    "message": "A master password already exists. Unlock with it instead.",
+    "description": "Popup: error message"
+  },
+  "err_locked": {
+    "message": "Unlock with your master password first.",
+    "description": "Popup: error message"
+  },
+  "err_too_many_attempts": {
+    "message": "Too many wrong passwords. Wait about 30 seconds and try again.",
+    "description": "Popup: error message"
+  },
+  "err_too_short": {
+    "message": "Use at least 10 characters.",
+    "description": "Popup: error message"
+  },
+  "err_too_simple": {
+    "message": "Avoid one repeated character or a run like 1234567890.",
+    "description": "Popup: error message"
+  },
+  "err_unsupported_vault": {
+    "message": "This data was saved by a newer version and can't be opened here. Update the extension.",
+    "description": "Popup: error message"
+  },
+  "err_busy": {
+    "message": "A change is still running for this site. Wait a moment and try again.",
+    "description": "Popup: error message"
+  },
+  "err_expired": {
+    "message": "The saved session has expired. Log in again, then press [[Update session]].",
+    "description": "Popup: error message"
+  },
+  "err_checkpoint": {
+    "message": "The site is asking for a security check. Open it and finish the check first.",
+    "description": "Popup: error message"
+  },
+  "err_unsaved_current": {
+    "message": "The account you're using now isn't saved. If you switch, you'll be logged out of it.",
+    "description": "Popup: error message"
+  },
+  "err_wrong_account": {
+    "message": "A different account is logged in. Log in to the right one, then press [[Update session]].",
+    "description": "Popup: error message"
+  },
+  "err_not_logged_in": {
+    "message": "No login found on this site. Log in in a tab, then try again.",
+    "description": "Popup: error message"
+  },
+  "err_no_youtube_tab": {
+    "message": "Open youtube.com in a tab, then try again.",
+    "description": "Popup: error message"
+  },
+  "err_unknown": {
+    "message": "Something went wrong. Try again.",
+    "description": "Popup: error message"
+  },
+  "err_not_signed_in": {
+    "message": "That Google account is not signed in on YouTube. Sign in to it in a YouTube tab, then try again.",
+    "description": "Popup: error message"
+  },
+  "err_invalid_session": {
+    "message": "The saved YouTube account data is not valid. Remove it and add the account again.",
+    "description": "Popup: error message"
+  },
+  "err_invalid_tab": {
+    "message": "The YouTube tab could not be used. Open youtube.com in a tab and try again.",
+    "description": "Popup: error message"
+  },
+  "err_api_error": {
+    "message": "YouTube did not answer. Open youtube.com in a tab and try again.",
+    "description": "Popup: error message"
+  },
+  "err_timeout": {
+    "message": "The extension didn't answer in time, so it's unclear whether that went through. The list now shows the current state. Check it before you try again.",
+    "description": "Popup: error message"
+  },
+  "err_timeoutStale": {
+    "message": "The extension didn't answer in time, so it's unclear whether that went through, and the current state couldn't be loaded either. Load it again before you do anything else.",
+    "description": "Popup: error message"
+  },
+  "err_timeoutPassword": {
+    "message": "The extension didn't answer in time. Try again.",
+    "description": "Popup: error message"
   }
 }

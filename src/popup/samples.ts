@@ -47,6 +47,7 @@ export function samplePlatforms(lang: Language): Record<Platform, PlatformView> 
     facebook: {
       activeId: 'fb1',
       openTabs: 2,
+      busy: false,
       accounts: [
         account('fb1', name('fb1'), {
           sub: { kind: 'id', tail: '4821' },
@@ -65,10 +66,11 @@ export function samplePlatforms(lang: Language): Record<Platform, PlatformView> 
         }),
       ],
     },
-    instagram: { activeId: null, openTabs: 1, accounts: [] },
+    instagram: { activeId: null, openTabs: 1, busy: false, accounts: [] },
     youtube: {
       activeId: 'yt1',
       openTabs: 3,
+      busy: false,
       accounts: [
         account('yt1', name('yt1'), {
           sub: { kind: 'google', n: 1, brand: false },
@@ -126,6 +128,16 @@ export const EXTRA_STATES = [
   'lock-loading',
   'lock-ok',
   'lock-err',
+  'loading',
+  'setup',
+  'setup-short',
+  'setup-creating',
+  'locked-blocked',
+  'checkpoint',
+  'wrong-account',
+  'notice',
+  'notice-unsaved',
+  'platform-busy',
 ] as const;
 export type ExtraName = (typeof EXTRA_STATES)[number];
 
@@ -255,6 +267,52 @@ export function sampleState(
       go({ type: 'locked', locked: true });
       go({ type: 'unlock' });
       go({ type: 'unlock-result', ok: false });
+      break;
+    case 'loading':
+      s = { ...s, page: 'loading' };
+      break;
+    case 'setup':
+      s = { ...s, page: 'setup' };
+      break;
+    case 'setup-short':
+      s = { ...s, page: 'setup' };
+      go({ type: 'input', field: 'password', value: 'short' });
+      go({ type: 'setup' });
+      break;
+    case 'setup-creating':
+      s = { ...s, page: 'setup' };
+      go({ type: 'input', field: 'password', value: SAMPLE_PASSWORD });
+      go({ type: 'setup' });
+      break;
+    case 'locked-blocked':
+      go({ type: 'locked', locked: true });
+      go({ type: 'unlock' });
+      go({ type: 'unlock-result', ok: false, code: 'too_many_attempts' });
+      go({ type: 'unlock-reset' });
+      break;
+    case 'checkpoint':
+      go({ type: 'switch', id: 'fb2' });
+      go({ type: 'failed', code: 'checkpoint' });
+      break;
+    case 'wrong-account':
+      go({ type: 'failed', code: 'wrong_account', id: 'fb3' });
+      break;
+    case 'notice':
+      go({ type: 'failed', code: 'busy', retry: { type: 'load' } });
+      break;
+    case 'notice-unsaved':
+      go({ type: 'switch', id: 'fb2' });
+      go({
+        type: 'failed',
+        code: 'unsaved_current',
+        retry: { type: 'switch', platform: 'facebook', id: 'fb2', force: true },
+      });
+      break;
+    case 'platform-busy':
+      s = {
+        ...s,
+        platforms: { ...s.platforms, facebook: { ...s.platforms.facebook, busy: true } },
+      };
       break;
   }
   return s;

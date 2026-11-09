@@ -1,0 +1,189 @@
+bun --version: 1.4.4
+$ bun install --frozen-lockfile
+bun install v1.4.4 (38afee6c8)
+
+Checked 37 installs across 91 packages (no changes) [58.00ms]
+exit=0
+$ bun run typecheck
+$ tsc -p tsconfig.json && tsc -p tests/tsconfig.json
+exit=0
+$ bun run lint
+$ biome ci . && bun scripts/check-chrome-access.ts
+[0msrc/popup/popup.css[0m[0m:[0m[0m1042[0m[0m:[0m[0m21[0m[0m [0m[0m]8;;https://biomejs.dev/linter/rules/no-important-styles\lint/complexity/noImportantStyles]8;;\[0m[0m [0m[0m[30m[47m FIXABLE [0m[0m [0m[0m━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[0m
+
+[0m[0m  [0m[0m[1m[33m⚠[0m[0m [0m[0m[33mAvoid the use of the [0m[0m[1m[33m!important[0m[0m[33m style.[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m1040 │ [0m[0m [0m[0m [0m[0m:[0m[0m:[0m[0mv[0m[0mi[0m[0me[0m[0mw[0m[0m-[0m[0mt[0m[0mr[0m[0ma[0m[0mn[0m[0ms[0m[0mi[0m[0mt[0m[0mi[0m[0mo[0m[0mn[0m[0m-[0m[0mo[0m[0ml[0m[0md[0m[0m([0m[0m*[0m[0m)[0m[0m,[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m1041 │ [0m[0m [0m[0m [0m[0m:[0m[0m:[0m[0mv[0m[0mi[0m[0me[0m[0mw[0m[0m-[0m[0mt[0m[0mr[0m[0ma[0m[0mn[0m[0ms[0m[0mi[0m[0mt[0m[0mi[0m[0mo[0m[0mn[0m[0m-[0m[0mn[0m[0me[0m[0mw[0m[0m([0m[0m*[0m[0m)[0m[0m [0m[0m{[0m[0m
+[0m[0m  [0m[0m[1m[31m>[0m[0m [0m[0m[1m1042 │ [0m[0m [0m[0m [0m[0m [0m[0m [0m[0ma[0m[0mn[0m[0mi[0m[0mm[0m[0ma[0m[0mt[0m[0mi[0m[0mo[0m[0mn[0m[0m:[0m[0m [0m[0mn[0m[0mo[0m[0mn[0m[0me[0m[0m [0m[0m![0m[0mi[0m[0mm[0m[0mp[0m[0mo[0m[0mr[0m[0mt[0m[0ma[0m[0mn[0m[0mt[0m[0m;[0m[0m
+[0m[0m  [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m[1m   │ [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m1043 │ [0m[0m [0m[0m [0m[0m}[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m1044 │ [0m[0m [0m[0m [0m[0m.[0m[0ms[0m[0mp[0m[0mi[0m[0mn[0m[0mn[0m[0me[0m[0mr[0m[0m [0m[0m{[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m[1m[34mℹ[0m[0m [0m[0m[34mThis style reverses the cascade logic, and precedence is reversed. This could lead to having styles with higher specificity being overridden by styles with lower specificity.[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m[1m[34mℹ[0m[0m [0m[0m[34mUnsafe fix: Remove the style.[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m[1m  1042 │ [0m[0m[2m·[0m[0m[2m·[0m[0m[2m·[0m[0m[2m·[0m[0ma[0m[0mn[0m[0mi[0m[0mm[0m[0ma[0m[0mt[0m[0mi[0m[0mo[0m[0mn[0m[0m:[0m[0m[2m·[0m[0mn[0m[0mo[0m[0mn[0m[0me[0m[0m[2m[31m·[0m[0m[31m![0m[0m[31mi[0m[0m[31mm[0m[0m[31mp[0m[0m[31mo[0m[0m[31mr[0m[0m[31mt[0m[0m[31ma[0m[0m[31mn[0m[0m[31mt[0m[0m;[0m[0m
+[0m[0m  [0m[0m[1m       │ [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m[31m-[0m[0m[31m-[0m[0m[31m-[0m[0m[31m-[0m[0m[31m-[0m[0m[31m-[0m[0m[31m-[0m[0m[31m-[0m[0m[31m-[0m[0m[31m-[0m[0m[31m-[0m[0m [0m[0m
+[0m
+[0msrc/popup/popup.css[0m[0m:[0m[0m371[0m[0m:[0m[0m1[0m[0m [0m[0m]8;;https://biomejs.dev/linter/rules/no-descending-specificity\lint/style/noDescendingSpecificity]8;;\[0m[0m [0m[0m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[0m
+
+[0m[0m  [0m[0m[1m[33m⚠[0m[0m [0m[0m[33mDescending specificity selector found. This selector specificity is (0, 1, 0)[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m369 │ [0m[0m [0m[0m [0m[0mo[0m[0mv[0m[0me[0m[0mr[0m[0mf[0m[0ml[0m[0mo[0m[0mw[0m[0m-[0m[0mw[0m[0mr[0m[0ma[0m[0mp[0m[0m:[0m[0m [0m[0ma[0m[0mn[0m[0my[0m[0mw[0m[0mh[0m[0me[0m[0mr[0m[0me[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m370 │ [0m[0m}[0m[0m
+[0m[0m  [0m[0m[1m[31m>[0m[0m [0m[0m[1m371 │ [0m[0m.[0m[0mc[0m[0mh[0m[0mi[0m[0mp[0m[0m [0m[0m{[0m[0m
+[0m[0m  [0m[0m [0m[0m [0m[0m [0m[0m[1m   │ [0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m372 │ [0m[0m [0m[0m [0m[0mf[0m[0mo[0m[0mn[0m[0mt[0m[0m-[0m[0ms[0m[0mi[0m[0mz[0m[0me[0m[0m:[0m[0m [0m[0m1[0m[0m0[0m[0m.[0m[0m5[0m[0mp[0m[0mx[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m373 │ [0m[0m [0m[0m [0m[0mf[0m[0mo[0m[0mn[0m[0mt[0m[0m-[0m[0mw[0m[0me[0m[0mi[0m[0mg[0m[0mh[0m[0mt[0m[0m:[0m[0m [0m[0m6[0m[0m0[0m[0m0[0m[0m;[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m[1m[34mℹ[0m[0m [0m[0m[34mThis selector specificity is (0, 3, 0)[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m361 │ [0m[0m [0m[0m [0m[0mm[0m[0mi[0m[0mn[0m[0m-[0m[0mw[0m[0mi[0m[0md[0m[0mt[0m[0mh[0m[0m:[0m[0m [0m[0m0[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m362 │ [0m[0m}[0m[0m
+[0m[0m  [0m[0m[1m[31m>[0m[0m [0m[0m[1m363 │ [0m[0m.[0m[0mw[0m[0mh[0m[0mo[0m[0m [0m[0m.[0m[0mn[0m[0ma[0m[0mm[0m[0me[0m[0m [0m[0m.[0m[0mc[0m[0mh[0m[0mi[0m[0mp[0m[0m [0m[0m{[0m[0m
+[0m[0m  [0m[0m [0m[0m [0m[0m [0m[0m[1m   │ [0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m364 │ [0m[0m [0m[0m [0m[0mf[0m[0ml[0m[0me[0m[0mx[0m[0m:[0m[0m [0m[0mn[0m[0mo[0m[0mn[0m[0me[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m365 │ [0m[0m}[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m[1m[34mℹ[0m[0m [0m[0m[34mDescending specificity selector may not be applied. Consider rearranging the order of the selectors. See [0m[0m[34m]8;;https://developer.mozilla.org/en-US/docs/Web/CSS/Specificity\MDN web docs]8;;\[0m[0m[34m for more details.[0m[0m
+[0m[0m  [0m[0m
+[0m
+[0msrc/popup/popup.css[0m[0m:[0m[0m726[0m[0m:[0m[0m1[0m[0m [0m[0m]8;;https://biomejs.dev/linter/rules/no-descending-specificity\lint/style/noDescendingSpecificity]8;;\[0m[0m [0m[0m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[0m
+
+[0m[0m  [0m[0m[1m[33m⚠[0m[0m [0m[0m[33mDescending specificity selector found. This selector specificity is (0, 2, 1)[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m724 │ [0m[0m [0m[0m [0m[0mo[0m[0mv[0m[0me[0m[0mr[0m[0mf[0m[0ml[0m[0mo[0m[0mw[0m[0m-[0m[0mw[0m[0mr[0m[0ma[0m[0mp[0m[0m:[0m[0m [0m[0ma[0m[0mn[0m[0my[0m[0mw[0m[0mh[0m[0me[0m[0mr[0m[0me[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m725 │ [0m[0m}[0m[0m
+[0m[0m  [0m[0m[1m[31m>[0m[0m [0m[0m[1m726 │ [0m[0m.[0m[0mt[0m[0mo[0m[0ma[0m[0ms[0m[0mt[0m[0m [0m[0m.[0m[0mt[0m[0mx[0m[0m [0m[0ms[0m[0mm[0m[0ma[0m[0ml[0m[0ml[0m[0m [0m[0m{[0m[0m
+[0m[0m  [0m[0m [0m[0m [0m[0m [0m[0m[1m   │ [0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m727 │ [0m[0m [0m[0m [0m[0mf[0m[0mo[0m[0mn[0m[0mt[0m[0m-[0m[0ms[0m[0mi[0m[0mz[0m[0me[0m[0m:[0m[0m [0m[0m1[0m[0m1[0m[0m.[0m[0m5[0m[0mp[0m[0mx[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m728 │ [0m[0m [0m[0m [0m[0mo[0m[0mp[0m[0ma[0m[0mc[0m[0mi[0m[0mt[0m[0my[0m[0m:[0m[0m [0m[0m0[0m[0m.[0m[0m8[0m[0m;[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m[1m[34mℹ[0m[0m [0m[0m[34mThis selector specificity is (0, 2, 2)[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m537 │ [0m[0m [0m[0m [0m[0mo[0m[0mv[0m[0me[0m[0mr[0m[0mf[0m[0ml[0m[0mo[0m[0mw[0m[0m-[0m[0mw[0m[0mr[0m[0ma[0m[0mp[0m[0m:[0m[0m [0m[0ma[0m[0mn[0m[0my[0m[0mw[0m[0mh[0m[0me[0m[0mr[0m[0me[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m538 │ [0m[0m}[0m[0m
+[0m[0m  [0m[0m[1m[31m>[0m[0m [0m[0m[1m539 │ [0m[0m.[0m[0mr[0m[0mo[0m[0mw[0m[0m.[0m[0mc[0m[0mo[0m[0mn[0m[0mf[0m[0mi[0m[0mr[0m[0mm[0m[0m [0m[0mp[0m[0m [0m[0ms[0m[0mm[0m[0ma[0m[0ml[0m[0ml[0m[0m [0m[0m{[0m[0m
+[0m[0m  [0m[0m [0m[0m [0m[0m [0m[0m[1m   │ [0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m540 │ [0m[0m [0m[0m [0m[0md[0m[0mi[0m[0ms[0m[0mp[0m[0ml[0m[0ma[0m[0my[0m[0m:[0m[0m [0m[0mb[0m[0ml[0m[0mo[0m[0mc[0m[0mk[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m541 │ [0m[0m [0m[0m [0m[0mc[0m[0mo[0m[0ml[0m[0mo[0m[0mr[0m[0m:[0m[0m [0m[0mv[0m[0ma[0m[0mr[0m[0m([0m[0m-[0m[0m-[0m[0mt[0m[0me[0m[0mx[0m[0mt[0m[0m-[0m[0m2[0m[0m)[0m[0m;[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m[1m[34mℹ[0m[0m [0m[0m[34mDescending specificity selector may not be applied. Consider rearranging the order of the selectors. See [0m[0m[34m]8;;https://developer.mozilla.org/en-US/docs/Web/CSS/Specificity\MDN web docs]8;;\[0m[0m[34m for more details.[0m[0m
+[0m[0m  [0m[0m
+[0m
+[0msrc/popup/popup.css[0m[0m:[0m[0m796[0m[0m:[0m[0m1[0m[0m [0m[0m]8;;https://biomejs.dev/linter/rules/no-descending-specificity\lint/style/noDescendingSpecificity]8;;\[0m[0m [0m[0m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[0m
+
+[0m[0m  [0m[0m[1m[33m⚠[0m[0m [0m[0m[33mDescending specificity selector found. This selector specificity is (0, 2, 0)[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m794 │ [0m[0m [0m[0m [0m[0mc[0m[0mo[0m[0ml[0m[0mo[0m[0mr[0m[0m:[0m[0m [0m[0mv[0m[0ma[0m[0mr[0m[0m([0m[0m-[0m[0m-[0m[0me[0m[0mr[0m[0mr[0m[0m)[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m795 │ [0m[0m}[0m[0m
+[0m[0m  [0m[0m[1m[31m>[0m[0m [0m[0m[1m796 │ [0m[0m.[0m[0ml[0m[0mo[0m[0mc[0m[0mk[0m[0m [0m[0m.[0m[0mb[0m[0mt[0m[0mn[0m[0m [0m[0m{[0m[0m
+[0m[0m  [0m[0m [0m[0m [0m[0m [0m[0m[1m   │ [0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m797 │ [0m[0m [0m[0m [0m[0mm[0m[0mi[0m[0mn[0m[0m-[0m[0mw[0m[0mi[0m[0md[0m[0mt[0m[0mh[0m[0m:[0m[0m [0m[0m1[0m[0m6[0m[0m0[0m[0mp[0m[0mx[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m798 │ [0m[0m [0m[0m [0m[0mp[0m[0ma[0m[0md[0m[0md[0m[0mi[0m[0mn[0m[0mg[0m[0m:[0m[0m [0m[0m8[0m[0mp[0m[0mx[0m[0m [0m[0m1[0m[0m2[0m[0mp[0m[0mx[0m[0m;[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m[1m[34mℹ[0m[0m [0m[0m[34mThis selector specificity is (0, 3, 0)[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m781 │ [0m[0m [0m[0m [0m[0mt[0m[0me[0m[0mx[0m[0mt[0m[0m-[0m[0ma[0m[0ml[0m[0mi[0m[0mg[0m[0mn[0m[0m:[0m[0m [0m[0ml[0m[0me[0m[0mf[0m[0mt[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m782 │ [0m[0m}[0m[0m
+[0m[0m  [0m[0m[1m[31m>[0m[0m [0m[0m[1m783 │ [0m[0m.[0m[0ml[0m[0mo[0m[0mc[0m[0mk[0m[0m [0m[0m.[0m[0mw[0m[0mi[0m[0mp[0m[0me[0m[0m [0m[0m.[0m[0mb[0m[0mt[0m[0mn[0m[0m [0m[0m{[0m[0m
+[0m[0m  [0m[0m [0m[0m [0m[0m [0m[0m[1m   │ [0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m784 │ [0m[0m [0m[0m [0m[0mm[0m[0mi[0m[0mn[0m[0m-[0m[0mw[0m[0mi[0m[0md[0m[0mt[0m[0mh[0m[0m:[0m[0m [0m[0m0[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m785 │ [0m[0m [0m[0m [0m[0mp[0m[0ma[0m[0md[0m[0md[0m[0mi[0m[0mn[0m[0mg[0m[0m:[0m[0m [0m[0m5[0m[0mp[0m[0mx[0m[0m [0m[0m1[0m[0m2[0m[0mp[0m[0mx[0m[0m;[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m[1m[34mℹ[0m[0m [0m[0m[34mDescending specificity selector may not be applied. Consider rearranging the order of the selectors. See [0m[0m[34m]8;;https://developer.mozilla.org/en-US/docs/Web/CSS/Specificity\MDN web docs]8;;\[0m[0m[34m for more details.[0m[0m
+[0m[0m  [0m[0m
+[0m
+[0msrc/popup/popup.css[0m[0m:[0m[0m847[0m[0m:[0m[0m1[0m[0m [0m[0m]8;;https://biomejs.dev/linter/rules/no-descending-specificity\lint/style/noDescendingSpecificity]8;;\[0m[0m [0m[0m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[0m
+
+[0m[0m  [0m[0m[1m[33m⚠[0m[0m [0m[0m[33mDescending specificity selector found. This selector specificity is (0, 1, 1)[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m845 │ [0m[0m [0m[0m [0m[0mm[0m[0ma[0m[0mr[0m[0mg[0m[0mi[0m[0mn[0m[0m:[0m[0m [0m[0m0[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m846 │ [0m[0m}[0m[0m
+[0m[0m  [0m[0m[1m[31m>[0m[0m [0m[0m[1m847 │ [0m[0m.[0m[0ms[0m[0me[0m[0mt[0m[0m-[0m[0mc[0m[0ma[0m[0mr[0m[0md[0m[0m [0m[0mp[0m[0m [0m[0m{[0m[0m
+[0m[0m  [0m[0m [0m[0m [0m[0m [0m[0m[1m   │ [0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m848 │ [0m[0m [0m[0m [0m[0mm[0m[0ma[0m[0mr[0m[0mg[0m[0mi[0m[0mn[0m[0m:[0m[0m [0m[0m0[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m849 │ [0m[0m [0m[0m [0m[0mf[0m[0mo[0m[0mn[0m[0mt[0m[0m-[0m[0ms[0m[0mi[0m[0mz[0m[0me[0m[0m:[0m[0m [0m[0m1[0m[0m2[0m[0mp[0m[0mx[0m[0m;[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m[1m[34mℹ[0m[0m [0m[0m[34mThis selector specificity is (0, 2, 1)[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m532 │ [0m[0m [0m[0m [0m[0mp[0m[0ma[0m[0md[0m[0md[0m[0mi[0m[0mn[0m[0mg[0m[0m:[0m[0m [0m[0m1[0m[0m0[0m[0mp[0m[0mx[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m533 │ [0m[0m}[0m[0m
+[0m[0m  [0m[0m[1m[31m>[0m[0m [0m[0m[1m534 │ [0m[0m.[0m[0mr[0m[0mo[0m[0mw[0m[0m.[0m[0mc[0m[0mo[0m[0mn[0m[0mf[0m[0mi[0m[0mr[0m[0mm[0m[0m [0m[0mp[0m[0m [0m[0m{[0m[0m
+[0m[0m  [0m[0m [0m[0m [0m[0m [0m[0m[1m   │ [0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m535 │ [0m[0m [0m[0m [0m[0mm[0m[0ma[0m[0mr[0m[0mg[0m[0mi[0m[0mn[0m[0m:[0m[0m [0m[0m0[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m536 │ [0m[0m [0m[0m [0m[0mf[0m[0mo[0m[0mn[0m[0mt[0m[0m-[0m[0ms[0m[0mi[0m[0mz[0m[0me[0m[0m:[0m[0m [0m[0m1[0m[0m3[0m[0mp[0m[0mx[0m[0m;[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m[1m[34mℹ[0m[0m [0m[0m[34mDescending specificity selector may not be applied. Consider rearranging the order of the selectors. See [0m[0m[34m]8;;https://developer.mozilla.org/en-US/docs/Web/CSS/Specificity\MDN web docs]8;;\[0m[0m[34m for more details.[0m[0m
+[0m[0m  [0m[0m
+[0m
+[0msrc/popup/popup.css[0m[0m:[0m[0m883[0m[0m:[0m[0m1[0m[0m [0m[0m]8;;https://biomejs.dev/linter/rules/no-descending-specificity\lint/style/noDescendingSpecificity]8;;\[0m[0m [0m[0m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[0m
+
+[0m[0m  [0m[0m[1m[33m⚠[0m[0m [0m[0m[33mDescending specificity selector found. This selector specificity is (0, 2, 0)[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m881 │ [0m[0m [0m[0m [0m[0mb[0m[0ma[0m[0mc[0m[0mk[0m[0mg[0m[0mr[0m[0mo[0m[0mu[0m[0mn[0m[0md[0m[0m:[0m[0m [0m[0mv[0m[0ma[0m[0mr[0m[0m([0m[0m-[0m[0m-[0m[0me[0m[0mr[0m[0mr[0m[0m-[0m[0mb[0m[0mg[0m[0m)[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m882 │ [0m[0m}[0m[0m
+[0m[0m  [0m[0m[1m[31m>[0m[0m [0m[0m[1m883 │ [0m[0m.[0m[0ms[0m[0me[0m[0mt[0m[0m-[0m[0mc[0m[0ma[0m[0mr[0m[0md[0m[0m [0m[0m.[0m[0mb[0m[0mt[0m[0mn[0m[0m [0m[0m{[0m[0m
+[0m[0m  [0m[0m [0m[0m [0m[0m [0m[0m[1m   │ [0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m884 │ [0m[0m [0m[0m [0m[0ma[0m[0ml[0m[0mi[0m[0mg[0m[0mn[0m[0m-[0m[0ms[0m[0me[0m[0ml[0m[0mf[0m[0m:[0m[0m [0m[0mf[0m[0ml[0m[0me[0m[0mx[0m[0m-[0m[0ms[0m[0mt[0m[0ma[0m[0mr[0m[0mt[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m885 │ [0m[0m}[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m[1m[34mℹ[0m[0m [0m[0m[34mThis selector specificity is (0, 3, 0)[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m781 │ [0m[0m [0m[0m [0m[0mt[0m[0me[0m[0mx[0m[0mt[0m[0m-[0m[0ma[0m[0ml[0m[0mi[0m[0mg[0m[0mn[0m[0m:[0m[0m [0m[0ml[0m[0me[0m[0mf[0m[0mt[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m782 │ [0m[0m}[0m[0m
+[0m[0m  [0m[0m[1m[31m>[0m[0m [0m[0m[1m783 │ [0m[0m.[0m[0ml[0m[0mo[0m[0mc[0m[0mk[0m[0m [0m[0m.[0m[0mw[0m[0mi[0m[0mp[0m[0me[0m[0m [0m[0m.[0m[0mb[0m[0mt[0m[0mn[0m[0m [0m[0m{[0m[0m
+[0m[0m  [0m[0m [0m[0m [0m[0m [0m[0m[1m   │ [0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m784 │ [0m[0m [0m[0m [0m[0mm[0m[0mi[0m[0mn[0m[0m-[0m[0mw[0m[0mi[0m[0md[0m[0mt[0m[0mh[0m[0m:[0m[0m [0m[0m0[0m[0m;[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m785 │ [0m[0m [0m[0m [0m[0mp[0m[0ma[0m[0md[0m[0md[0m[0mi[0m[0mn[0m[0mg[0m[0m:[0m[0m [0m[0m5[0m[0mp[0m[0mx[0m[0m [0m[0m1[0m[0m2[0m[0mp[0m[0mx[0m[0m;[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m[1m[34mℹ[0m[0m [0m[0m[34mDescending specificity selector may not be applied. Consider rearranging the order of the selectors. See [0m[0m[34m]8;;https://developer.mozilla.org/en-US/docs/Web/CSS/Specificity\MDN web docs]8;;\[0m[0m[34m for more details.[0m[0m
+[0m[0m  [0m[0m
+[0m
+[0m[34mChecked 105 files in 377[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes applied.[0m[0m
+[0m[0m[33mFound [0m[0m[33m6[0m[0m[33m warnings.[0m
+✓ chrome-access: only the adapter files use the chrome global
+exit=0
+$ bun run test
+$ bun test tests/unit
+bun test v1.4.4 (38afee6c8)
+
+tests/unit/messages.test.ts:
+Request unknown failed
+---------------------------------------|---------|---------|-------------------
+File                                   | % Funcs | % Lines | Uncovered Line #s
+---------------------------------------|---------|---------|-------------------
+All files                              |   99.73 |   99.97 |
+ scripts/chrome-access.ts              |  100.00 |  100.00 | 
+ scripts/permissions.ts                |  100.00 |  100.00 | 
+---------------------------------------|---------|---------|-------------------
+
+ 787 pass
+ 0 fail
+ 3914 expect() calls
+Ran 787 tests across 27 files. [15.01s]
+exit=0
+$ bun run build
+$ vite build
+vite v8.3.7 building client environment for production...
+transforming...
+✓ 36 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/popup/index.html            0.62 kB │ gzip:  0.36 kB
+dist/manifest.json               0.83 kB │ gzip:  0.38 kB
+dist/assets/popup-ZOGNl8-C.css  15.50 kB │ gzip:  3.82 kB
+dist/chunks/timing-C_UirI9K.js   7.71 kB │ gzip:  3.15 kB
+dist/service-worker.js          18.10 kB │ gzip:  6.14 kB
+dist/popup.js                   86.42 kB │ gzip: 20.97 kB
+
+✓ built in 426ms
+exit=0
+$ bun run perm:check
+$ bun scripts/check-permissions.ts
+✓ perm:check: manifest matches the allow-list and PRIVACY.md documents every permission
+exit=0
+$ bun run check
+check exit=0

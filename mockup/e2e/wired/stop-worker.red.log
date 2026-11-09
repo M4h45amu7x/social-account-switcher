@@ -1,0 +1,37 @@
+
+Running 1 test using 1 worker
+
+  ✘  1 tests/e2e/vault-nostop.spec.ts:115:1 › stopping the service worker does not ask for the password again (7.3s)
+
+
+  1) tests/e2e/vault-nostop.spec.ts:115:1 › stopping the service worker does not ask for the password again 
+
+    Error: expect(received).toContain(expected) // indexOf
+
+    Expected value: "stopped"
+    Received array: ["running"]
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      135 |   await expect.poll(() => status.size).toBeGreaterThan(0);
+      136 |   
+    > 137 |   await expect.poll(() => seen).toContain('stopped');
+          |                                 ^
+      138 |
+      139 |   const second = await open(context, extensionId);
+      140 |   await expect(screen(second)).toHaveAttribute('data-state', 'empty'); // not "locked"
+        at /home/n1/Desktop/sam-worktrees/t-550/tests/e2e/vault-nostop.spec.ts:137:33
+
+    Error Context: test-results/vault-nostop-stopping-the--52ecb--ask-for-the-password-again/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/vault-nostop-stopping-the--52ecb--ask-for-the-password-again/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/vault-nostop-stopping-the--52ecb--ask-for-the-password-again/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    tests/e2e/vault-nostop.spec.ts:115:1 › stopping the service worker does not ask for the password again 

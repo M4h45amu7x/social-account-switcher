@@ -9,8 +9,11 @@ export type Request =
   | { type: 'vault.unlock'; password: string }
   | { type: 'vault.lock' }
   | { type: 'vault.setup'; password: string }
-  | { type: 'vault.wipe' }
+  /** `sessions` keeps the YouTube shortcuts (they hold no session); `all` (the default) deletes everything. */
+  | { type: 'vault.wipe'; scope?: 'sessions' | 'all' }
   | { type: 'settings.set'; theme?: Settings['theme']; language?: Settings['language'] }
+  /** Who is logged in on a platform right now, without saving anything. `tail` is null when nobody is. */
+  | { type: 'account.probe'; platform: Platform }
   | { type: 'account.addCurrent'; platform: Platform; label: string }
   | { type: 'account.updateSession'; accountId: string }
   | { type: 'account.rename'; accountId: string; label: string }
@@ -18,6 +21,51 @@ export type Request =
   | { type: 'account.switch'; accountId: string; force?: boolean };
 
 export type RequestType = Request['type'];
+
+/**
+ * Every error code the worker can answer with, for every request. The router's answers are typed with
+ * this union, so a new code that is not listed here fails the typecheck; the popup maps each one to a
+ * message (src/popup/errors.ts), so one that has no message fails it too.
+ */
+export const ERROR_CODES = [
+  // the message itself
+  'bad_request',
+  'forbidden',
+  'internal',
+  // the saved data
+  'store_unreadable',
+  'not_found',
+  'invalid_label',
+  'invalid_setting',
+  'duplicate',
+  // the master password
+  'no_vault',
+  'vault_exists',
+  'locked',
+  'wrong_password',
+  'too_many_attempts',
+  'too_short',
+  'too_simple',
+  'unsupported_vault',
+  // a switch, a save or an update
+  'busy',
+  'expired',
+  'checkpoint',
+  'unsaved_current',
+  'wrong_account',
+  'not_logged_in',
+  // YouTube
+  'no_youtube_tab',
+  'not_signed_in',
+  'invalid_session',
+  'invalid_tab',
+  'api_error',
+] as const;
+
+export type ErrorCode = (typeof ERROR_CODES)[number];
+
+export const isErrorCode = (v: unknown): v is ErrorCode =>
+  typeof v === 'string' && (ERROR_CODES as readonly string[]).includes(v);
 
 /** Longest string field accepted. Labels are checked again (1–40 characters) by the store. */
 export const MAX_FIELD_LENGTH = 1024;
@@ -36,11 +84,12 @@ const SHAPES: Record<RequestType, Record<string, [FieldCheck, boolean]>> = {
   'vault.unlock': { password: [nonEmpty, true] },
   'vault.lock': {},
   'vault.setup': { password: [nonEmpty, true] },
-  'vault.wipe': {},
+  'vault.wipe': { scope: [oneOf(['sessions', 'all']), false] },
   'settings.set': {
     theme: [oneOf(['system', 'light', 'dark']), false],
     language: [oneOf(['auto', 'en', 'th']), false],
   },
+  'account.probe': { platform: [oneOf(PLATFORMS), true] },
   'account.addCurrent': { platform: [oneOf(PLATFORMS), true], label: [text, true] },
   'account.updateSession': { accountId: [nonEmpty, true] },
   'account.rename': { accountId: [nonEmpty, true], label: [text, true] },
