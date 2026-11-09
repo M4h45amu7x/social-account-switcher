@@ -8,9 +8,17 @@ import type {
   SessionStorageApi,
   StorageAreaApi,
   TabsApi,
+  TabUpdatedListener,
 } from '../lib/ports';
 import { err, ok, type Result } from '../lib/result';
-import { type Account, findAccount, type StoreV1, setActive, updateAccount } from '../lib/store';
+import {
+  type Account,
+  findAccount,
+  type Platform,
+  type StoreV1,
+  setActive,
+  updateAccount,
+} from '../lib/store';
 import { readVault, sealCookies, writeVault } from '../lib/vault';
 import { clearJournal, writeJournal } from './journal';
 import { getKey } from './keyring';
@@ -34,7 +42,7 @@ export interface SwitchDeps {
   platforms: Readonly<Record<CookiePlatformId, CookiePlatform>>;
   storeMutex: Mutex;
   /** Platforms with a switch in progress (step 0). Shared with the router and journal recovery. */
-  busy: Set<CookiePlatformId>;
+  busy: Set<Platform>;
   now(): number;
   /** How long step 7 waits for the first tab to finish loading before it checks cookies anyway. */
   loadTimeoutMs: number;
@@ -213,11 +221,13 @@ function waitForLoad(deps: SwitchDeps, tabId: number): Promise<BrowserTab | null
       // Too slow: check the cookies anyway, with whatever URL the tab has now.
       deps.tabs.get(tabId).then(resolve, () => resolve(null));
     }, deps.loadTimeoutMs);
-    const stop = deps.tabs.onUpdated((id, info, tab) => {
+    const listener: TabUpdatedListener = (id, info, tab) => {
       if (id !== tabId || info.status !== 'complete') return;
       clearTimeout(timer);
       stop();
       resolve(tab);
-    });
+    };
+    const stop = () => deps.tabs.onUpdated.removeListener(listener);
+    deps.tabs.onUpdated.addListener(listener);
   });
 }

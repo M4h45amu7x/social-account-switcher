@@ -42,11 +42,9 @@ export const cookiesApi: CookiesApi = {
 export const tabsApi: TabsApi = {
   query: (query) => chrome.tabs.query(query),
   get: (tabId) => chrome.tabs.get(tabId),
-  onUpdated: (listener) => {
-    const relay = (tabId: number, info: chrome.tabs.OnUpdatedInfo, tab: chrome.tabs.Tab) =>
-      listener(tabId, info, tab);
-    chrome.tabs.onUpdated.addListener(relay);
-    return () => chrome.tabs.onUpdated.removeListener(relay);
+  onUpdated: {
+    addListener: (listener) => chrome.tabs.onUpdated.addListener(listener),
+    removeListener: (listener) => chrome.tabs.onUpdated.removeListener(listener),
   },
   reload: (tabId) => chrome.tabs.reload(tabId),
   update: (tabId, props) => chrome.tabs.update(tabId, props),
@@ -54,8 +52,7 @@ export const tabsApi: TabsApi = {
 };
 
 export const scriptingApi: ScriptingApi = {
-  executeScript: <T>(injection: Parameters<ScriptingApi['executeScript']>[0]) =>
-    chrome.scripting.executeScript(injection) as Promise<{ result?: T }[]>,
+  executeScript: (options) => chrome.scripting.executeScript(options),
 };
 
 export const runtimeApi: RuntimeApi = {

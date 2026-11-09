@@ -96,26 +96,38 @@ export interface CookiesApi {
   }): Promise<{ url: string; name: string } | null>;
 }
 
+/** The fields of chrome.tabs.Tab this extension reads. */
 export interface BrowserTab {
-  id?: number | undefined;
-  url?: string | undefined;
-  active: boolean;
-  status?: string | undefined;
+  readonly id?: number | undefined;
+  readonly url?: string | undefined;
+  /** The URL a navigation is heading to before it commits (Chrome 79+). */
+  readonly pendingUrl?: string | undefined;
+  readonly active?: boolean | undefined;
+  readonly status?: string | undefined;
 }
 
+/** The fields of chrome.tabs.onUpdated's changeInfo this extension reads. */
 export interface TabUpdateInfo {
   status?: string | undefined;
   url?: string | undefined;
 }
 
+export type TabUpdatedListener = (
+  tabId: number,
+  changeInfo: TabUpdateInfo,
+  tab: BrowserTab,
+) => void;
+
 export interface TabsApi {
+  query(options: { url?: string[]; active?: boolean }): Promise<BrowserTab[]>;
   get(tabId: number): Promise<BrowserTab>;
-  /** Subscribes to chrome.tabs.onUpdated. Returns a function that unsubscribes. */
-  onUpdated(listener: (tabId: number, info: TabUpdateInfo, tab: BrowserTab) => void): () => void;
-  query(query: { url?: string | string[]; active?: boolean }): Promise<BrowserTab[]>;
+  update(tabId: number, options: { url: string; active: boolean }): Promise<BrowserTab | undefined>;
+  create(options: { url: string; active: boolean }): Promise<BrowserTab>;
   reload(tabId: number): Promise<void>;
-  update(tabId: number, props: { url: string }): Promise<BrowserTab | undefined>;
-  create(props: { url: string }): Promise<BrowserTab>;
+  readonly onUpdated: {
+    addListener(listener: TabUpdatedListener): void;
+    removeListener(listener: TabUpdatedListener): void;
+  };
 }
 
 /** Who sent a runtime message (the fields of chrome.runtime.MessageSender this code reads). */
@@ -137,9 +149,9 @@ export interface RuntimeApi {
 
 export interface ScriptingApi {
   /** Runs `func` in the page's MAIN world and returns its result for each frame. */
-  executeScript<T>(injection: {
+  executeScript(options: {
     target: { tabId: number };
     world: 'MAIN';
-    func: () => T;
-  }): Promise<{ result?: T }[]>;
+    func: () => unknown;
+  }): Promise<{ frameId: number; result?: unknown }[]>;
 }

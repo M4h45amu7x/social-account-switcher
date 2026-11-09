@@ -7,6 +7,7 @@
 import { clear, restore, type StoredCookie } from '../lib/cookies';
 import type { CookiesApi, SessionStorageApi, TabsApi } from '../lib/ports';
 import { err, ok, type Result } from '../lib/result';
+import type { Platform } from '../lib/store';
 import { openCookies } from '../lib/vault';
 import { getKey } from './keyring';
 import type { CookiePlatform, CookiePlatformId } from './platforms/types';
@@ -63,7 +64,7 @@ export interface RecoverDeps {
    * Platforms with a switch running in this worker; their journal belongs to that switch.
    * Recovery takes the same lock while it puts a backup back.
    */
-  busy: Set<CookiePlatformId>;
+  busy: Set<Platform>;
   now(): number;
 }
 

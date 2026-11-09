@@ -60,10 +60,10 @@ export function parseRequest(raw: unknown): Result<Request, 'bad_request'> {
     if (key === 'type') continue;
     // Own keys only: `constructor`, `toString` or `__proto__` must not find Object.prototype.
     if (!Object.hasOwn(shape, key)) return err('bad_request');
-    const field = shape[key];
-    if (!field) return err('bad_request');
-    if (message[key] === undefined && !field[1]) continue;
-    if (!field[0](message[key])) return err('bad_request');
+    // Present: hasOwn just checked it.
+    const [check, required] = shape[key] as [FieldCheck, boolean];
+    if (message[key] === undefined && !required) continue;
+    if (!check(message[key])) return err('bad_request');
   }
   for (const [key, [, required]] of Object.entries(shape)) {
     if (required && !Object.hasOwn(message, key)) return err('bad_request');

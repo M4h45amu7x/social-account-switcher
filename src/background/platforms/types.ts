@@ -1,3 +1,5 @@
+import type { Result } from '../../lib/result';
+
 // What the cookie-swapping code needs to know about a platform (docs/design.md 8.2).
 // facebook.ts and instagram.ts (card B3) provide the values.
 export interface CookiePlatform {
@@ -18,3 +20,23 @@ export interface CookiePlatform {
 }
 
 export type CookiePlatformId = CookiePlatform['id'];
+
+/** Non-secret multi-login coordinates; never cookies, email or profile data. */
+export interface YouTubeSession {
+  readonly authuser: number;
+  readonly pageid?: string;
+}
+
+export type YouTubeError =
+  | 'no_youtube_tab'
+  | 'not_signed_in'
+  | 'invalid_session'
+  | 'invalid_tab'
+  | 'api_error';
+
+/** What the router needs from the YouTube code (youtube.ts provides it). */
+export interface YoutubeSwitcher {
+  /** The Google session and channel shown in an open YouTube tab. */
+  readCurrent(): Promise<Result<YouTubeSession, YouTubeError>>;
+  switchTo(target: YouTubeSession): Promise<Result<{ reloadedTabs: number }, YouTubeError>>;
+}

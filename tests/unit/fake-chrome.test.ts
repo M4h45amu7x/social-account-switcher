@@ -192,19 +192,66 @@ describe('fake tabs and scripting', () => {
       'https://www.facebook.com/home',
       'https://m.facebook.com/',
     ]);
-    expect(await chrome.tabs.query({ url: '*://*.facebook.com/*', active: true })).toHaveLength(1);
+    expect(await chrome.tabs.query({ url: ['*://*.facebook.com/*'], active: true })).toHaveLength(
+      1,
+    );
     expect(await chrome.tabs.query({})).toHaveLength(4);
     await chrome.tabs.reload(fb[0]?.id ?? 0);
     expect(chrome.tabs.reloaded).toEqual([fb[0]?.id ?? 0]);
     await expect(chrome.tabs.reload(99)).rejects.toThrow();
-    expect(await chrome.tabs.update(3, { url: 'https://www.youtube.com/' })).toMatchObject({
-      url: 'https://www.youtube.com/',
+    // Like Chrome: update() resolves before commit, still on the old URL, heading to pendingUrl.
+    expect(
+      await chrome.tabs.update(3, { url: 'https://www.youtube.com/', active: true }),
+    ).toMatchObject({
+      url: 'https://www.instagram.com/',
+      pendingUrl: 'https://www.youtube.com/',
+      active: true,
+      status: 'loading',
     });
-    await expect(chrome.tabs.update(99, { url: 'x' })).rejects.toThrow();
-    expect(await chrome.tabs.create({ url: 'https://www.youtube.com/' })).toMatchObject({
+    expect(chrome.tabs.tabs.filter((t) => t.active).map((t) => t.id)).toEqual([3]);
+    await expect(chrome.tabs.update(99, { url: 'x', active: false })).rejects.toThrow();
+    expect(
+      await chrome.tabs.create({ url: 'https://www.youtube.com/', active: true }),
+    ).toMatchObject({
       id: 5,
       active: true,
     });
+  });
+
+  test('onUpdated follows Chrome: url only on a changed commit, hidden outside host permissions', async () => {
+    const chrome = fakeChrome({ tabs: [{ url: 'https://www.youtube.com/watch?v=1' }] });
+    const seen: string[] = [];
+    chrome.tabs.onUpdated.addListener((id, info, tab) => {
+      seen.push(`${id} ${JSON.stringify(info)} ${tab.url ?? '(hidden)'}`);
+    });
+    const loaded = () => new Promise((r) => setTimeout(r, 5));
+
+    // A 302 back to the same URL: the URL did not change, so no url.
+    chrome.tabs.redirect = () => 'https://www.youtube.com/watch?v=1';
+    await chrome.tabs.update(1, { url: 'https://www.youtube.com/signin?x', active: true });
+    await loaded();
+    // To Google's login page: no permission for google.com, so hidden.
+    chrome.tabs.redirect = () => 'https://accounts.google.com/signin';
+    await chrome.tabs.update(1, { url: 'https://www.youtube.com/signin?x', active: true });
+    await loaded();
+    expect((await chrome.tabs.get(1)).url).toBeUndefined();
+    expect(await chrome.tabs.query({ url: ['*://*.youtube.com/*'] })).toEqual([]);
+    // A visible change does carry the url; a new tab starts with an empty URL.
+    chrome.tabs.redirect = null;
+    const created = await chrome.tabs.create({
+      url: 'https://www.youtube.com/feed',
+      active: false,
+    });
+    expect(created).toMatchObject({ url: '', pendingUrl: 'https://www.youtube.com/feed' });
+    await loaded();
+    expect(seen).toEqual([
+      '1 {"status":"loading"} https://www.youtube.com/watch?v=1',
+      '1 {"status":"complete"} https://www.youtube.com/watch?v=1',
+      '1 {"status":"loading"} (hidden)',
+      '1 {"status":"complete"} (hidden)',
+      '2 {"status":"loading","url":"https://www.youtube.com/feed"} https://www.youtube.com/feed',
+      '2 {"status":"complete"} https://www.youtube.com/feed',
+    ]);
   });
 
   test('match patterns', () => {
@@ -229,10 +276,10 @@ describe('fake tabs and scripting', () => {
     const func = (): unknown => 0;
     expect(
       await chrome.scripting.executeScript({ target: { tabId: 7 }, world: 'MAIN', func }),
-    ).toEqual([{ result: { SESSION_INDEX: 1 } }]);
+    ).toEqual([{ frameId: 0, result: { SESSION_INDEX: 1 } }]);
     expect(
       await chrome.scripting.executeScript({ target: { tabId: 8 }, world: 'MAIN', func }),
-    ).toEqual([{}]);
+    ).toEqual([{ frameId: 0 }]);
     expect(chrome.scripting.calls).toEqual([
       { tabId: 7, world: 'MAIN' },
       { tabId: 8, world: 'MAIN' },

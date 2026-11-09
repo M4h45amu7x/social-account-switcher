@@ -1,5 +1,6 @@
 import { expect, mock, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
+import type { BrowserTab } from '../../src/lib/ports';
 import { fakeLifecycle, fakeSessionStorage } from '../fakes/chrome';
 
 // The real adapter wires listeners to the global `chrome` at import time; give it a minimal stand-in.
@@ -21,8 +22,8 @@ const cookies = {
 };
 const tabListeners: unknown[] = [];
 const tabs = {
-  query: mock(async () => []),
-  get: mock(async () => ({ active: true })),
+  query: mock(async (): Promise<BrowserTab[]> => []),
+  get: mock(async (): Promise<BrowserTab> => ({ active: true })),
   onUpdated: {
     addListener: mock((l: unknown) => tabListeners.push(l)),
     removeListener: mock((l: unknown) => tabListeners.splice(tabListeners.indexOf(l), 1)),
@@ -31,7 +32,9 @@ const tabs = {
   update: mock(async () => undefined),
   create: mock(async () => ({ active: true })),
 };
-const scripting = { executeScript: mock(async () => []) };
+const scripting = {
+  executeScript: mock(async (): Promise<{ frameId: number; result?: unknown }[]> => []),
+};
 Object.assign(globalThis, {
   chrome: {
     runtime: {
@@ -46,7 +49,7 @@ Object.assign(globalThis, {
     scripting,
   },
 });
-const { hardenSessionStorage, start, workerDeps, youtubeNotWired } = await import(
+const { hardenSessionStorage, start, workerDeps } = await import(
   '../../src/background/service-worker'
 );
 const adapter = await import('../../src/background/chrome-adapter');
@@ -131,27 +134,48 @@ test('every other adapter function is a straight pass-through', async () => {
 
   await adapter.tabsApi.query({ url: ['*://*.facebook.com/*'] });
   await adapter.tabsApi.reload(3);
-  await adapter.tabsApi.update(3, { url: 'https://www.youtube.com/' });
-  await adapter.tabsApi.create({ url: 'https://www.youtube.com/' });
+  await adapter.tabsApi.update(3, { url: 'https://www.youtube.com/', active: true });
+  await adapter.tabsApi.create({ url: 'https://www.youtube.com/', active: false });
   expect(tabs.query).toHaveBeenCalledWith({ url: ['*://*.facebook.com/*'] });
   expect(tabs.reload).toHaveBeenCalledWith(3);
-  expect(tabs.update).toHaveBeenCalledWith(3, { url: 'https://www.youtube.com/' });
-  expect(tabs.create).toHaveBeenCalledWith({ url: 'https://www.youtube.com/' });
+  expect(tabs.update).toHaveBeenCalledWith(3, { url: 'https://www.youtube.com/', active: true });
+  expect(tabs.create).toHaveBeenCalledWith({ url: 'https://www.youtube.com/', active: false });
 
   const injection = { target: { tabId: 3 }, world: 'MAIN' as const, func: () => 1 };
   await adapter.scriptingApi.executeScript(injection);
   expect(scripting.executeScript).toHaveBeenCalledWith(injection);
 });
 
+test('the real YouTube switcher reads a tab through the tabs and scripting adapters', async () => {
+  const deps = workerDeps();
+  tabs.query.mockImplementationOnce(async () => [
+    { id: 6, active: true, url: 'https://www.youtube.com/' },
+  ]);
+  tabs.get.mockImplementationOnce(async () => ({ id: 6, url: 'https://www.youtube.com/' }));
+  scripting.executeScript.mockImplementationOnce(async () => [
+    { frameId: 0, result: { authuser: 1, pageid: '42' } },
+  ]);
+  expect(await deps.youtube.readCurrent()).toEqual({
+    ok: true,
+    value: { authuser: 1, pageid: '42' },
+  });
+  expect(scripting.executeScript).toHaveBeenLastCalledWith(
+    expect.objectContaining({ target: { tabId: 6 }, world: 'MAIN' }),
+  );
+});
+
 test('tabs.onUpdated relays events and unsubscribes', async () => {
   const seen: number[] = [];
-  const stop = adapter.tabsApi.onUpdated((tabId) => seen.push(tabId));
+  const listener = (tabId: number) => {
+    seen.push(tabId);
+  };
+  adapter.tabsApi.onUpdated.addListener(listener);
   (tabListeners[0] as (id: number, info: object, tab: object) => void)(
     4,
     { status: 'complete' },
     {},
   );
-  stop();
+  adapter.tabsApi.onUpdated.removeListener(listener);
   expect(seen).toEqual([4]);
   expect(tabListeners).toEqual([]);
   await adapter.tabsApi.get(4);
@@ -173,15 +197,15 @@ test('runtime.onMessage answers with what the handler resolves to and keeps the 
   expect(adapter.runtimeApi.id).toBe('abcdefghijklmnopabcdefghijklmnop');
 });
 
-test('the worker wires real adapters, a clock, UUIDs and the YouTube stand-in', async () => {
+test('the worker wires real adapters, a clock, UUIDs and the YouTube switcher', async () => {
   const deps = workerDeps();
   expect(deps.cookies).toBe(adapter.cookiesApi);
   expect(Math.abs(deps.now() - Date.now())).toBeLessThan(1000);
   expect(deps.newId()).toMatch(/^[0-9a-f-]{36}$/);
   expect(deps.newId()).not.toBe(deps.newId());
-  expect(await youtubeNotWired.readCurrent()).toEqual({ ok: false, error: 'unavailable' });
-  expect(await youtubeNotWired.switchTo({ authuser: 0 })).toEqual({
-    ok: false,
-    error: 'unavailable',
-  });
+  // The stand-in chrome has no tabs: the real YouTube code answers through the tabs adapter.
+  expect(await deps.youtube.readCurrent()).toEqual({ ok: false, error: 'no_youtube_tab' });
+  expect(tabs.query).toHaveBeenCalledWith({ url: ['*://*.youtube.com/*'] });
+  // create() gives back a tab without an id here, so there is nothing to switch.
+  expect(await deps.youtube.switchTo({ authuser: 0 })).toEqual({ ok: false, error: 'invalid_tab' });
 });

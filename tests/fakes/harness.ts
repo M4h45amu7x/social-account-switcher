@@ -1,14 +1,13 @@
 // A whole service worker on top of the fakes: real router, switcher, journal and keyring, fake Chrome.
 import { dropCachedKey } from '../../src/background/keyring';
 import { COOKIE_PLATFORMS } from '../../src/background/platforms';
-import type { CookiePlatformId } from '../../src/background/platforms/types';
-import {
-  createRouter,
-  type Router,
-  type RouterDeps,
-  type YoutubeIdentity,
-  type YoutubeSwitcher,
-} from '../../src/background/router';
+import type {
+  CookiePlatformId,
+  YouTubeError,
+  YouTubeSession,
+  YoutubeSwitcher,
+} from '../../src/background/platforms/types';
+import { createRouter, type Router, type RouterDeps } from '../../src/background/router';
 import { clear } from '../../src/lib/cookies';
 import { createMutex } from '../../src/lib/mutex';
 import type { CookieSetDetails } from '../../src/lib/ports';
@@ -105,9 +104,9 @@ export const whoIs = (chrome: FakeChrome, platform: CookiePlatformId) =>
   chrome.cookies.all().find((c) => c.name === COOKIE_PLATFORMS[platform].idCookie)?.value ?? null;
 
 export interface FakeYoutube extends YoutubeSwitcher {
-  current: Result<YoutubeIdentity, 'no_youtube_tab' | 'not_logged_in'>;
-  next: Result<{ reloadedTabs: number }, 'mismatch' | 'no_youtube_tab'>;
-  switched: YoutubeIdentity[];
+  current: Result<YouTubeSession, YouTubeError>;
+  next: Result<{ reloadedTabs: number }, YouTubeError>;
+  switched: YouTubeSession[];
 }
 
 export function fakeYoutube(): FakeYoutube {
@@ -124,16 +123,16 @@ export function fakeYoutube(): FakeYoutube {
   return y;
 }
 
-export interface Harness {
+export interface Harness<Y extends YoutubeSwitcher = FakeYoutube> {
   chrome: FakeChrome;
   deps: RouterDeps;
   router: Router;
-  youtube: FakeYoutube;
+  youtube: Y;
   send(message: unknown): Promise<Result<unknown, string>>;
   /** Sends and fails the test unless the answer is ok. */
   must<T = unknown>(message: unknown): Promise<T>;
   /** A new worker on the same storage and cookies: cache dropped, busy set empty, recovery run. */
-  restartWorker(): Promise<Harness>;
+  restartWorker(): Promise<Harness<Y>>;
 }
 
 export function makeDeps(chrome: FakeChrome, youtube: YoutubeSwitcher): RouterDeps {
@@ -154,17 +153,17 @@ export function makeDeps(chrome: FakeChrome, youtube: YoutubeSwitcher): RouterDe
   };
 }
 
-export async function startWorker(
+export async function startWorker<Y extends YoutubeSwitcher = FakeYoutube>(
   chrome: FakeChrome = fakeChrome({ now: NOW }),
-  youtube: FakeYoutube = fakeYoutube(),
-): Promise<Harness> {
+  youtube: Y = fakeYoutube() as unknown as Y,
+): Promise<Harness<Y>> {
   dropCachedKey();
   const deps = makeDeps(chrome, youtube);
   const router = createRouter(deps);
   chrome.runtime.onMessage(router.handle);
   await router.ready;
   const send = (m: unknown) => chrome.runtime.send(m) as Promise<Result<unknown, string>>;
-  const h: Harness = {
+  const h: Harness<Y> = {
     chrome,
     deps,
     router,

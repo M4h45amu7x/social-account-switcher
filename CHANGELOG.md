@@ -24,6 +24,11 @@ Nothing has been released yet. Version 0.1.0 in `package.json` is the developmen
   - `src/background/journal.ts` keeps an encrypted backup in `storage.session` during each switch, and a new service worker puts it back if the old one stopped halfway.
   - `src/lib/messages.ts` and `src/background/router.ts` accept only this extension's own pages and well-formed messages, and always answer with a Result. After five wrong master passwords, each attempt waits 30 seconds.
   - YouTube goes through a `YoutubeSwitcher` interface until card B4's code is wired in.
+- YouTube switching through Google multi-login, wired into the service worker (`src/background/platforms/youtube.ts`):
+  - Adding an account reads only `authuser` and `pageid` from the open YouTube tab. Switching points that tab at Google's signin URL, reads the page again once that navigation has loaded, then reloads the other YouTube tabs.
+  - Only the load of the switch's own navigation counts: the first load after `tabs.update()` resolves, unless the tab visibly went to another path. A tab that ends up on Google's login page gives `not_signed_in`, and a tab closed during the switch is skipped. A Chromium test with a local server and real redirects covers these cases.
+  - `next` is limited to 2,048 characters and 3 rounds of decoding.
+  - YouTube messages take the same per-platform busy lock as Facebook and Instagram.
 - Release tooling: a permission allow-list check and a deterministic Chrome Web Store zip with its SHA-256.
 - GitHub Actions for CI and tagged releases, plus Dependabot.
 - README, privacy policy, security policy and MIT license.

@@ -27,6 +27,8 @@ import type {
   SessionStorageApi,
   StorageAreaApi,
   TabsApi,
+  TabUpdatedListener,
+  TabUpdateInfo,
 } from '../../src/lib/ports';
 
 export interface Clock {
@@ -269,74 +271,126 @@ export function matchesPattern(pattern: string, href: string): boolean {
   return glob.test(url.pathname + url.search);
 }
 
+/** A tab the fake can change. `url` is the committed URL, whatever the extension may see of it. */
+export type FakeTab = { -readonly [K in keyof BrowserTab]: BrowserTab[K] };
+
 export interface FakeTabs extends TabsApi {
-  tabs: BrowserTab[];
+  tabs: FakeTab[];
   reloaded: number[];
   /**
-   * Runs while a reloaded tab "loads", before it reports complete. Tests use it to play the server:
-   * change the tab's URL (a checkpoint redirect) or drop cookies (a revoked session).
+   * The server: where a navigation to `url` commits after redirects (a 302 back to `next`, or to
+   * Google's login page). Default: `url` itself.
    */
-  onLoad: ((tab: BrowserTab) => void | Promise<void>) | null;
-  /** When false, a reload never finishes loading (to test the verify timeout). */
+  redirect: ((url: string) => string) | null;
+  /**
+   * Runs while a tab "loads", after commit and before it reports complete. Tests use it to play the
+   * server: change the tab's URL (a checkpoint redirect) or drop cookies (a revoked session).
+   */
+  onLoad: ((tab: FakeTab) => void | Promise<void>) | null;
+  /** When false, a reload or a navigation never finishes loading (to test the verify timeout). */
   finishLoading: boolean;
 }
 
-export function fakeTabs(initial: { url: string; active?: boolean }[] = []): FakeTabs {
+/**
+ * Tabs as Chrome 158 reports them to this extension (checked against a real Chromium, QC t-546):
+ * - update()/create() resolve before the navigation commits: `url` is still the old one (`''` for a
+ *   new tab), `pendingUrl` is the requested one, status `loading`.
+ * - onUpdated carries `url` only when the committed URL changes, so a redirect back to the same URL
+ *   sends a bare `{status: 'loading'}`. A reload never carries a URL.
+ * - Pages on hosts outside host_permissions are hidden: no `url` in onUpdated, `tab.url` undefined.
+ */
+export function fakeTabs(
+  initial: { url: string; active?: boolean }[] = [],
+  hostPermissions: readonly string[] = MANIFEST_HOSTS,
+): FakeTabs {
   let nextId = 1;
-  const listeners = new Set<Parameters<TabsApi['onUpdated']>[0]>();
-  const make = (url: string, active = false): BrowserTab => ({
+  const listeners = new Set<TabUpdatedListener>();
+  const make = (url: string, active = false): FakeTab => ({
     id: nextId++,
     url,
     active,
     status: 'complete',
+  });
+  const visible = (url: string | undefined) =>
+    url !== undefined && hostPermissions.some((p) => matchesPattern(p, url));
+  /** What the extension sees of a tab. */
+  const view = (tab: FakeTab): BrowserTab => ({
+    ...tab,
+    // A new tab has '' until its first commit.
+    url: tab.url === '' || visible(tab.url) ? tab.url : undefined,
+    pendingUrl: visible(tab.pendingUrl) ? tab.pendingUrl : undefined,
   });
   const find = (tabId: number) => {
     const tab = fake.tabs.find((t) => t.id === tabId);
     if (!tab) throw new Error(`No tab with id: ${tabId}`);
     return tab;
   };
-  const emit = (tab: BrowserTab, info: { status: string }) => {
-    tab.status = info.status;
-    for (const l of [...listeners]) l(tab.id ?? -1, { ...info, url: tab.url }, { ...tab });
+  const emit = (tab: FakeTab, info: TabUpdateInfo) => {
+    if (info.status !== undefined) tab.status = info.status;
+    for (const l of [...listeners]) l(tab.id ?? -1, info, view(tab));
+  };
+  /** Commit (`to` for a navigation, nothing for a reload), the server's turn, then complete. */
+  const load = (tab: FakeTab, to?: string) => {
+    if (to === undefined) {
+      emit(tab, { status: 'loading' });
+    } else {
+      const committed = fake.redirect?.(to) ?? to;
+      const changed = committed !== tab.url;
+      tab.url = committed;
+      tab.pendingUrl = undefined;
+      emit(
+        tab,
+        changed && visible(committed)
+          ? { status: 'loading', url: committed }
+          : { status: 'loading' },
+      );
+    }
+    setTimeout(async () => {
+      await fake.onLoad?.(tab);
+      if (fake.finishLoading) emit(tab, { status: 'complete' });
+    }, 0);
+  };
+  const navigate = (tab: FakeTab, url: string) => {
+    tab.pendingUrl = url;
+    tab.status = 'loading';
+    setTimeout(() => load(tab, url), 0);
+    return view(tab);
   };
   const fake: FakeTabs = {
     tabs: initial.map((t) => make(t.url, t.active)),
     reloaded: [],
+    redirect: null,
     onLoad: null,
     finishLoading: true,
     async query(query) {
-      const patterns = query.url === undefined ? undefined : [query.url].flat();
+      const patterns = query.url;
       return fake.tabs
         .filter((t) => query.active === undefined || t.active === query.active)
         .filter((t) => !patterns || patterns.some((p) => matchesPattern(p, t.url ?? '')))
-        .map((t) => ({ ...t }));
+        .map(view);
     },
     async get(tabId) {
-      return { ...find(tabId) };
+      return view(find(tabId));
     },
-    onUpdated(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
+    onUpdated: {
+      addListener: (listener) => listeners.add(listener),
+      removeListener: (listener) => listeners.delete(listener),
     },
     async reload(tabId) {
       const tab = find(tabId);
       fake.reloaded.push(tabId);
-      emit(tab, { status: 'loading' });
       // Like Chrome, the page loads after reload() has resolved.
-      setTimeout(async () => {
-        await fake.onLoad?.(tab);
-        if (fake.finishLoading) emit(tab, { status: 'complete' });
-      }, 0);
+      load(tab);
     },
     async update(tabId, props) {
       const tab = find(tabId);
-      tab.url = props.url;
-      return { ...tab };
+      if (props.active) for (const t of fake.tabs) t.active = t === tab;
+      return navigate(tab, props.url);
     },
     async create(props) {
-      const tab = make(props.url, true);
+      const tab = make('', props.active);
       fake.tabs.push(tab);
-      return { ...tab };
+      return navigate(tab, props.url);
     },
   };
   return fake;
@@ -379,10 +433,12 @@ export function fakeScripting(): FakeScripting {
   const fake: FakeScripting = {
     pageResults: new Map(),
     calls: [],
-    async executeScript<T>(injection: Parameters<ScriptingApi['executeScript']>[0]) {
+    async executeScript(injection) {
       const { tabId } = injection.target;
       fake.calls.push({ tabId, world: injection.world });
-      return fake.pageResults.has(tabId) ? [{ result: fake.pageResults.get(tabId) as T }] : [{}];
+      return fake.pageResults.has(tabId)
+        ? [{ frameId: 0, result: fake.pageResults.get(tabId) }]
+        : [{ frameId: 0 }];
     },
   };
   return fake;
@@ -412,7 +468,7 @@ export function fakeChrome(
     clock,
     cookies: fakeCookies(clock, options.hostPermissions),
     storage: { local: fakeStorageArea(), session: fakeSessionStorage() },
-    tabs: fakeTabs(options.tabs),
+    tabs: fakeTabs(options.tabs, options.hostPermissions),
     scripting: fakeScripting(),
     lifecycle: fakeLifecycle(),
     runtime: fakeRuntime(),

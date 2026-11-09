@@ -1,14 +1,24 @@
 // The service worker's message handling end to end, on the fakes (design 2, 6 and 8.2).
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { getKey } from '../../src/background/keyring';
+import { createYoutubeSwitcher } from '../../src/background/platforms/youtube';
 import type { PopupState } from '../../src/background/router';
 import { err } from '../../src/lib/result';
 import { loadStore } from '../../src/lib/store';
 import { readVault } from '../../src/lib/vault';
-import { loginAs, PASSWORD, secretOf, startWorker, whoIs, withAccounts } from '../fakes/harness';
+import { fakeChrome } from '../fakes/chrome';
+import {
+  loginAs,
+  NOW,
+  PASSWORD,
+  secretOf,
+  startWorker,
+  whoIs,
+  withAccounts,
+} from '../fakes/harness';
 
 type H = Awaited<ReturnType<typeof withAccounts>>['h'];
-const state = (h: H) => h.must<PopupState>({ type: 'state.get' });
+const state = (h: Pick<H, 'must'>) => h.must<PopupState>({ type: 'state.get' });
 
 async function vaultOf(h: H) {
   const s = await loadStore(h.chrome.storage.local);
@@ -368,8 +378,10 @@ describe('YouTube goes through the YoutubeSwitcher interface', () => {
     });
     expect(h.youtube.switched).toEqual([{ authuser: 1, pageid: 'brand-7' }]);
 
-    h.youtube.next = err('mismatch');
-    expect(await h.send({ type: 'account.switch', accountId: added.id })).toEqual(err('mismatch'));
+    h.youtube.next = err('not_signed_in');
+    expect(await h.send({ type: 'account.switch', accountId: added.id })).toEqual(
+      err('not_signed_in'),
+    );
     expect((await state(h)).accounts[0]?.status).toBe('expired');
     h.youtube.next = err('no_youtube_tab');
     expect(await h.send({ type: 'account.switch', accountId: added.id })).toEqual(
@@ -407,5 +419,156 @@ describe('YouTube goes through the YoutubeSwitcher interface', () => {
       store: { ...s.value, accounts: [{ ...s.value.accounts[0], youtube: undefined }] },
     });
     expect(await h.send({ type: 'account.switch', accountId: added.id })).toEqual(err('not_found'));
+  });
+});
+
+describe('YouTube through the real switcher (youtube.ts on the fake Chrome)', () => {
+  const YT = 'https://www.youtube.com/watch?v=1';
+  async function realYoutube() {
+    const chrome = fakeChrome({
+      now: NOW,
+      tabs: [{ url: YT, active: true }, { url: 'https://www.youtube.com/feed' }],
+    });
+    const youtube = createYoutubeSwitcher({
+      tabs: chrome.tabs,
+      scripting: chrome.scripting,
+      loadTimeoutMs: 100,
+    });
+    const h = await startWorker(chrome, youtube);
+    const page = (session: unknown) => chrome.scripting.pageResults.set(1, session);
+    return { h, page };
+  }
+
+  test('add two channels, switch between them, update, with no vault at all', async () => {
+    const { h, page } = await realYoutube();
+    page({ authuser: 1, pageid: '777', email: 'not copied' });
+    const brand = await h.must<{ id: string; youtube: unknown }>({
+      type: 'account.addCurrent',
+      platform: 'youtube',
+      label: 'Brand',
+    });
+    expect(brand.youtube).toEqual({ authuser: 1, pageid: '777' });
+    page({ authuser: 0 });
+    const me = await h.must<{ id: string }>({
+      type: 'account.addCurrent',
+      platform: 'youtube',
+      label: 'Me',
+    });
+
+    page({ authuser: 1, pageid: '777' });
+    // Google's signin answers with a 302 back to `next`, the URL the tab already had.
+    const requested: string[] = [];
+    h.chrome.tabs.redirect = (to) => {
+      requested.push(to);
+      return YT;
+    };
+    expect(await h.send({ type: 'account.switch', accountId: brand.id })).toEqual({
+      ok: true,
+      value: { reloadedTabs: 1 },
+    });
+    expect(h.chrome.tabs.tabs[0]?.url).toBe(YT);
+    const url = new URL(requested[0] ?? '');
+    expect(url.origin + url.pathname).toBe('https://www.youtube.com/signin');
+    expect(url.searchParams.get('pageid')).toBe('777');
+    expect(url.searchParams.get('next')).toBe('/watch?v=1');
+    expect(h.chrome.tabs.reloaded).toEqual([2]);
+    const s = await state(h);
+    expect(s.active.youtube).toBe(brand.id);
+    expect(s.busy).toEqual([]);
+
+    // The page shows another account after the switch: Google account N moved (design 3.3).
+    page({ authuser: 3 });
+    expect(await h.send({ type: 'account.switch', accountId: me.id })).toEqual(
+      err('not_signed_in'),
+    );
+    expect((await state(h)).accounts.find((a) => a.id === me.id)?.status).toBe('expired');
+    page({ authuser: 0 });
+    await h.must({ type: 'account.updateSession', accountId: me.id });
+    expect((await state(h)).accounts.find((a) => a.id === me.id)?.status).toBe('ok');
+  });
+
+  test('Google sends the tab to its login page: not_signed_in', async () => {
+    const { h, page } = await realYoutube();
+    page({ authuser: 4 });
+    const a = await h.must<{ id: string }>({
+      type: 'account.addCurrent',
+      platform: 'youtube',
+      label: 'Gone',
+    });
+    h.chrome.tabs.redirect = () => 'https://accounts.google.com/v3/signin/identifier';
+    expect(await h.send({ type: 'account.switch', accountId: a.id })).toEqual(err('not_signed_in'));
+    expect(h.chrome.tabs.reloaded).toEqual([]);
+  });
+
+  test('while YouTube switches, YouTube messages get busy; Facebook does not', async () => {
+    const { h, page } = await realYoutube();
+    page({ authuser: 1 });
+    const a = await h.must<{ id: string }>({
+      type: 'account.addCurrent',
+      platform: 'youtube',
+      label: 'One',
+    });
+    h.chrome.tabs.finishLoading = false; // the switch waits until its timeout
+    const running = h.send({ type: 'account.switch', accountId: a.id });
+    await new Promise((r) => setTimeout(r, 10));
+    expect((await state(h)).busy).toEqual(['youtube']);
+    for (const m of [
+      { type: 'account.switch', accountId: a.id },
+      { type: 'account.addCurrent', platform: 'youtube', label: 'Two' },
+      { type: 'account.updateSession', accountId: a.id },
+      { type: 'account.remove', accountId: a.id },
+      { type: 'vault.wipe' },
+    ]) {
+      expect(await h.send(m)).toEqual(err('busy'));
+    }
+    expect(await h.send({ type: 'account.addCurrent', platform: 'facebook', label: 'F' })).toEqual(
+      err('not_logged_in'),
+    );
+    expect(await running).toEqual(err('api_error'));
+    expect((await state(h)).busy).toEqual([]);
+  });
+
+  test('adding a YouTube account holds YouTube until the page has been read', async () => {
+    const { h, page } = await realYoutube();
+    page({ authuser: 1 });
+    const one = await h.must<{ id: string }>({
+      type: 'account.addCurrent',
+      platform: 'youtube',
+      label: 'One',
+    });
+    page({ authuser: 2 });
+    const read = h.chrome.scripting.executeScript;
+    let release: () => void = () => {};
+    h.chrome.scripting.executeScript = (injection) =>
+      new Promise((resolve, reject) => {
+        release = () => {
+          read(injection).then(resolve, reject);
+        };
+      });
+    const adding = h.send({ type: 'account.addCurrent', platform: 'youtube', label: 'Two' });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(await h.send({ type: 'account.switch', accountId: one.id })).toEqual(err('busy'));
+    release();
+    expect((await adding).ok).toBe(true);
+    expect((await state(h)).busy).toEqual([]);
+  });
+
+  test('no YouTube tab open: add says so', async () => {
+    const h = await startWorker(
+      fakeChrome({ now: NOW }),
+      createYoutubeSwitcher({ tabs: fakeChrome().tabs, scripting: fakeChrome().scripting }),
+    );
+    expect(await h.send({ type: 'account.addCurrent', platform: 'youtube', label: 'X' })).toEqual(
+      err('no_youtube_tab'),
+    );
+  });
+
+  test('a browser error while reading becomes api_error', async () => {
+    const chrome = fakeChrome({ now: NOW });
+    chrome.tabs.query = async () => {
+      throw new Error('extension context invalidated');
+    };
+    const youtube = createYoutubeSwitcher({ tabs: chrome.tabs, scripting: chrome.scripting });
+    expect(await youtube.readCurrent()).toEqual(err('api_error'));
   });
 });

@@ -6,27 +6,44 @@ import { type BrowserContext, test as base, chromium } from '@playwright/test';
 
 const dist = resolve(import.meta.dirname, '..', '..', 'dist');
 
+/**
+ * Launches Chromium with the unpacked extension in `dir` (dist/ by default). `extraArgs` are added to
+ * the command line (e.g. host resolver rules for a local test server). Close it with the returned
+ * `close`, which also deletes the profile.
+ */
+export async function launchExtension(
+  options: { dir?: string; locale?: string; extraArgs?: string[] } = {},
+) {
+  const { dir = dist, locale, extraArgs = [] } = options;
+  const profile = mkdtempSync(join(tmpdir(), 'sas-e2e-'));
+  const context = await chromium.launchPersistentContext(profile, {
+    channel: 'chromium',
+    // chrome.i18n follows the browser UI language, which on Linux comes from --lang / LANGUAGE,
+    // not from Playwright's `locale` (that only sets navigator.language and Accept-Language).
+    ...(locale
+      ? { locale, env: { ...process.env, LANGUAGE: locale.split('-')[0] ?? locale } }
+      : {}),
+    args: [
+      `--disable-extensions-except=${dir}`,
+      `--load-extension=${dir}`,
+      ...(locale ? [`--lang=${locale}`] : []),
+      ...extraArgs,
+    ],
+  });
+  const close = async () => {
+    await context.close();
+    rmSync(profile, { recursive: true, force: true });
+  };
+  return { context, close };
+}
+
 /** A test object that loads the unpacked extension in `dir` (dist/ by default). */
 export const makeTest = (dir: string) =>
   base.extend<{ context: BrowserContext; extensionId: string }>({
     context: async ({ locale }, use) => {
-      const profile = mkdtempSync(join(tmpdir(), 'sas-e2e-'));
-      const context = await chromium.launchPersistentContext(profile, {
-        channel: 'chromium',
-        // chrome.i18n follows the browser UI language, which on Linux comes from --lang / LANGUAGE,
-        // not from Playwright's `locale` (that only sets navigator.language and Accept-Language).
-        ...(locale
-          ? { locale, env: { ...process.env, LANGUAGE: locale.split('-')[0] ?? locale } }
-          : {}),
-        args: [
-          `--disable-extensions-except=${dir}`,
-          `--load-extension=${dir}`,
-          ...(locale ? [`--lang=${locale}`] : []),
-        ],
-      });
+      const { context, close } = await launchExtension(locale ? { dir, locale } : { dir });
       await use(context);
-      await context.close();
-      rmSync(profile, { recursive: true, force: true });
+      await close();
     },
     extensionId: async ({ context }, use) => {
       const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));

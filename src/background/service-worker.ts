@@ -2,18 +2,19 @@
 // storage.session to trusted contexts, and rolls back any switch that a previous worker left half done.
 import { createMutex } from '../lib/mutex';
 import type { LifecycleApi, SessionStorageApi } from '../lib/ports';
-import { err } from '../lib/result';
+import type { Platform } from '../lib/store';
 import {
   cookiesApi,
   lifecycleApi,
   localStorageApi,
   runtimeApi,
+  scriptingApi,
   sessionStorageApi,
   tabsApi,
 } from './chrome-adapter';
 import { COOKIE_PLATFORMS } from './platforms';
-import type { CookiePlatformId } from './platforms/types';
-import { createRouter, type RouterDeps, type YoutubeSwitcher } from './router';
+import { createYoutubeSwitcher } from './platforms/youtube';
+import { createRouter, type RouterDeps } from './router';
 
 /** Keep chrome.storage.session readable only by extension pages, never by content scripts (design §5). */
 export async function hardenSessionStorage(session: SessionStorageApi): Promise<void> {
@@ -27,12 +28,6 @@ export function start(lifecycle: LifecycleApi, session: SessionStorageApi): void
     });
   });
 }
-
-/** Stand-in until card B4 (t-532) lands youtube.ts; whichever card merges second wires the real one. */
-export const youtubeNotWired: YoutubeSwitcher = {
-  readCurrent: async () => err('unavailable'),
-  switchTo: async () => err('unavailable'),
-};
 
 /** How long a switch waits for the first reloaded tab before it checks the cookies anyway. */
 export const TAB_LOAD_TIMEOUT_MS = 15_000;
@@ -49,11 +44,15 @@ export function workerDeps(): RouterDeps {
     session: sessionStorageApi,
     platforms: COOKIE_PLATFORMS,
     storeMutex: createMutex(),
-    busy: new Set<CookiePlatformId>(),
+    busy: new Set<Platform>(),
     now: () => Date.now(),
     newId: () => crypto.randomUUID(),
     loadTimeoutMs: TAB_LOAD_TIMEOUT_MS,
-    youtube: youtubeNotWired,
+    youtube: createYoutubeSwitcher({
+      tabs: tabsApi,
+      scripting: scriptingApi,
+      loadTimeoutMs: TAB_LOAD_TIMEOUT_MS,
+    }),
   };
 }
 

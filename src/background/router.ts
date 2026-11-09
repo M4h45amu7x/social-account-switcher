@@ -18,26 +18,13 @@ import {
   updateSettings,
 } from '../lib/store';
 import { createVault, readVault, unlock, validatePassword, writeVault } from '../lib/vault';
+import { holdPlatform } from './busy';
 import { journalKey, type RecoverReport, recoverJournal } from './journal';
 import { getKey, lock, storeKey } from './keyring';
 import { isCookiePlatform } from './platforms';
-import type { CookiePlatformId } from './platforms/types';
+import type { CookiePlatformId, YouTubeSession, YoutubeSwitcher } from './platforms/types';
 import { editStore, patchStore, readStore } from './store-access';
 import { type SwitchDeps, switchAccount } from './switcher';
-
-export interface YoutubeIdentity {
-  authuser: number;
-  pageid?: string;
-}
-
-export type YoutubeError = 'no_youtube_tab' | 'not_logged_in' | 'mismatch' | 'unavailable';
-
-/** What the router needs from the YouTube code (card B4). */
-export interface YoutubeSwitcher {
-  /** The Google session and channel shown in an open YouTube tab. */
-  readCurrent(): Promise<Result<YoutubeIdentity, YoutubeError>>;
-  switchTo(target: YoutubeIdentity): Promise<Result<{ reloadedTabs: number }, YoutubeError>>;
-}
 
 export interface RouterDeps extends SwitchDeps {
   extensionId: string;
@@ -218,28 +205,30 @@ async function wipe(deps: RouterDeps) {
 // --- accounts ---
 
 async function addCurrent(deps: RouterDeps, platform: Platform, label: string) {
-  if (platform === 'youtube') {
-    const current = await deps.youtube.readCurrent();
-    if (!current.ok) return current;
-    return editStore(deps, async (store) => {
-      const added = addAccount(store, { platform, label, youtube: current.value }, ids(deps));
-      if (!added.ok) return added;
-      const active = setActive(added.value.store, platform, added.value.account.id);
-      return ok({
-        store: active.ok ? active.value : added.value.store,
-        value: added.value.account,
-      });
-    });
-  }
-  // Held like a switch, so the cookies read here can't change half-way through.
-  if (deps.busy.has(platform)) return err('busy');
-  deps.busy.add(platform);
-  try {
-    return await addCookieAccount(deps, platform, label);
-  } finally {
-    deps.busy.delete(platform);
-  }
+  // Held like a switch, so what is read here can't change half-way through.
+  if (platform === 'youtube')
+    return holdPlatform(deps.busy, platform, () => addYoutube(deps, label));
+  return holdPlatform(deps.busy, platform, () => addCookieAccount(deps, platform, label));
 }
+
+async function addYoutube(deps: RouterDeps, label: string) {
+  const current = await deps.youtube.readCurrent();
+  if (!current.ok) return current;
+  return editStore(deps, async (store) => {
+    const youtube = copySession(current.value);
+    const added = addAccount(store, { platform: 'youtube', label, youtube }, ids(deps));
+    if (!added.ok) return added;
+    const active = setActive(added.value.store, 'youtube', added.value.account.id);
+    return ok({
+      store: active.ok ? active.value : added.value.store,
+      value: added.value.account,
+    });
+  });
+}
+
+/** Only the two allow-listed fields go into the store. */
+const copySession = (s: YouTubeSession) =>
+  s.pageid === undefined ? { authuser: s.authuser } : { authuser: s.authuser, pageid: s.pageid };
 
 async function addCookieAccount(deps: RouterDeps, platform: CookiePlatformId, label: string) {
   const p = deps.platforms[platform];
@@ -276,19 +265,7 @@ async function updateSession(deps: RouterDeps, accountId: string) {
   const account = findAccount(loaded.value, accountId);
   if (!account) return err('not_found');
   if (account.platform === 'youtube') {
-    const current = await deps.youtube.readCurrent();
-    if (!current.ok) return current;
-    return patchStore(deps, (store) => {
-      const found = findAccount(store, accountId);
-      if (!found) return err('not_found');
-      const youtube = { ...current.value };
-      return ok({
-        ...store,
-        accounts: store.accounts.map((a) =>
-          a.id === accountId ? { ...a, youtube, status: 'ok' as const } : a,
-        ),
-      });
-    });
+    return holdPlatform(deps.busy, 'youtube', () => updateYoutube(deps, accountId));
   }
   if (deps.busy.has(account.platform)) return err('busy');
   const p = deps.platforms[account.platform];
@@ -312,13 +289,28 @@ async function updateSession(deps: RouterDeps, accountId: string) {
   });
 }
 
+async function updateYoutube(deps: RouterDeps, accountId: string) {
+  const current = await deps.youtube.readCurrent();
+  if (!current.ok) return current;
+  return patchStore(deps, (store) => {
+    if (!findAccount(store, accountId)) return err('not_found');
+    const youtube = copySession(current.value);
+    return ok({
+      ...store,
+      accounts: store.accounts.map((a) =>
+        a.id === accountId ? { ...a, youtube, status: 'ok' as const } : a,
+      ),
+    });
+  });
+}
+
 async function remove(deps: RouterDeps, accountId: string) {
   const loaded = await readStore(deps);
   if (!loaded.ok) return loaded;
   const account = findAccount(loaded.value, accountId);
   if (!account) return err('not_found');
-  if (account.platform === 'youtube') return patchStore(deps, (s) => removeAccount(s, accountId));
   if (deps.busy.has(account.platform)) return err('busy');
+  if (account.platform === 'youtube') return patchStore(deps, (s) => removeAccount(s, accountId));
   // The saved session has to go too (design 2.4), and the vault can only be rewritten unlocked.
   const key = await getKey(deps.session);
   if (!key) return err('locked');
@@ -341,10 +333,16 @@ async function switchTo(deps: RouterDeps, accountId: string, force: boolean) {
   if (isCookiePlatform(account.platform)) {
     return switchAccount(deps, account.platform, accountId, { force });
   }
-  if (!account.youtube) return err('not_found');
-  const switched = await deps.youtube.switchTo(account.youtube);
+  const target = account.youtube;
+  if (!target) return err('not_found');
+  return holdPlatform(deps.busy, 'youtube', () => switchYoutube(deps, accountId, target));
+}
+
+async function switchYoutube(deps: RouterDeps, accountId: string, target: YouTubeSession) {
+  const switched = await deps.youtube.switchTo(target);
   await patchStore(deps, (store) => {
-    const status = switched.ok ? 'ok' : switched.error === 'mismatch' ? 'expired' : undefined;
+    // not_signed_in: Google account N is no longer the one saved (design 3.3), so press Update.
+    const status = switched.ok ? 'ok' : switched.error === 'not_signed_in' ? 'expired' : undefined;
     if (status === undefined) return ok(store);
     const updated = updateAccount(
       store,
