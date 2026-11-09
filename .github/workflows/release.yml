@@ -36,7 +36,7 @@ jobs:
       - run: bunx playwright install --with-deps chromium
       - run: bun run e2e
       - run: bun scripts/zip.ts
-      - name: Create GitHub Release (upload to the Chrome Web Store stays manual)
+      - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" release/*.zip release/*.sha256 --title "$GITHUB_REF_NAME" --generate-notes --verify-tag

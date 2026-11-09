@@ -4,7 +4,7 @@ Switch between your own Facebook, Instagram and YouTube accounts from a Chrome e
 
 ![Popup with fictional saved accounts](docs/images/popup.png)
 
-Version 0.1.0 is in development and has not been published. The screenshot uses fictional accounts. Live account checks and the final privacy review are still required before a release.
+The screenshot uses fictional accounts. Version 0.1.0 is prepared for GitHub distribution; live account checks remain part of the manual handoff below.
 
 Facebook and Instagram sessions are encrypted on this device with a master password. YouTube uses Google's multi-account sign-in with a saved account index and optional channel ID; it does not replace Google cookies. There is no extension server, analytics or remote code. Account labels and identifiers are stored locally without encryption. See [PRIVACY.md](PRIVACY.md) for the privacy policy and [SECURITY.md](SECURITY.md) for reporting a vulnerability.
 
@@ -28,11 +28,17 @@ YouTube entries use accounts already signed in through Google. The popup still a
 
 ## Limits and risks
 
-- Saved session cookies can grant account access. Use a strong, unique master password: someone who copies your browser profile can try to guess it offline. The password is not stored, and there is no recovery. Resetting the vault deletes its saved data.
+- Saved session cookies can grant account access. Use a strong, unique master password: someone who copies your browser profile can try to guess it offline. The password is not stored, and there is no recovery. Forgot password removes saved Facebook/Instagram sessions; Settings offers a separate wipe of all saved entries.
 - Logging out on a website can invalidate its saved session. A platform may also require another login or a checkpoint. Complete those steps yourself, then update the saved session.
 - Removing a saved entry does not log that account out of the website. Lock the vault when you finish, and protect your browser profile and device.
 - YouTube account indexes can change after logout. Switching checks the resulting account and reports a mismatch. If another YouTube navigation completes just before sign-in finishes, verification can report an expired session; sign in again and choose **Update session**.
 - Use accounts you own and follow each platform's terms. This extension does not bypass login, two-factor authentication or platform restrictions. Real-account YouTube behavior still needs the manual release checks in the [design](docs/design.md).
+
+## Known issues and manual checks
+
+Read [known issues](docs/known-issues.md) before switching: YouTube navigation can cause a false expired-session result, a browser API that never answers can leave the worker busy, and the displayed steps follow a timer. Facebook/Instagram browser tests use local models.
+
+With your own test accounts, complete the [manual checklist](docs/design.md#83-tests-and-manual-checks), including native **Load unpacked** installation, live Facebook/Instagram and YouTube checks, and the first GitHub-hosted CI run. Automated tests do not replace those checks.
 
 ## Develop
 

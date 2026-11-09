@@ -1,9 +1,0 @@
-### mutation: reduced-motion guard removed (motion.ts:77 prefersReducedMotion() -> false)
-77c77
-<     prefersReducedMotion()
----
->     false
---- unit
-(fail) runTransition > prefers-reduced-motion: reduce never starts a transition [4.34ms]
- 16 pass
- 1 fail

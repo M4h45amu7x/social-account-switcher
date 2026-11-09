@@ -1,68 +1,61 @@
 # Privacy Policy
 
-_Last updated: 2026-11-09_
+_Last updated: 2026-11-10_
 
-> Status: Social Account Switcher is in development and hasn't been released. Version 0.1.0 only shows a placeholder popup and stores no account data. This policy describes how the extension will handle data once account switching ships. This note will be removed after every statement below has been checked against the released code.
-
-Social Account Switcher is a browser extension that lets you switch between your own Facebook, Instagram and YouTube accounts. This page explains what it stores, where, and why.
-
-Everything the extension stores stays on your device. It has no server and no analytics, it doesn't sell or share data, and it never sends cookies or account details anywhere.
+Social Account Switcher saves sessions so you can switch between your own Facebook, Instagram and YouTube accounts. You sign in on each website yourself; the extension does not save website passwords or fill login forms.
 
 ## What the extension stores
 
-| Data | Where | Why |
+| Data | Where | Purpose and protection |
 |---|---|---|
-| The names you give your accounts, the platform, the platform's user ID (Facebook `c_user`, Instagram `ds_user_id`), and when each account was added and last used | `chrome.storage.local` on your device | To show your account list |
-| For YouTube: the Google account number (`authuser`) and channel ID (`pageid`) | `chrome.storage.local` | To switch with Google's own multi-account sign-in. No Google cookies are stored. |
-| Facebook and Instagram session cookies for each saved account | `chrome.storage.local`, encrypted (AES-256-GCM, with a key derived from your master password using PBKDF2-SHA-256 and 600,000 iterations) | To switch accounts without logging in again |
-| The unlocked encryption key, and a short-lived record of a switch in progress | `chrome.storage.session`, which is held in memory and never written to disk | So you only unlock once, and so an interrupted switch can be undone |
+| Account labels and initials, internal IDs, platform, Facebook/Instagram user IDs, status, active-account choices, and creation, last-use and session-capture times | `chrome.storage.local`, under `store` | Display and manage the account list. These fields are not encrypted. |
+| YouTube account index (`authuser`) and optional channel ID (`pageid`) | The same local store, without encryption | Build YouTube's multi-account sign-in URL and verify the selected account. No Google or YouTube cookies are saved by the extension. |
+| Facebook and Instagram saved session cookies, including values and cookie attributes | An encrypted vault in the local store | Restore a saved session. New vaults use PBKDF2-SHA-256 with 600,000 iterations and a random 16-byte salt to derive an AES-GCM-256 key. Vault writes use a fresh 12-byte IV. The salt, iteration count, IV and encrypted password-check value are stored with the ciphertext. |
+| Theme and language preferences; malformed or duplicate account records retained in `quarantine` | The local store, without encryption | Keep preferences and preserve records that fail validation rather than silently discarding them. |
+| A copy of the theme preference | The popup's `localStorage`, under `theme` | Paint the saved theme before the asynchronous store is read. It contains no session or account data. |
+| The unlocked raw encryption key, encoded as base64 | `chrome.storage.session`, under `vaultKey` | Keep the vault unlocked across service worker restarts. Base64 is not encryption. Access is restricted to trusted extension contexts. A non-extractable working key is cached in worker memory. |
+| Per-platform switch journals: platform, source/target IDs, start time and an encrypted backup of the previous cookies | `chrome.storage.session`, under `journal.facebook` or `journal.instagram` | Attempt rollback after an interrupted switch. Cookie backups are encrypted with the vault key; journal metadata is not encrypted. |
+| Wrong-unlock attempt count and last-attempt time | `chrome.storage.session`, under `unlockFailures` | Delay further unlock attempts after repeated wrong passwords. |
 
-The extension never stores your Facebook, Instagram or Google passwords, and it never fills in login forms. You always log in yourself.
+The master password is used to derive the key and is not saved in extension storage. Password inputs and decrypted cookies are used in popup and worker memory during operations. Account metadata and an unlocked key are not protected from someone who can inspect your running browser or extension context.
 
-### When the in-memory data goes away
+### Retention and locking
 
-`chrome.storage.session` is cleared, and the extension locks again, when any of these happens:
+The local store persists across browser restarts until you remove entries, wipe it or uninstall the extension. Invalid records in `quarantine` remain until the store is wiped; they are not shown as normal accounts.
 
-- you close Chrome
-- the extension is reloaded, updated, disabled or removed
-- you press the lock button
+Chrome holds `storage.session` in memory and clears it when the browser restarts or the extension is disabled, reloaded or updated. Stopping only the service worker does not clear it. See the [Chrome storage documentation](https://developer.chrome.com/docs/extensions/reference/api/storage#storage_areas).
 
-### How strong the encryption is
+**Lock now** removes the unlocked key and its worker cache. It does not delete the saved vault, account metadata, unlock-attempt record or an outstanding encrypted journal. Journal recovery is attempted at worker startup and after unlocking; recovery can remain pending or fail. It is not a backup that survives a browser restart.
 
-Session cookies work like passwords, so the encryption is only as strong as your master password. If someone copies your browser profile, they can try passwords offline as fast as their hardware allows. The extension's delay after wrong attempts doesn't slow that down. A 10-character random password, or a phrase of four random words, would take thousands of years to guess on current hardware. A common word or a 6-digit PIN would fall in hours or minutes. Our estimates are in [docs/design.md §6](docs/design.md).
+Use a strong, unique master password. Someone who copies the encrypted vault can guess passwords offline. The in-extension delay after wrong attempts does not prevent offline guessing, and there is no password recovery or guaranteed secure erasure of browser files or backups.
 
 ## Permissions and what each one is for
 
 | Permission | Used for |
 |---|---|
-| `cookies` | Reading, removing and restoring Facebook and Instagram session cookies when you switch. Only the hosts below are reachable. |
-| `storage` | Keeping the data described above on your device (`chrome.storage.local` and `chrome.storage.session`). The extension never uses `chrome.storage.sync`, so nothing is uploaded to your Google account. |
-| `scripting` | Reading which Google account and channel the open YouTube page is using, so it can be saved or switched to. |
-| `*://*.facebook.com/*`, `*://*.instagram.com/*`, `*://*.youtube.com/*` | Limiting cookie access to these three sites and finding their tabs to reload after a switch. No other site is accessible. |
+| `cookies` | Read, remove and restore Facebook and Instagram session cookies when adding, updating, switching or recovering a session. The host permissions bound the API's domain access. |
+| `storage` | Keep the local store and in-memory key, journals and unlock-attempt record described above. The extension does not use `chrome.storage.sync`. |
+| `scripting` | Execute a small reader in an open YouTube page's main world. It returns only `SESSION_INDEX` and `DELEGATED_SESSION_ID` from `ytcfg`. |
+| `*://*.facebook.com/*`, `*://*.instagram.com/*` | Access those sites' cookies and identify tabs to reload or check after a switch. |
+| `*://*.youtube.com/*` | Read the two sign-in coordinates and identify, navigate and reload YouTube tabs. |
 
-The extension doesn't request access to google.com, to all websites, to your browsing history or to network traffic.
+No Google-domain host permission, all-sites permission, browsing-history permission or network-interception permission is requested. Incognito use is disabled.
 
-## What is never collected
+## Network use and sharing
 
-- No analytics, telemetry, crash reporting or advertising IDs.
-- No network requests made by the extension itself. Only the pages you open load content from their own sites.
-- No remote code. Everything the extension runs is inside the package you installed.
+The extension has no server, analytics, telemetry, crash reporting or advertising integration. It does not upload saved sessions or account lists to an extension service, sell them, or sync them between devices. Its executable code and UI assets are included in the installed package.
+
+Switching still uses the websites. Reloaded pages make their normal requests with the browser's current cookies. For YouTube, the extension navigates to a `youtube.com/signin` URL containing the saved account index, optional channel ID and a return path. Those URL parameters go to YouTube through normal browser navigation. The extension does not replace Google cookies or make a separate data-upload request. The websites' own data practices apply to their pages.
 
 ## Deleting your data
 
-- To remove one account, open the popup and press the trash icon next to it, then confirm.
-- To remove everything, choose "Forgot password" and confirm the wipe, or remove the extension from `chrome://extensions`. Removing the extension deletes all of its storage.
+- **One account:** choose its delete button in the popup and confirm. A Facebook or Instagram entry and its encrypted saved session are removed; a YouTube entry is removed from the list. This does not sign the website out.
+- **Forgot password:** confirm the wipe on the locked page. This removes the vault and saved Facebook/Instagram entries, but keeps YouTube entries and preferences. Preserved `quarantine` records remain. If the store cannot be read safely, the entire local store is removed instead.
+- **Settings → Wipe all data:** confirm to remove the local `store`, including all entries, the vault, preferences and `quarantine`. Both wipe actions remove the unlocked key, unlock-attempt record and switch journals. A wipe is refused while a platform is busy. The theme cache is separate from the store and is not explicitly erased by the worker's wipe operation.
+- **Uninstall:** remove the extension at `chrome://extensions`. Chrome removes its `storage.local` data, as described in the linked storage documentation.
 
-Deleting data in the extension never deletes or changes your accounts on Facebook, Instagram or YouTube.
+These actions do not delete your accounts on the websites, revoke sessions held elsewhere, or erase copies in browser-profile backups. They do not clear the websites' current cookies.
 
-## Children
+## Contact and policy changes
 
-The extension isn't aimed at children and doesn't knowingly handle children's data.
-
-## Changes
-
-Any change to this policy goes into this file and [CHANGELOG.md](CHANGELOG.md). Any new permission will be listed here before a release that uses it.
-
-## Contact
-
-Open an issue in this repository. For security problems, see [SECURITY.md](SECURITY.md).
+Open an issue in this repository about this policy. Do not include cookies, passwords or other secrets. For a security problem, follow [SECURITY.md](SECURITY.md). Policy changes are recorded here and in [CHANGELOG.md](CHANGELOG.md).

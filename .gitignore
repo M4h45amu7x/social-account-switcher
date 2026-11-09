@@ -11,6 +11,13 @@ playwright-report/
 test-results/
 blob-report/
 
+# generated mockup captures and historical run evidence
+/mockup/shots/
+/mockup/media/
+/mockup/e2e/*.log
+/mockup/e2e/real/
+/mockup/e2e/wired/
+
 # secrets — never commit (e2e certs are generated at test time)
 *.pem
 *.key

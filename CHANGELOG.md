@@ -1,10 +1,10 @@
 # Changelog
 
-Changes users can expect in the next release are listed below. No release has been published yet.
+Notable changes are recorded here using Keep a Changelog and semantic versioning.
 
 ## [Unreleased]
 
-Version 0.1.0 is the current development version.
+## [0.1.0] - 2026-11-10
 
 ### Added
 
@@ -17,4 +17,10 @@ Version 0.1.0 is the current development version.
 - A reproducible extension zip with a SHA-256 checksum for manual installation.
 - End-to-end tests that switch accounts on stand-in Facebook and Instagram sites served locally, so no test touches the real sites.
 
-Live account checks and the final privacy review remain pending before a release.
+### Documentation
+
+- Document local data handling, the two wipe scopes, switch deadlines and known issues. Keep live-account and installation checks in the manual handoff checklist.
+
+<!-- Replace OWNER/REPOSITORY when the owner creates the destination repository. -->
+[Unreleased]: https://github.com/OWNER/REPOSITORY/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/OWNER/REPOSITORY/releases/tag/v0.1.0
