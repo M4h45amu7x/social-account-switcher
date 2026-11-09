@@ -1,0 +1,16 @@
+{
+  "extName": { "message": "สลับบัญชี Social" },
+  "extShortName": { "message": "สลับบัญชี" },
+  "extDescription": {
+    "message": "สลับบัญชี Facebook, Instagram และ YouTube ของคุณเองได้ในคลิกเดียว ข้อมูลทั้งหมดอยู่ในเครื่องนี้"
+  },
+  "actionTitle": { "message": "สลับบัญชี" },
+  "popupTitle": { "message": "สลับบัญชี" },
+  "popupComingSoon": { "message": "กำลังพัฒนา รุ่นนี้ยังสลับบัญชีไม่ได้" },
+  "popupFooter": {
+    "message": "ข้อมูลอยู่ในเครื่องนี้เท่านั้น · v$VERSION$",
+    "placeholders": {
+      "version": { "content": "$1", "example": "0.1.0" }
+    }
+  }
+}

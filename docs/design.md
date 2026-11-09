@@ -484,7 +484,7 @@ export type Request =
 - **runtime dependency = 0** (โค้ดที่ไปอยู่ใน extension มีแต่ของเราเอง)
 - devDependencies ที่อนุญาต: `typescript`, `vite`, `@biomejs/biome`, `@types/chrome`, `@types/bun`, `happy-dom`, `@happy-dom/global-registrator`, `@playwright/test`, `fflate` — เพิ่มตัวใหม่ต้องเขียนเหตุผลใน PR
 - ติดตั้งด้วย `bun add -d <ชื่อ>` ไม่ระบุ version → ได้ตัวล่าสุด ณ วันสร้าง · `bun.lock` commit เสมอ · CI ใช้ `bun install --frozen-lockfile`
-- เวอร์ชันของ Bun เอง: ใส่ `"packageManager": "bun@<เวอร์ชันล่าสุด ณ วันสร้าง>"` ใน package.json แล้ว CI อ่านจากไฟล์นั้น (`bun-version-file`) — เครื่องคนพัฒนากับ CI ตรงกัน (การอ่านฟิลด์นี้ต้องยืนยันใน B1)
+- เวอร์ชันของ Bun เอง: ใส่ `"packageManager": "bun@<เวอร์ชันล่าสุด ณ วันสร้าง>"` ใน package.json แล้ว CI อ่านจากไฟล์นั้น (`bun-version-file`) — เครื่องคนพัฒนากับ CI ตรงกัน (ยืนยันแล้วใน B1: ซอร์ส `src/utils.ts` ของ `oven-sh/setup-bun` v2.2.0 อ่าน `package.json` → `packageManager.split("bun@")[1]` แล้วถอยไป `engines.bun` จึงไม่ต้องใช้ทางสำรอง)
 - GitHub Actions ทุกตัว pin ด้วย commit SHA ของ release ล่าสุด ณ วันสร้าง (ใส่ชื่อ tag เป็น comment ข้างหลัง)
 - **ด่านก่อนส่งทุกการ์ด:** `bun outdated` ต้องไม่มีรายการ (เป็นข้อหนึ่งใน "เสร็จเมื่อ")
 - หลังจากนั้นอัปเดตผ่าน **Dependabot** (`package-ecosystem: bun` + `github-actions`, รายสัปดาห์, รวม PR เป็นกลุ่ม) — ไม่ใส่ `bun outdated` เป็นด่านบล็อกใน CI เพราะ release ใหม่ของคนอื่นจะทำ CI แดงทั้งที่โค้ดเราไม่เปลี่ยน
@@ -561,7 +561,7 @@ jobs:
     steps:
       - uses: actions/checkout@<sha>            # pin SHA ของ release ล่าสุด
       - uses: oven-sh/setup-bun@<sha>
-        with: { bun-version-file: package.json }
+        with: { bun-version-file: package.json }   # อ่าน packageManager: "bun@x.y.z" (ยืนยันจากซอร์ส setup-bun v2.2.0 ใน B1)
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun run lint

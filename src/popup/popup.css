@@ -1,0 +1,52 @@
+/* Design tokens follow mockup/popup.html — the full popup arrives in card B5. */
+:root {
+  --font:
+    "IBM Plex Sans Thai", "Noto Sans Thai", "Sukhumvit Set", "Leelawadee UI", system-ui, sans-serif;
+  --bg: #ffffff;
+  --surface-2: #f5f6f8;
+  --text: #16181d;
+  --text-2: #5b6170;
+  --line: #e3e5ea;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #171a1f;
+    --surface-2: #1f232a;
+    --text: #eceef2;
+    --text-2: #9aa1ae;
+    --line: #2b3039;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+}
+body {
+  width: 360px;
+  min-height: 240px;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px / 1.45 var(--font);
+}
+.popup {
+  padding: 16px;
+}
+.popup h1 {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+.popup p {
+  margin: 0;
+  color: var(--text-2);
+}
+.foot {
+  margin-top: 16px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--text-2);
+}

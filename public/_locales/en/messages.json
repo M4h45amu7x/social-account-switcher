@@ -1,0 +1,33 @@
+{
+  "extName": {
+    "message": "Social Account Switcher",
+    "description": "Extension name shown in Chrome and the Web Store. Max 45 characters."
+  },
+  "extShortName": {
+    "message": "Account Switcher",
+    "description": "Short name used where space is tight. Max 12 characters is recommended."
+  },
+  "extDescription": {
+    "message": "Switch between your own Facebook, Instagram and YouTube accounts in one click. Everything stays on this device.",
+    "description": "Web Store / chrome://extensions description. Max 132 characters."
+  },
+  "actionTitle": {
+    "message": "Switch account",
+    "description": "Tooltip of the toolbar icon."
+  },
+  "popupTitle": {
+    "message": "Switch account",
+    "description": "Heading at the top of the popup."
+  },
+  "popupComingSoon": {
+    "message": "Still in development. This version can't switch accounts yet.",
+    "description": "Placeholder body of the popup until switching ships."
+  },
+  "popupFooter": {
+    "message": "Stays on this device · v$VERSION$",
+    "description": "Popup footer: privacy note and extension version.",
+    "placeholders": {
+      "version": { "content": "$1", "example": "0.1.0" }
+    }
+  }
+}

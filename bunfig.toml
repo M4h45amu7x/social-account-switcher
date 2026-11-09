@@ -1,0 +1,12 @@
+[install]
+# bun add writes exact versions (no ^) so package.json and bun.lock always agree
+exact = true
+
+[test]
+# registers happy-dom globals (document, window) for popup view tests
+preload = ["./tests/setup.ts"]
+coverage = true
+coverageSkipTestFiles = true
+coverageThreshold = { lines = 0.9, functions = 0.9 }
+coverageReporter = ["text", "lcov"]
+coverageDir = "coverage"

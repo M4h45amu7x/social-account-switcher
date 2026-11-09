@@ -1,0 +1,140 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "**",
+      "!mockup",
+      "!docs",
+      "!dist",
+      "!release",
+      "!coverage",
+      "!playwright-report",
+      "!test-results",
+      "!tests/lint-fixtures"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    }
+  },
+  "markdown": {
+    "formatter": {
+      "enabled": false
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noConsole": {
+          "level": "error",
+          "options": {
+            "allow": ["warn", "error"]
+          }
+        }
+      },
+      "nursery": {
+        "noFloatingPromises": "error",
+        "noMisusedPromises": "error"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["src/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "fetch": "No network calls: data must never leave the device (docs/design.md §6).",
+                  "XMLHttpRequest": "No network calls: data must never leave the device (docs/design.md §6).",
+                  "WebSocket": "No network calls: data must never leave the device (docs/design.md §6).",
+                  "EventSource": "No network calls: data must never leave the device (docs/design.md §6).",
+                  "alert": "No browser dialogs: confirm inline in the popup instead.",
+                  "confirm": "No browser dialogs: confirm inline in the popup instead.",
+                  "prompt": "No browser dialogs: confirm inline in the popup instead.",
+                  "Bun": "Extension code runs in Chrome, where Bun does not exist.",
+                  "chrome": "Use the injected interfaces from src/lib/ports.ts; only the adapter files may touch the chrome global (docs/design.md 8.2).",
+                  "globalThis": "Don't reach browser globals through globalThis; use src/lib/ports.ts. For the DOM, use document or matchMedia directly.",
+                  "self": "Don't reach browser globals through self; use src/lib/ports.ts. For the DOM, use document or matchMedia directly.",
+                  "window": "Don't reach browser globals through window; use src/lib/ports.ts. For the DOM, use document or matchMedia directly.",
+                  "frames": "Don't reach browser globals through frames; use src/lib/ports.ts. For the DOM, use document or matchMedia directly.",
+                  "parent": "Don't reach browser globals through parent; use src/lib/ports.ts. For the DOM, use document or matchMedia directly.",
+                  "top": "Don't reach browser globals through top; use src/lib/ports.ts. For the DOM, use document or matchMedia directly."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/background/chrome-adapter.ts", "src/popup/runtime.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "fetch": "No network calls: data must never leave the device (docs/design.md §6).",
+                  "XMLHttpRequest": "No network calls: data must never leave the device (docs/design.md §6).",
+                  "WebSocket": "No network calls: data must never leave the device (docs/design.md §6).",
+                  "EventSource": "No network calls: data must never leave the device (docs/design.md §6).",
+                  "alert": "No browser dialogs: confirm inline in the popup instead.",
+                  "confirm": "No browser dialogs: confirm inline in the popup instead.",
+                  "prompt": "No browser dialogs: confirm inline in the popup instead.",
+                  "Bun": "Extension code runs in Chrome, where Bun does not exist.",
+                  "globalThis": "Don't reach browser globals through globalThis; use src/lib/ports.ts. For the DOM, use document or matchMedia directly.",
+                  "self": "Don't reach browser globals through self; use src/lib/ports.ts. For the DOM, use document or matchMedia directly.",
+                  "window": "Don't reach browser globals through window; use src/lib/ports.ts. For the DOM, use document or matchMedia directly.",
+                  "frames": "Don't reach browser globals through frames; use src/lib/ports.ts. For the DOM, use document or matchMedia directly.",
+                  "parent": "Don't reach browser globals through parent; use src/lib/ports.ts. For the DOM, use document or matchMedia directly.",
+                  "top": "Don't reach browser globals through top; use src/lib/ports.ts. For the DOM, use document or matchMedia directly."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["scripts/**", "tests/**", "*.config.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    }
+  ]
+}

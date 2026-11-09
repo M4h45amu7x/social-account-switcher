@@ -1,6 +1,24 @@
-.claude/
-super/
-kru-thai/
-.summary/
-.uploads/
+# dependencies
 node_modules/
+
+# build / release output
+dist/
+release/
+
+# test output
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# secrets — never commit (e2e certs are generated at test time)
+*.pem
+*.key
+*.crt
+.env*
+
+# editors / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
