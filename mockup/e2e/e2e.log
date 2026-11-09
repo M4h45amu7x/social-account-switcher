@@ -1,0 +1,74 @@
+[ 2048ms] เปิด mockup/popup.html · browser 156.0.8078.4
+[ 4698ms] PASS  popup กว้าง 360px และไม่มีอะไรล้นออกนอก popup
+[ 4698ms] PASS  ไฟล์ไม่เรียก chrome.* API และไม่มี alert/confirm/prompt
+[ 5105ms]       shot  mockup/shots/01-list.png
+[ 5105ms] PASS  มีบัญชี: FB แสดง 3 บัญชี + บัญชีที่ใช้อยู่อยู่บนสุดพร้อมป้าย
+[ 5389ms] PASS  ข้อความชื่อ/ข้อความรองของทุกแถวไม่ถูกตัด (FB, YouTube)
+[ 5674ms]       shot  mockup/shots/02-empty.png
+[ 5674ms] PASS  ว่าง: แท็บ Instagram แสดงคำแนะนำ login ก่อนแล้วกดเพิ่ม
+[ 5885ms]       shot  mockup/shots/03-add-not-logged-in.png
+[ 5966ms] PASS  เพิ่มบัญชี (ไม่ได้ login): แสดงคำเตือน inline
+[ 6214ms]       shot  mockup/shots/04-add-form.png
+[ 6233ms] PASS  เพิ่มบัญชี: ฟอร์มตั้งชื่อ → บันทึก → กลายเป็นบัญชีที่ใช้อยู่
+[ 6397ms]       shot  mockup/shots/05-switching.png
+[ 6397ms] PASS  กำลังสลับ: แถวเป้าหมายมี spinner + ขั้นตอน + ปุ่มอื่นถูกปิด
+[ 8062ms]       shot  mockup/shots/06-success.png
+[ 8062ms] PASS  สำเร็จ: toast แสดงชื่อบัญชีใหม่ + ป้ายใช้อยู่ย้ายแถว
+[12379ms] PASS  toast หายเองภายใน 4.5 วินาที
+[14159ms]       shot  mockup/shots/07-error.png
+[14159ms] PASS  error: สลับไปบัญชีที่ session หมดอายุ → แถบ error + บัญชีเดิมยังใช้อยู่
+[14203ms] PASS  error: กด "อัปเดต session" → ป้ายต้อง login ใหม่หายไป
+[14385ms]       shot  mockup/shots/08-rename.png
+[14402ms] PASS  เปลี่ยนชื่อ: ช่องพิมพ์ inline, ชื่อว่างถูกปฏิเสธ, Enter บันทึก
+[14455ms] PASS  เปลี่ยนชื่อ: Esc ยกเลิกไม่เปลี่ยนชื่อ
+[14635ms]       shot  mockup/shots/09-delete-confirm.png
+[14679ms] PASS  ยืนยันลบ: กล่องยืนยันในแถว (ไม่ใช่ dialog) → ยกเลิกแล้วยังอยู่
+[14749ms] PASS  ยืนยันลบ: กดลบ → แถวหายไป, จำนวนในแท็บลดลง
+[16016ms]       shot  mockup/shots/10-youtube-success.png
+[16016ms] PASS  YouTube: สลับผ่าน Google multi-login + มีคำอธิบายว่าไม่กระทบ Gmail
+[16054ms] PASS  ล็อก: ช่องรหัสผ่านหลัก (ไม่ใช่ PIN) + footer ไม่พูดถึง PIN
+[16130ms] PASS  ล็อก: ปุ่มแสดง/ซ่อนรหัสผ่านสลับ type และ aria-pressed
+[16282ms]       shot  mockup/shots/11-locked-wrong.png
+[16317ms] PASS  ล็อก: รหัสผิดแสดง error inline, พิมพ์ใหม่ error หาย, รหัสถูก + Enter ปลดล็อก
+[16496ms]       shot  mockup/shots/12-forgot-wipe-confirm.png
+[16607ms] PASS  ลืมรหัสผ่าน: ยืนยัน inline → ยกเลิกได้ → ล้างข้อมูลแล้ว FB/IG ว่าง YouTube ยังอยู่
+[16646ms] PASS  ธีม light: พื้นหลัง popup เปลี่ยนตาม
+[16892ms]       shot  mockup/shots/light-empty.png
+[16892ms] PASS  [light] ปุ่มกระโดด "empty" → state=empty
+[17156ms]       shot  mockup/shots/light-list.png
+[17156ms] PASS  [light] ปุ่มกระโดด "list" → state=list
+[17437ms]       shot  mockup/shots/light-switching.png
+[17437ms] PASS  [light] ปุ่มกระโดด "switching" → state=switching
+[17861ms]       shot  mockup/shots/light-success.png
+[17861ms] PASS  [light] ปุ่มกระโดด "success" → state=success
+[18135ms]       shot  mockup/shots/light-error.png
+[18135ms] PASS  [light] ปุ่มกระโดด "error" → state=error
+[18376ms]       shot  mockup/shots/light-rename.png
+[18376ms] PASS  [light] ปุ่มกระโดด "rename" → state=rename
+[18610ms]       shot  mockup/shots/light-delete.png
+[18610ms] PASS  [light] ปุ่มกระโดด "delete" → state=delete
+[18862ms]       shot  mockup/shots/light-locked.png
+[18862ms] PASS  [light] ปุ่มกระโดด "locked" → state=locked
+[18914ms] PASS  ธีม dark: พื้นหลัง popup เปลี่ยนตาม
+[19163ms]       shot  mockup/shots/dark-empty.png
+[19163ms] PASS  [dark] ปุ่มกระโดด "empty" → state=empty
+[19435ms]       shot  mockup/shots/dark-list.png
+[19435ms] PASS  [dark] ปุ่มกระโดด "list" → state=list
+[19677ms]       shot  mockup/shots/dark-switching.png
+[19677ms] PASS  [dark] ปุ่มกระโดด "switching" → state=switching
+[20096ms]       shot  mockup/shots/dark-success.png
+[20096ms] PASS  [dark] ปุ่มกระโดด "success" → state=success
+[20380ms]       shot  mockup/shots/dark-error.png
+[20380ms] PASS  [dark] ปุ่มกระโดด "error" → state=error
+[20613ms]       shot  mockup/shots/dark-rename.png
+[20613ms] PASS  [dark] ปุ่มกระโดด "rename" → state=rename
+[20853ms]       shot  mockup/shots/dark-delete.png
+[20853ms] PASS  [dark] ปุ่มกระโดด "delete" → state=delete
+[21089ms]       shot  mockup/shots/dark-locked.png
+[21089ms] PASS  [dark] ปุ่มกระโดด "locked" → state=locked
+[21146ms] PASS  ตั้งธีม "ตามระบบ" + ระบบเป็นมืด → popup เป็นมืด
+[21244ms]       light: ข้อความรอง/พื้น = 6.20:1
+[21305ms]       dark: ข้อความรอง/พื้น = 6.71:1
+[21305ms] PASS  คอนทราสต์ข้อความหลักกับพื้น ≥ 4.5:1 ทั้งสองธีม
+[21305ms] PASS  ตลอดการทดสอบ: ไม่มี dialog / network / console error
+[21383ms] สรุป: ผ่าน 42 · ล้ม 0

@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>สลับบัญชี — mockup popup</title>
+<!--
+  Mockup ของ popup (การ์ด t-504) — ไฟล์เดียว เปิดใน browser ได้เลย
+  ข้อมูลปลอมทั้งหมด · ไม่เรียก API ของ extension · ไม่โหลดอะไรจากเน็ต · ไม่ใช้ dialog ของ browser
+  แผง "ตัวควบคุม mockup" ด้านข้างมีไว้กระโดดไปแต่ละสถานะ (ไม่ใช่ส่วนของ extension จริง)
+-->
+<style>
+:root {
+  --font: "IBM Plex Sans Thai", "Noto Sans Thai", "Sukhumvit Set", "Leelawadee UI", system-ui, sans-serif;
+  --bg: #eef0f3;
+  --surface: #ffffff;
+  --surface-2: #f5f6f8;
+  --text: #16181d;
+  --text-2: #5b6170;
+  --line: #e3e5ea;
+  --focus: #2f6bff;
+  --ok: #12805c;
+  --ok-bg: #e7f6ef;
+  --err: #c4321f;
+  --err-bg: #fdecea;
+  --warn-bg: #fff6e0;
+  --warn: #8a5a00;
+  --shadow: 0 1px 2px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.10);
+  --fb: #1877f2; --fb-soft: #e7f0fe;
+  --ig: #d62976; --ig-soft: #fce8f1;
+  --yt: #e62117; --yt-soft: #fde9e8;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1013; --surface: #171a1f; --surface-2: #1f232a; --text: #eceef2; --text-2: #9aa1ae;
+    --line: #2b3039; --focus: #6d97ff; --ok: #4cc391; --ok-bg: #12301f; --err: #ff7a66; --err-bg: #3a1714;
+    --warn-bg: #352a10; --warn: #f2c35b; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.45);
+    --fb: #4b95ff; --fb-soft: #16253d; --ig: #ff5ea0; --ig-soft: #3a1a2a; --yt: #ff5a4f; --yt-soft: #3a1918;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1013; --surface: #171a1f; --surface-2: #1f232a; --text: #eceef2; --text-2: #9aa1ae;
+  --line: #2b3039; --focus: #6d97ff; --ok: #4cc391; --ok-bg: #12301f; --err: #ff7a66; --err-bg: #3a1714;
+  --warn-bg: #352a10; --warn: #f2c35b; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.45);
+  --fb: #4b95ff; --fb-soft: #16253d; --ig: #ff5ea0; --ig-soft: #3a1a2a; --yt: #ff5a4f; --yt-soft: #3a1918;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--text); font: 14px/1.45 var(--font);
+  min-height: 100vh; display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; align-items: flex-start;
+  padding: 24px 16px;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---------- popup (สิ่งที่จะเป็น extension จริง) ---------- */
+.popup {
+  --accent: var(--fb); --accent-soft: var(--fb-soft);
+  width: 360px; min-height: 520px; background: var(--surface); border-radius: 12px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; overflow: hidden; position: relative; flex: none;
+}
+.popup[data-platform="instagram"] { --accent: var(--ig); --accent-soft: var(--ig-soft); }
+.popup[data-platform="youtube"] { --accent: var(--yt); --accent-soft: var(--yt-soft); }
+
+.head { display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px; }
+.logo { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--fb), var(--ig) 55%, var(--yt)); color: #fff; }
+.head h1 { font-size: 15px; margin: 0; font-weight: 600; flex: 1; }
+.icon-btn { width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; display: grid;
+  place-items: center; cursor: pointer; color: var(--text-2); }
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+.icon-btn.danger:hover { color: var(--err); }
+.icon-btn:disabled { opacity: .35; cursor: default; background: transparent; }
+
+.tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 0 12px; padding: 4px;
+  background: var(--surface-2); border-radius: 10px; }
+.tab { border: 0; background: transparent; border-radius: 7px; padding: 7px 4px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 12.5px; color: var(--text-2); min-width: 0; }
+.tab[aria-selected="true"] { background: var(--surface); color: var(--text); font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.tab .mark { width: 16px; height: 16px; flex: none; }
+.tab .count { font-size: 10.5px; min-width: 16px; padding: 0 4px; border-radius: 9px; background: var(--line);
+  color: var(--text-2); font-weight: 600; line-height: 16px; }
+
+.body { flex: 1; display: flex; flex-direction: column; padding: 12px; gap: 8px; }
+.section-label { font-size: 12px; color: var(--text-2); margin: 4px 4px 0; display: flex; justify-content: space-between; }
+
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.row { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 6px 8px 10px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface); min-height: 58px; }
+.row.active { border-color: var(--accent); background: var(--accent-soft); }
+.row .main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; border: 0; background: none;
+  padding: 0; text-align: left; cursor: pointer; }
+.row .main:disabled { cursor: default; }
+.row:not(.active):not(.editing):not(.confirm):hover { border-color: var(--text-2); }
+.avatar { width: 36px; height: 36px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  font-weight: 700; font-size: 13px; color: #fff; background: var(--accent); position: relative; }
+.avatar .pf { position: absolute; right: -3px; bottom: -3px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--surface); display: grid; place-items: center; }
+.avatar .pf svg { width: 12px; height: 12px; }
+.who { min-width: 0; flex: 1; }
+.who .name { font-weight: 600; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.who .name .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.who .name .chip { flex: none; }
+.who .sub { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip { font-size: 10.5px; font-weight: 600; padding: 0 7px; line-height: 17px; border-radius: 10px; white-space: nowrap; }
+.chip.on { background: var(--accent); color: #fff; }
+.chip.bad { background: var(--err-bg); color: var(--err); }
+.actions { display: flex; gap: 0; }
+
+.row.busy { border-color: var(--accent); }
+.row.busy .who .sub { color: var(--accent); }
+.spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent); animation: spin .8s linear infinite; flex: none; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.steps { display: flex; gap: 4px; margin-top: 4px; }
+.steps i { height: 3px; flex: 1; border-radius: 2px; background: var(--line); }
+.steps i.done { background: var(--accent); }
+.list.dim .row:not(.busy) { opacity: .5; }
+
+.row.editing { border-color: var(--focus); }
+.edit { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.edit input { width: 100%; font: inherit; color: var(--text); background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 8px; }
+.edit .hint { font-size: 11px; color: var(--text-2); }
+.edit .hint.bad { color: var(--err); }
+.btns { display: flex; gap: 6px; justify-content: flex-end; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 5px 12px; cursor: pointer;
+  font-size: 13px; font-weight: 500; }
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.05); }
+.btn.danger { background: var(--err); border-color: var(--err); color: #fff; }
+.btn.ghost { border-color: transparent; background: transparent; }
+
+.row.confirm { border-color: var(--err); background: var(--err-bg); flex-direction: column; align-items: stretch; gap: 8px; padding: 10px; }
+.row.confirm p { margin: 0; font-size: 13px; }
+.row.confirm p small { display: block; color: var(--text-2); font-size: 12px; }
+
+.add { margin-top: 2px; border: 1px dashed var(--line); background: transparent; border-radius: 10px; padding: 10px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--accent); font-weight: 600; }
+.add:hover { background: var(--accent-soft); border-color: var(--accent); }
+.add:disabled { opacity: .4; cursor: default; background: transparent; }
+
+.panel { border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.panel.add-form { border-color: var(--accent); }
+.panel .ttl { font-weight: 600; font-size: 13px; }
+.panel .meta { font-size: 12px; color: var(--text-2); }
+.note { border-radius: 10px; padding: 10px; font-size: 13px; display: flex; gap: 8px; }
+.note.warn { background: var(--warn-bg); color: var(--warn); }
+.note.err { background: var(--err-bg); color: var(--err); flex-direction: column; }
+.note.err .t { font-weight: 600; display: flex; gap: 6px; align-items: center; }
+.note.err .d { color: var(--text); font-size: 12px; }
+.note.info { background: var(--surface-2); color: var(--text-2); font-size: 12px; }
+
+.empty { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 18px 12px 6px; gap: 10px; }
+.empty .big { width: 56px; height: 56px; border-radius: 16px; background: var(--accent-soft); display: grid; place-items: center; }
+.empty .big svg { width: 28px; height: 28px; }
+.empty h2 { font-size: 15px; margin: 0; }
+.empty ol { text-align: left; margin: 0; padding-left: 20px; color: var(--text-2); font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.empty .row-btns { display: flex; gap: 8px; margin-top: 4px; }
+
+.foot { padding: 8px 16px 12px; font-size: 11px; color: var(--text-2); display: flex; align-items: center; gap: 6px; border-top: 1px solid var(--line); }
+
+.toast { position: absolute; left: 12px; right: 12px; bottom: 44px; background: var(--text); color: var(--surface);
+  border-radius: 10px; padding: 10px 12px; display: flex; gap: 8px; align-items: center; font-size: 13px;
+  box-shadow: var(--shadow); animation: up .18s ease-out; }
+.toast .ok { width: 20px; height: 20px; border-radius: 50%; background: var(--ok); color: #fff; display: grid; place-items: center; flex: none; }
+.toast b { font-weight: 600; }
+@keyframes up { from { transform: translateY(8px); opacity: 0; } }
+
+.lock { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; }
+.lock .big { width: 56px; height: 56px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; }
+.pw { display: flex; align-items: center; width: 100%; max-width: 280px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--surface-2); padding: 0 4px 0 12px; }
+.pw:focus-within { border-color: var(--focus); }
+.pw.bad { border-color: var(--err); }
+.pw input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font: 15px var(--font); padding: 11px 0; outline: none; }
+.pw .icon-btn { flex: none; }
+.lock .wipe { width: 100%; max-width: 300px; text-align: left; }
+.lock .wipe .btn { min-width: 0; padding: 5px 12px; }
+.lock .hint { font-size: 12px; color: var(--text-2); min-height: 18px; }
+.lock .hint.bad { color: var(--err); }
+.lock .btn { min-width: 160px; padding: 8px 12px; }
+.lock .btn.primary { background: var(--focus); border-color: var(--focus); }
+
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* ---------- แผงควบคุม mockup (ไม่ใช่ส่วนของ extension) ---------- */
+.demo { width: 260px; max-width: 100%; background: var(--surface); border-radius: 12px; padding: 14px; box-shadow: var(--shadow);
+  font-size: 13px; display: flex; flex-direction: column; gap: 10px; }
+.demo h2 { font-size: 13px; margin: 0; color: var(--text-2); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.demo .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.demo .grid button, .demo .seg button { border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 6px; cursor: pointer; font-size: 12px; }
+.demo .grid button:hover, .demo .seg button:hover { border-color: var(--text-2); }
+.demo .seg { display: flex; gap: 6px; }
+.demo .seg button { flex: 1; }
+.demo .seg button[aria-pressed="true"] { background: var(--text); color: var(--surface); border-color: var(--text); }
+.demo label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.demo p { margin: 0; color: var(--text-2); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<main class="popup" id="popup" data-platform="facebook" data-testid="popup" aria-live="polite"></main>
+
+<aside class="demo" aria-label="ตัวควบคุม mockup">
+  <h2>ตัวควบคุม mockup</h2>
+  <p>ไม่ใช่ส่วนของ extension — ใช้กระโดดไปแต่ละสถานะ หรือคลิกใน popup เองก็ได้</p>
+  <div class="grid">
+    <button data-testid="demo-empty" data-jump="empty">ว่าง</button>
+    <button data-testid="demo-list" data-jump="list">มีบัญชี</button>
+    <button data-testid="demo-switching" data-jump="switching">กำลังสลับ</button>
+    <button data-testid="demo-success" data-jump="success">สำเร็จ</button>
+    <button data-testid="demo-error" data-jump="error">error</button>
+    <button data-testid="demo-rename" data-jump="rename">เปลี่ยนชื่อ</button>
+    <button data-testid="demo-delete" data-jump="delete">ยืนยันลบ</button>
+    <button data-testid="demo-locked" data-jump="locked">ล็อก (รหัสผ่าน)</button>
+  </div>
+  <h2>ธีม</h2>
+  <div class="seg" role="group" aria-label="ธีม">
+    <button data-theme-set="auto" aria-pressed="true" data-testid="theme-auto">ตามระบบ</button>
+    <button data-theme-set="light" aria-pressed="false" data-testid="theme-light">สว่าง</button>
+    <button data-theme-set="dark" aria-pressed="false" data-testid="theme-dark">มืด</button>
+  </div>
+  <h2>จำลองเว็บ</h2>
+  <label><input type="checkbox" id="loggedIn" checked data-testid="toggle-logged-in"> แท็บของแพลตฟอร์มนี้ login อยู่</label>
+  <button class="btn" id="reset" data-testid="demo-reset">รีเซ็ตข้อมูลปลอม</button>
+</aside>
+
+<script>
+"use strict";
+/* ไอคอน (inline SVG ไม่โหลดภายนอก) */
+const ICON = {
+  facebook: '<svg viewBox="0 0 24 24" class="mark" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="var(--fb)"/><path fill="#fff" d="M13.2 19v-6h2l.3-2.4h-2.3V9.1c0-.7.2-1.2 1.2-1.2h1.3V5.8c-.2 0-1-.1-1.9-.1-1.9 0-3.1 1.1-3.1 3.2v1.7H8.6V13h2.1v6z"/></svg>',
+  instagram: '<svg viewBox="0 0 24 24" class="mark" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6" fill="var(--ig)"/><rect x="6" y="6" width="12" height="12" rx="3.6" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="12" cy="12" r="2.9" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="16.3" cy="7.7" r="1" fill="#fff"/></svg>',
+  youtube: '<svg viewBox="0 0 24 24" class="mark" aria-hidden="true"><rect x="1" y="4.5" width="22" height="15" rx="4.5" fill="var(--yt)"/><path d="M10 8.8v6.4l5.4-3.2z" fill="#fff"/></svg>',
+  pencil: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>',
+  trash: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
+  eye: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  eyeOff: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.9 8.3 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.7-1.3"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>',
+  lock: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+  lockBig: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/><circle cx="12" cy="16" r="1.2"/></svg>',
+  shield: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>',
+  plus: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+  check: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>',
+  alert: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>',
+  swap: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg>',
+};
+const PLATFORM = {
+  facebook:  { name: "Facebook",  site: "facebook.com",  tabs: 2 },
+  instagram: { name: "Instagram", site: "instagram.com", tabs: 1 },
+  youtube:   { name: "YouTube",   site: "youtube.com",   tabs: 3 },
+};
+const SWITCH_STEPS = {
+  cookie: ["เก็บ session บัญชีเดิม", "ใส่ session บัญชีใหม่", "รีโหลดแท็บ"],
+  youtube: ["เปลี่ยนบัญชี Google", "รีโหลดแท็บ"],
+};
+
+function seed() {
+  return {
+    platform: "facebook",
+    locked: false,
+    accounts: {
+      facebook: [
+        { id: "fb1", label: "ส่วนตัว", sub: "ID ••••4821", used: "ใช้อยู่", status: "ok" },
+        { id: "fb2", label: "ร้านขนมบ้านส้ม", sub: "ID ••••0937", used: "ใช้ 2 ชม. ก่อน", status: "ok" },
+        { id: "fb3", label: "งานลูกค้า A", sub: "ID ••••5512", used: "ใช้ 41 วันก่อน", status: "expired" },
+      ],
+      instagram: [],
+      youtube: [
+        { id: "yt1", label: "ช่องหลัก", sub: "Google บัญชีที่ 1", used: "ใช้อยู่", status: "ok" },
+        { id: "yt2", label: "ช่องรีวิวของกิน", sub: "Brand · Google บัญชีที่ 1", used: "ใช้เมื่อวาน", status: "ok" },
+        { id: "yt3", label: "บัญชีงาน", sub: "Google บัญชีที่ 2", used: "ใช้ 5 วันก่อน", status: "ok" },
+      ],
+    },
+    active: { facebook: "fb1", instagram: null, youtube: "yt1" },
+    // ui ชั่วคราว (ไม่ถูกเก็บในตัวจริง)
+    switching: null,      // { id, step }
+    toast: null,          // { text, sub }
+    error: null,          // { id }
+    editing: null,        // { id, value, bad }
+    confirmDel: null,     // id
+    adding: null,         // { value, bad } | { notLoggedIn: true }
+    pw: "", pwShow: false, pwBad: false, wipeConfirm: false,
+  };
+}
+let S = seed();
+let toastTimer = 0, switchTimer = 0, nextId = 100;
+
+const $popup = document.getElementById("popup");
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// ตัวอักษรย่อ: ข้ามสระ/วรรณยุกต์/วงเล็บ · คำไทยใช้พยัญชนะตัวแรกตัวเดียว · อังกฤษใช้ตัวแรกของ 2 คำแรก
+const isBase = (c) => /[\p{L}\p{N}]/u.test(c) && !/[\u0E40-\u0E44]/.test(c);
+const firstBase = (w) => [...w].find(isBase) || "";
+const initials = (label) => {
+  const words = label.trim().split(/\s+/).map(firstBase).filter(Boolean);
+  if (!words.length) return "?";
+  if (/[\u0E00-\u0E7F]/.test(words[0])) return words[0];
+  return (words[0] + (words[1] && !/[\u0E00-\u0E7F]/.test(words[1]) ? words[1] : "")).toUpperCase();
+};
+const acc = (p = S.platform) => S.accounts[p];
+const find = (id) => acc().find((a) => a.id === id);
+
+function render() {
+  const p = S.platform;
+  $popup.dataset.platform = p;
+  $popup.dataset.state = stateName();
+  if (S.locked) return renderLocked();
+
+  const list = acc();
+  const busy = !!S.switching;
+  const tabs = Object.keys(PLATFORM).map((k) => `
+    <button class="tab" role="tab" aria-selected="${k === p}" data-tab="${k}" data-testid="tab-${k}" ${busy ? "disabled" : ""}>
+      ${ICON[k]}<span>${PLATFORM[k].name}</span><span class="count">${S.accounts[k].length}</span>
+    </button>`).join("");
+
+  let body = "";
+  if (S.error) body += errorNote();
+  if (!list.length && !S.adding) body += emptyView();
+  else {
+    if (list.length) {
+      body += `<div class="section-label"><span>บัญชี ${PLATFORM[p].name} (${list.length})</span><span>${p === "youtube" ? "ผ่านระบบบัญชีของ Google" : "แตะเพื่อสลับ"}</span></div>`;
+      const ordered = [...list].sort((a, b) => (b.id === S.active[p]) - (a.id === S.active[p]));
+      body += `<ul class="list ${busy ? "dim" : ""}" data-testid="account-list">${ordered.map(rowView).join("")}</ul>`;
+    }
+    body += S.adding ? addView() : `<button class="add" data-act="add" data-testid="add-account" ${busy ? "disabled" : ""}>${ICON.plus}เพิ่มบัญชีที่ login อยู่ตอนนี้</button>`;
+    if (p === "youtube") body += `<div class="note info">YouTube ใช้ระบบหลายบัญชีของ Google — extension ไม่แตะ cookie ของ Google ทำให้ Gmail และบริการอื่นไม่เปลี่ยนบัญชีตาม</div>`;
+  }
+
+  $popup.innerHTML = `
+    <header class="head">
+      <div class="logo">${ICON.swap}</div>
+      <h1>สลับบัญชี</h1>
+      <button class="icon-btn" data-act="lock" title="ล็อกตอนนี้" aria-label="ล็อกตอนนี้" data-testid="lock-btn" ${busy ? "disabled" : ""}>${ICON.lock}</button>
+    </header>
+    <nav class="tabs" role="tablist" aria-label="แพลตฟอร์ม">${tabs}</nav>
+    <section class="body">${body}</section>
+    <footer class="foot">${ICON.shield}<span>อยู่ในเครื่องนี้เท่านั้น · เข้ารหัสด้วยรหัสผ่านหลัก · ไม่เก็บรหัสผ่านเว็บ</span></footer>
+    ${S.toast ? `<div class="toast" role="status" data-testid="toast"><span class="ok">${ICON.check}</span><span>สลับเป็น <b>${esc(S.toast.text)}</b> แล้ว · ${esc(S.toast.sub)}</span></div>` : ""}
+  `;
+  const f = $popup.querySelector("[data-autofocus]");
+  if (f) { f.focus(); if (f.select) f.select(); }
+}
+
+function stateName() {
+  if (S.locked) return "locked";
+  if (S.switching) return "switching";
+  if (S.error) return "error";
+  if (S.confirmDel) return "delete";
+  if (S.editing) return "rename";
+  if (S.adding) return "adding";
+  if (S.toast) return "success";
+  return acc().length ? "list" : "empty";
+}
+
+function rowView(a) {
+  const p = S.platform;
+  const active = a.id === S.active[p];
+  const av = `<span class="avatar" aria-hidden="true">${esc(initials(a.label))}<span class="pf">${ICON[p]}</span></span>`;
+
+  if (S.confirmDel === a.id) {
+    return `<li class="row confirm" data-testid="confirm-delete" data-id="${a.id}">
+      <p>ลบ <b>“${esc(a.label)}”</b> ออกจากรายการ?
+        <small>${p === "youtube" ? "ลบแค่ทางลัดในเครื่องนี้ บัญชี Google ไม่ได้รับผลกระทบ" : "session ที่เก็บไว้ในเครื่องจะหายไป บัญชีบน " + PLATFORM[p].name + " ไม่ถูกลบ"}${active ? " · คุณยังคง login อยู่ในแท็บ" : ""}</small></p>
+      <div class="btns">
+        <button class="btn" data-act="del-cancel" data-testid="delete-cancel">ยกเลิก</button>
+        <button class="btn danger" data-act="del-ok" data-id="${a.id}" data-testid="delete-confirm">ลบ</button>
+      </div></li>`;
+  }
+  if (S.editing && S.editing.id === a.id) {
+    const e = S.editing;
+    return `<li class="row editing" data-id="${a.id}">${av}
+      <div class="edit">
+        <label class="sr" for="rename-input">ชื่อบัญชี</label>
+        <input id="rename-input" data-testid="rename-input" maxlength="40" value="${esc(e.value)}" data-autofocus>
+        <div class="hint ${e.bad ? "bad" : ""}">${e.bad ? "ตั้งชื่ออย่างน้อย 1 ตัวอักษร" : "ชื่อนี้เห็นแค่ในเครื่องนี้ · สูงสุด 40 ตัวอักษร"}</div>
+        <div class="btns">
+          <button class="btn ghost" data-act="rename-cancel" data-testid="rename-cancel">ยกเลิก</button>
+          <button class="btn primary" data-act="rename-save" data-testid="rename-save">บันทึก</button>
+        </div>
+      </div></li>`;
+  }
+
+  const sw = S.switching && S.switching.id === a.id;
+  const steps = SWITCH_STEPS[p === "youtube" ? "youtube" : "cookie"];
+  let sub, right;
+  if (sw) {
+    const st = S.switching.step;
+    const label = steps[Math.min(st, steps.length - 1)] + (st === steps.length - 1 ? ` ${PLATFORM[p].tabs} แท็บ` : "") + "…";
+    sub = `<div class="sub" data-testid="switch-step">${esc(label)}</div><div class="steps">${steps.map((_, i) => `<i class="${i <= st ? "done" : ""}"></i>`).join("")}</div>`;
+    right = `<span class="spinner" role="progressbar" aria-label="กำลังสลับ"></span>`;
+  } else {
+    sub = `<div class="sub">${esc(a.sub)} · ${esc(active ? "ใช้อยู่ตอนนี้" : a.used)}</div>`;
+    right = `<span class="actions">
+        <button class="icon-btn" data-act="rename" data-id="${a.id}" title="เปลี่ยนชื่อ" aria-label="เปลี่ยนชื่อ ${esc(a.label)}" data-testid="rename-${a.id}" ${S.switching ? "disabled" : ""}>${ICON.pencil}</button>
+        <button class="icon-btn danger" data-act="delete" data-id="${a.id}" title="ลบ" aria-label="ลบ ${esc(a.label)}" data-testid="delete-${a.id}" ${S.switching ? "disabled" : ""}>${ICON.trash}</button>
+      </span>`;
+  }
+  return `<li class="row ${active ? "active" : ""} ${sw ? "busy" : ""}" data-id="${a.id}" data-testid="row-${a.id}">
+    <button class="main" data-act="switch" data-id="${a.id}" ${active || S.switching ? "disabled" : ""} aria-label="${active ? "ใช้อยู่: " : "สลับเป็น "}${esc(a.label)}">
+      ${av}<span class="who"><div class="name"><span class="nm">${esc(a.label)}</span>${sw ? "" : active ? `<span class="chip on">ใช้อยู่</span>` : a.status === "expired" ? `<span class="chip bad">ต้อง login ใหม่</span>` : ""}</div>${sub}</span>
+    </button>${right}</li>`;
+}
+
+function addView() {
+  const p = S.platform;
+  if (S.adding.notLoggedIn) {
+    return `<div class="note warn" data-testid="add-not-logged-in">${ICON.alert}<span>ยังไม่พบการ login ใน ${PLATFORM[p].name} — เปิด ${PLATFORM[p].site} แล้ว login ในแท็บก่อน จากนั้นกดเพิ่มอีกครั้ง</span></div>
+      <div class="btns"><button class="btn" data-act="add-cancel" data-testid="add-cancel">ปิด</button><button class="btn primary" data-act="open-site">เปิด ${PLATFORM[p].site}</button></div>`;
+  }
+  const a = S.adding;
+  const who = p === "youtube" ? "บัญชี Google ลำดับ 2 · ช่องส่วนตัว" : `${PLATFORM[p].name} ID ••••${a.idTail}`;
+  return `<div class="panel add-form" data-testid="add-form">
+    <div class="ttl">พบบัญชีที่ login อยู่</div>
+    <div class="meta">${esc(who)}${p === "youtube" ? "" : " · จะเก็บ session แบบเข้ารหัสในเครื่องนี้"}</div>
+    <div class="edit">
+      <label class="sr" for="add-input">ตั้งชื่อบัญชี</label>
+      <input id="add-input" data-testid="add-input" maxlength="40" placeholder="ตั้งชื่อ เช่น เพจร้าน" value="${esc(a.value)}" data-autofocus>
+      <div class="hint ${a.bad ? "bad" : ""}">${a.bad ? "ตั้งชื่ออย่างน้อย 1 ตัวอักษร" : "ชื่อที่คุณตั้งเอง ใช้แสดงในรายการ"}</div>
+      <div class="btns">
+        <button class="btn ghost" data-act="add-cancel" data-testid="add-cancel">ยกเลิก</button>
+        <button class="btn primary" data-act="add-save" data-testid="add-save">บันทึกบัญชีนี้</button>
+      </div>
+    </div></div>`;
+}
+
+function emptyView() {
+  const p = S.platform, P = PLATFORM[p];
+  return `<div class="empty" data-testid="empty">
+    <div class="big">${ICON[p].replace('class="mark"', "")}</div>
+    <h2>ยังไม่มีบัญชี ${P.name}</h2>
+    <ol>
+      <li>เปิด ${P.site} ในแท็บ</li>
+      <li>login บัญชีที่ต้องการด้วยตัวเอง</li>
+      <li>กลับมากด <b>เพิ่มบัญชีที่ login อยู่ตอนนี้</b></li>
+    </ol>
+    <div class="note info">ทำซ้ำกับแต่ละบัญชี — สลับไปบัญชีอื่นด้วยปุ่มนี้แทนการกด “ออกจากระบบ” บนเว็บ ไม่งั้น session ที่เก็บไว้จะใช้ไม่ได้</div>
+    <div class="row-btns">
+      <button class="btn" data-act="open-site" data-testid="open-site">เปิด ${P.site}</button>
+      <button class="btn primary" data-act="add" data-testid="add-account">เพิ่มบัญชีที่ login อยู่</button>
+    </div></div>`;
+}
+
+function errorNote() {
+  const a = find(S.error.id);
+  const P = PLATFORM[S.platform];
+  return `<div class="note err" role="alert" data-testid="error">
+    <div class="t">${ICON.alert}session ของ “${esc(a ? a.label : "")}” หมดอายุ</div>
+    <div class="d">${P.name} ไม่รับ session ที่เก็บไว้แล้ว (เช่น เปลี่ยนรหัสผ่าน หรือกดออกจากระบบ) — ระบบใส่บัญชีเดิมกลับให้แล้ว คุณยังใช้งานต่อได้
+      <br>ทางแก้: login “${esc(a ? a.label : "")}” ใหม่ในแท็บด้วยตัวเอง แล้วกด <b>อัปเดต session</b></div>
+    <div class="btns">
+      <button class="btn ghost" data-act="err-close" data-testid="error-close">ปิด</button>
+      <button class="btn" data-act="open-site">เปิดหน้า login</button>
+      <button class="btn primary" data-act="err-update" data-testid="error-update">อัปเดต session</button>
+    </div></div>`;
+}
+
+function renderLocked() {
+  $popup.innerHTML = `
+    <header class="head"><div class="logo">${ICON.swap}</div><h1>สลับบัญชี</h1></header>
+    <section class="lock" data-testid="locked">
+      <div class="big">${ICON.lockBig}</div>
+      <div><b>ใส่รหัสผ่านหลักเพื่อปลดล็อก</b><div class="hint">session ของ Facebook / Instagram เข้ารหัสอยู่ · ปลดครั้งเดียวใช้ได้จนปิด Chrome</div></div>
+      <div class="pw ${S.pwBad ? "bad" : ""}">
+        <label class="sr" for="pw-input">รหัสผ่านหลัก</label>
+        <input id="pw-input" type="${S.pwShow ? "text" : "password"}" autocomplete="current-password" placeholder="รหัสผ่านหลัก (อย่างน้อย 10 ตัว)" value="${esc(S.pw)}" data-testid="pw-input" data-autofocus>
+        <button class="icon-btn" data-act="pw-toggle" data-testid="pw-toggle" aria-pressed="${S.pwShow}" aria-label="${S.pwShow ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}" title="${S.pwShow ? "ซ่อน" : "แสดง"}">${S.pwShow ? ICON.eyeOff : ICON.eye}</button>
+      </div>
+      <div class="hint ${S.pwBad ? "bad" : ""}" data-testid="pw-hint">${S.pwBad ? "รหัสผ่านไม่ถูกต้อง ลองอีกครั้ง" : "mockup: รหัสผ่านคือ orange-cat-2026"}</div>
+      ${S.wipeConfirm ? `<div class="row confirm wipe" data-testid="wipe-confirm">
+          <p>ลืมรหัสผ่าน = ต้องล้างข้อมูล
+            <small>กู้รหัสผ่านไม่ได้ (ไม่มี server) — session ของ Facebook / Instagram ที่เก็บไว้ทั้งหมดจะถูกลบ แล้วค่อย login เพิ่มบัญชีใหม่ · บัญชีบนเว็บไม่เสียหาย · ทางลัด YouTube ยังอยู่</small></p>
+          <div class="btns"><button class="btn" data-act="wipe-cancel" data-testid="wipe-cancel">ยกเลิก</button>
+          <button class="btn danger" data-act="wipe-ok" data-testid="wipe-ok">ล้างข้อมูล</button></div></div>`
+        : `<button class="btn primary" data-act="unlock" data-testid="unlock">ปลดล็อก</button>
+      <button class="btn ghost" data-act="forgot" data-testid="forgot" style="font-size:12px">ลืมรหัสผ่าน?</button>`}
+    </section>
+    <footer class="foot">${ICON.shield}<span>อยู่ในเครื่องนี้เท่านั้น · เข้ารหัสด้วยรหัสผ่านหลัก · ไม่เก็บรหัสผ่านเว็บ</span></footer>`;
+  const f = $popup.querySelector("[data-autofocus]");
+  if (f && !S.wipeConfirm) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); }
+}
+
+/* ---------- การกระทำ ---------- */
+function clearTransient() {
+  clearTimeout(toastTimer); clearTimeout(switchTimer);
+  S.switching = null; S.toast = null; S.error = null; S.editing = null; S.confirmDel = null; S.adding = null;
+  S.pw = ""; S.pwShow = false; S.pwBad = false; S.wipeConfirm = false;
+}
+
+function startSwitch(id, opts = {}) {
+  const p = S.platform;
+  const a = find(id);
+  if (!a || S.switching) return;
+  clearTransient();
+  const steps = SWITCH_STEPS[p === "youtube" ? "youtube" : "cookie"];
+  S.switching = { id, step: 0 };
+  render();
+  const stepMs = opts.stepMs ?? 550;
+  const tick = () => {
+    if (!S.switching) return;
+    if (S.switching.step < steps.length - 1 && !opts.hold) {
+      S.switching.step++; render(); switchTimer = setTimeout(tick, stepMs); return;
+    }
+    if (opts.hold) return;       // ใช้ถ่ายภาพสถานะ "กำลังสลับ"
+    finishSwitch(id);
+  };
+  switchTimer = setTimeout(tick, stepMs);
+}
+
+function finishSwitch(id) {
+  const p = S.platform, a = find(id);
+  S.switching = null;
+  if (a.status === "expired") { S.error = { id }; render(); return; }   // ใส่ backup กลับ: active ไม่เปลี่ยน
+  const prev = find(S.active[p]);
+  if (prev) prev.used = "ใช้เมื่อครู่";
+  S.active[p] = id; a.used = "ใช้อยู่";
+  S.toast = { text: a.label, sub: `รีโหลด ${PLATFORM[p].tabs} แท็บ` };
+  render();
+  toastTimer = setTimeout(() => { S.toast = null; render(); }, 4000);
+}
+
+$popup.addEventListener("click", (ev) => {
+  const t = ev.target.closest("[data-act],[data-tab]");
+  if (!t || t.disabled) return;
+  if (t.dataset.tab) { clearTransient(); S.platform = t.dataset.tab; return render(); }
+  const id = t.dataset.id;
+  switch (t.dataset.act) {
+    case "switch": return startSwitch(id);
+    case "rename": clearTransient(); S.editing = { id, value: find(id).label, bad: false }; return render();
+    case "rename-cancel": S.editing = null; return render();
+    case "rename-save": return saveRename();
+    case "delete": clearTransient(); S.confirmDel = id; return render();
+    case "del-cancel": S.confirmDel = null; return render();
+    case "del-ok": {
+      const p = S.platform;
+      S.accounts[p] = acc().filter((a) => a.id !== id);
+      if (S.active[p] === id) S.active[p] = null;
+      S.confirmDel = null; return render();
+    }
+    case "add":
+      clearTransient();
+      S.adding = document.getElementById("loggedIn").checked
+        ? { value: `${PLATFORM[S.platform].name} ${acc().length + 1}`, bad: false, idTail: String(1000 + Math.floor(Math.random() * 9000)) }
+        : { notLoggedIn: true };
+      return render();
+    case "add-cancel": S.adding = null; return render();
+    case "add-save": return saveAdd();
+    case "err-close": S.error = null; return render();
+    case "err-update": {
+      const a = find(S.error.id); a.status = "ok"; a.used = "อัปเดตเมื่อครู่";
+      S.error = null; return render();
+    }
+    case "open-site": return;      // ตัวจริงเปิดแท็บใหม่ไปหน้าเว็บ — mockup ไม่ทำอะไร
+    case "lock": clearTransient(); S.locked = true; return render();
+    case "unlock": return tryUnlock();
+    case "pw-toggle": S.pwShow = !S.pwShow; return render();
+    case "forgot": S.wipeConfirm = true; return render();
+    case "wipe-cancel": S.wipeConfirm = false; return render();
+    case "wipe-ok":
+      S.accounts.facebook = []; S.accounts.instagram = []; S.active.facebook = null; S.active.instagram = null;
+      S.locked = false; S.platform = "facebook"; clearTransient(); return render();
+  }
+});
+
+$popup.addEventListener("keydown", (ev) => {
+  const t = ev.target;
+  if (t.id === "rename-input") {
+    if (ev.key === "Enter") saveRename();
+    if (ev.key === "Escape") { S.editing = null; render(); }
+  } else if (t.id === "add-input") {
+    if (ev.key === "Enter") saveAdd();
+    if (ev.key === "Escape") { S.adding = null; render(); }
+  } else if (t.id === "pw-input") {
+    if (ev.key === "Enter") tryUnlock();
+  }
+});
+$popup.addEventListener("input", (ev) => {
+  const t = ev.target;
+  const clearBad = (st, okText) => {
+    if (!st.bad || !t.value.trim()) return;
+    st.bad = false;
+    const h = t.parentElement.querySelector(".hint");
+    h.classList.remove("bad"); h.textContent = okText;
+  };
+  if (t.id === "rename-input" && S.editing) { S.editing.value = t.value; clearBad(S.editing, "ชื่อนี้เห็นแค่ในเครื่องนี้ · สูงสุด 40 ตัวอักษร"); }
+  if (t.id === "add-input" && S.adding) { S.adding.value = t.value; clearBad(S.adding, "ชื่อที่คุณตั้งเอง ใช้แสดงในรายการ"); }
+  if (t.id === "pw-input") {
+    S.pw = t.value;
+    if (S.pwBad) { S.pwBad = false; t.parentElement.classList.remove("bad"); const h = $popup.querySelector('[data-testid="pw-hint"]'); h.classList.remove("bad"); h.textContent = "mockup: รหัสผ่านคือ orange-cat-2026"; }
+  }
+});
+
+function saveRename() {
+  const v = S.editing.value.trim();
+  if (!v) { S.editing.bad = true; return render(); }
+  find(S.editing.id).label = v.slice(0, 40); S.editing = null; render();
+}
+function saveAdd() {
+  const v = S.adding.value.trim();
+  if (!v) { S.adding.bad = true; return render(); }
+  const p = S.platform, id = "n" + nextId++;
+  const sub = p === "youtube" ? "Google บัญชีที่ 2" : `ID ••••${S.adding.idTail}`;
+  const prev = find(S.active[p]); if (prev) prev.used = "ใช้เมื่อครู่";
+  acc().push({ id, label: v.slice(0, 40), sub, used: "ใช้อยู่", status: "ok" });
+  S.active[p] = id; S.adding = null; render();
+}
+function tryUnlock() {
+  if (S.pw === "orange-cat-2026") { S.locked = false; S.pw = ""; S.pwShow = false; S.pwBad = false; }
+  else { S.pwBad = true; S.pw = ""; }
+  render();
+}
+
+/* ---------- แผงควบคุม mockup ---------- */
+function jump(state) {
+  clearTransient(); S.locked = false;
+  const fresh = seed(); S.accounts = fresh.accounts; S.active = fresh.active;
+  switch (state) {
+    case "empty": S.platform = "instagram"; break;
+    case "list": S.platform = "facebook"; break;
+    case "switching": S.platform = "facebook"; render(); return startSwitch("fb2", { hold: true, stepMs: 0 });
+    case "success": S.platform = "facebook"; render(); return startSwitch("fb2", { stepMs: 10 });
+    case "error": S.platform = "facebook"; render(); return startSwitch("fb3", { stepMs: 10 });
+    case "rename": S.platform = "facebook"; S.editing = { id: "fb2", value: "ร้านขนมบ้านส้ม", bad: false }; break;
+    case "delete": S.platform = "facebook"; S.confirmDel = "fb3"; break;
+    case "locked": S.locked = true; break;
+  }
+  render();
+}
+document.querySelectorAll("[data-jump]").forEach((b) => b.addEventListener("click", () => jump(b.dataset.jump)));
+document.querySelectorAll("[data-theme-set]").forEach((b) => b.addEventListener("click", () => {
+  const v = b.dataset.themeSet;
+  if (v === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = v;
+  document.querySelectorAll("[data-theme-set]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+}));
+document.getElementById("reset").addEventListener("click", () => { clearTransient(); S = seed(); render(); });
+
+render();
+</script>
+</body>
+</html>
