@@ -151,6 +151,8 @@ How B works:
 | Incognito | Separate cookie store | Not supported in v1 (`incognito: "not_allowed"`). |
 | Partitioned cookies (CHIPS) | `getAll` leaves them out unless a partitionKey is given | Use `getAll({ domain, partitionKey: {} })` to get every partition (the reason for `minimum_chrome_version`; the behaviour of `{}` must be proven in card B2), and keep the partitionKey when setting. |
 
+> **Result of card B2 (Chromium 158 via Playwright, `tests/e2e/cookies.spec.ts`):** `getAll({ domain, partitionKey: {} })` returns unpartitioned and partitioned cookies in one call, so the two-call fallback isn't needed. `remove()` needs the cookie's `partitionKey`: without it Chrome resolves anyway and the partitioned cookie stays. Chrome 130+ also reports `partitionKey.hasCrossSiteAncestor`, which is saved and set back unchanged. Versions between the minimum (119) and the one Playwright ships were not tested; the spec checks this again on every e2e run.
+
 ---
 
 ## 4. Permissions

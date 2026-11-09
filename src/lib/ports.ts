@@ -11,11 +11,17 @@
 //     including strings and `document.defaultView.chrome`.
 // It does not catch a name built at runtime (`self['ch' + 'rome']`) or eval-like code. That is left to
 // code review. Samples of each case live in tests/lint-fixtures/.
-// Later cards add CookiesApi, LocalStorageApi, TabsApi and ScriptingApi here.
 
 export type SessionAccessLevel = 'TRUSTED_CONTEXTS' | 'TRUSTED_AND_UNTRUSTED_CONTEXTS';
 
-export interface SessionStorageApi {
+/** chrome.storage.local / chrome.storage.session. Values must survive a JSON round trip. */
+export interface StorageAreaApi {
+  get(keys: string | string[]): Promise<Record<string, unknown>>;
+  set(items: Record<string, unknown>): Promise<void>;
+  remove(keys: string | string[]): Promise<void>;
+}
+
+export interface SessionStorageApi extends StorageAreaApi {
   setAccessLevel(options: { accessLevel: SessionAccessLevel }): Promise<void>;
 }
 
@@ -27,4 +33,87 @@ export interface LifecycleApi {
 export interface I18nApi {
   getMessage(key: string, substitutions?: string[]): string;
   getUILanguage(): string;
+}
+
+export type SameSite = 'no_restriction' | 'lax' | 'strict' | 'unspecified';
+
+/** A CHIPS partition. Chrome 130+ also reports `hasCrossSiteAncestor`; keep it when present. */
+export interface CookiePartitionKey {
+  topLevelSite?: string;
+  hasCrossSiteAncestor?: boolean;
+}
+
+/** The fields of chrome.cookies.Cookie this extension reads. */
+export interface BrowserCookie {
+  name: string;
+  value: string;
+  domain: string;
+  path: string;
+  hostOnly: boolean;
+  secure: boolean;
+  httpOnly: boolean;
+  sameSite: SameSite;
+  session: boolean;
+  expirationDate?: number;
+  partitionKey?: CookiePartitionKey;
+}
+
+export interface CookieSetDetails {
+  url: string;
+  name: string;
+  value: string;
+  /** Leave out for a host-only cookie: passing it turns the cookie into a domain cookie. */
+  domain?: string;
+  path: string;
+  secure: boolean;
+  httpOnly: boolean;
+  sameSite: SameSite;
+  /** Seconds since the epoch. Leave out for a session cookie. */
+  expirationDate?: number;
+  partitionKey?: CookiePartitionKey;
+}
+
+export interface CookiesApi {
+  /**
+   * `partitionKey: {}` returns unpartitioned and partitioned cookies together; without it Chrome
+   * returns only unpartitioned ones (checked in Chromium by tests/e2e/cookies.spec.ts).
+   */
+  getAll(details: {
+    domain?: string;
+    name?: string;
+    partitionKey?: CookiePartitionKey;
+  }): Promise<BrowserCookie[]>;
+  set(details: CookieSetDetails): Promise<BrowserCookie | null>;
+  /**
+   * A partitioned cookie is only removed when its partitionKey is passed. Without it Chrome still
+   * resolves with the details, so the result can't tell you whether anything was deleted.
+   */
+  remove(details: {
+    url: string;
+    name: string;
+    partitionKey?: CookiePartitionKey;
+  }): Promise<{ url: string; name: string } | null>;
+}
+
+export interface BrowserTab {
+  id?: number | undefined;
+  url?: string | undefined;
+  active: boolean;
+  status?: string | undefined;
+}
+
+export interface TabsApi {
+  query(query: { url?: string | string[]; active?: boolean }): Promise<BrowserTab[]>;
+  reload(tabId: number): Promise<void>;
+  update(tabId: number, props: { url: string }): Promise<BrowserTab | undefined>;
+  create(props: { url: string }): Promise<BrowserTab>;
+}
+
+export interface ScriptingApi {
+  /** Runs `func` in the page's MAIN world and returns its result for each frame. */
+  executeScript<T>(injection: {
+    target: { tabId: number };
+    world: 'MAIN';
+    func: () => T;
+  }): Promise<{ result?: T }[]>;
 }
