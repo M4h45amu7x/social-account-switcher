@@ -246,13 +246,13 @@ button {
   border: 0;
   background: transparent;
   border-radius: 7px;
-  padding: 7px 4px;
+  padding: 7px 1px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  font-size: 12.5px;
+  gap: 1px;
+  font-size: 12px;
   /* idle labels stay readable (4.5:1) on the track and on the thumb that is still under them while it slides */
   color: var(--text-idle);
   min-width: 0;
@@ -267,7 +267,15 @@ button {
   flex: none;
 }
 
+.tab .label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tab .count {
+  flex: none;
   font-size: 10.5px;
   min-width: 16px;
   padding: 0 4px;

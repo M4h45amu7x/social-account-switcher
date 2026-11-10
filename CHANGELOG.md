@@ -4,6 +4,16 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-10
+
+### Fixed
+
+- Keep tab icons and account counts inside their buttons with wider system fonts. Long platform names shorten with an ellipsis when space runs out; the full name remains available in the tooltip and accessible name.
+
+### Release notes
+
+- The public v0.1.1 tag has no release package because its release checks failed on tab label overflow. Version 0.1.2 includes all changes from v0.1.1 and this fix.
+
 ## [0.1.1] - 2026-11-10
 
 ### Added
@@ -44,6 +54,7 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 - Document local data handling, the two wipe scopes, switch deadlines and known issues. Keep live-account and installation checks in the manual handoff checklist.
 
-[Unreleased]: https://github.com/M4h45amu7x/social-account-switcher/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/M4h45amu7x/social-account-switcher/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/M4h45amu7x/social-account-switcher/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/M4h45amu7x/social-account-switcher/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/M4h45amu7x/social-account-switcher/releases/tag/v0.1.0
