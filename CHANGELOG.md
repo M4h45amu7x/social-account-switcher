@@ -19,6 +19,8 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ### Fixed
 
+- Keep at least 5 px between platform logos, names and account counts in the four-tab popup.
+
 - Wait for all reloaded TikTok tabs before saving a switched or recovered session, so delayed responses cannot leave an older session token in the vault.
 - Keep unknown TikTok page states separate from expired sessions. Verify a bounded candidate viewer record instead of using content-author or profile-page identities.
 - Keep adding Facebook or Instagram accounts from unrelated tabs through existing cookies, without borrowing another tab's profile information.
