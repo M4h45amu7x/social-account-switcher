@@ -326,7 +326,7 @@ for (const scope of ['sessions', 'all'] as const) {
   });
 }
 
-test('production TikTok profile: app-context name/handle/avatar, author ignored, uid mismatch discarded', async () => {
+test('production TikTok profile: real nickName/avatarUri fields, author ignored, uid mismatch discarded', async () => {
   const h = await launch();
   try {
     await setup(h);
@@ -364,7 +364,7 @@ test('production TikTok profile: app-context name/handle/avatar, author ignored,
       const original = el.textContent ?? '';
       const changed = JSON.parse(original);
       changed.__DEFAULT_SCOPE__['webapp.app-context'].user.uid = '999';
-      changed.__DEFAULT_SCOPE__['webapp.app-context'].user.nickname = 'Wrong viewer';
+      changed.__DEFAULT_SCOPE__['webapp.app-context'].user.nickName = 'Wrong viewer';
       let reads = 0;
       Object.defineProperty(el, 'textContent', {
         configurable: true,

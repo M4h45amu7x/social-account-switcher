@@ -19,9 +19,9 @@ const page = (user: unknown, extra = {}) => {
     __DEFAULT_SCOPE__: {
       'webapp.app-context': { user, ...extra },
       'webapp.video-detail': {
-        author: { uid: '999', nickname: 'Wrong author', uniqueId: 'author', avatar: PNG },
+        author: { uid: '999', nickName: 'Wrong author', uniqueId: 'author', avatar: PNG },
       },
-      'webapp.user-detail': { userInfo: { user: { uid: '888', nickname: 'Visited profile' } } },
+      'webapp.user-detail': { userInfo: { user: { uid: '888', nickName: 'Visited profile' } } },
     },
   });
 };
@@ -35,8 +35,8 @@ test('TikTok profile uses only the same app-context user as T3; never author, vi
   page({
     uid,
     uniqueId: 'alice',
-    nickname: 'Alice Profile',
-    avatar: PNG,
+    nickName: 'Alice Profile',
+    avatarUri: ['https://www.tiktok.com/avatar.png'],
     email: 'ignored@test.test',
   });
   document.body.innerHTML +=
@@ -47,18 +47,18 @@ test('TikTok profile uses only the same app-context user as T3; never author, vi
     expect(readFixtureViewer()).toEqual({ state: 'signed_in', viewerId: uid });
     expect(readPageProfile()).toEqual({
       identity: uid,
-      profile: { displayName: 'Alice Profile', handle: 'alice', avatar: PNG },
+      profile: { displayName: 'Alice Profile', handle: 'alice' },
     });
     expect(document.body.innerHTML).toBe(before);
     expect(fetchSpy).not.toHaveBeenCalled();
   } finally {
     fetchSpy.mockRestore();
   }
-  page({ uid, uniqueId: 'alice', nickname: [], avatar: {} });
+  page({ uid, uniqueId: 'alice', nickName: [], avatarUri: {} });
   document.body.innerHTML +=
     '<a data-e2e="profile-icon" data-user-id="7100000000000000001" title="Unconfirmed DOM name">Author</a>';
   expect(readPageProfile()).toEqual({ identity: uid, profile: { handle: 'alice' } });
-  page({ uid, uniqueId: 'alice', avatar: 'https://cdn.test/unloaded.png' });
+  page({ uid, uniqueId: 'alice', avatarUri: ['https://cdn.test/unloaded.png'] });
   expect(readPageProfile()).toEqual({ identity: uid, profile: { handle: 'alice' } });
 });
 
@@ -108,7 +108,7 @@ test('TikTok profile rejects all non-viewer states accepted as unknown/logout/ch
 
 test('TikTok profile shares the 1 MiB T3 bound, accepts optional true discriminator and all strict hosts', () => {
   for (const host of ['tiktok.com', 'www.tiktok.com', 'm.tiktok.com']) {
-    page({ uid, uniqueId: 'alice', nickname: 'Alice Profile' }, { isLogin: true });
+    page({ uid, uniqueId: 'alice', nickName: 'Alice Profile' }, { isLogin: true });
     location.href = `https://${host}/`;
     document.querySelector('script')!.textContent += ' '.repeat(300000);
     expect(readPageProfile()).toMatchObject({
@@ -122,7 +122,7 @@ test('TikTok profile shares the 1 MiB T3 bound, accepts optional true discrimina
 
 test('TikTok worker drops profile if uid differs from probe or changes at confirmation; explicit tab only', async () => {
   const c = fakeChrome({ tabs: [{ url: 'https://www.tiktok.com/', active: true }] });
-  page({ uid, uniqueId: 'alice', nickname: 'Alice Profile' });
+  page({ uid, uniqueId: 'alice', nickName: 'Alice Profile' });
   c.scripting.executeScript = async ({ func, target }) => {
     expect(target.tabId).toBe(1);
     return [{ frameId: 0, result: func() }];
@@ -137,4 +137,103 @@ test('TikTok worker drops profile if uid differs from probe or changes at confir
     await readProfile({ ...deps, currentIdentity: async () => '999' }, 'tiktok', uid, 1),
   ).toBeUndefined();
   expect(await readProfile(deps, 'tiktok', uid)).toBeUndefined();
+});
+
+// happy-dom has no pixel decoder. Stub only the canvas/image boundary; the real reader
+// still selects the URL and must find its matching, already loaded page image.
+function withLoadedAvatar(url: string, run: () => void) {
+  const img = document.createElement('img');
+  img.src = url;
+  document.body.append(img);
+  Object.defineProperties(img, {
+    complete: { value: true },
+    naturalWidth: { value: 128 },
+    naturalHeight: { value: 96 },
+  });
+  const canvas = document.createElement('canvas');
+  const context = spyOn(canvas, 'getContext').mockReturnValue({
+    drawImage() {},
+  } as unknown as CanvasRenderingContext2D);
+  const data = spyOn(canvas, 'toDataURL').mockReturnValue(PNG);
+  const createElement = document.createElement.bind(document);
+  const create = spyOn(document, 'createElement').mockImplementation(((tag: string) =>
+    tag === 'canvas' ? canvas : createElement(tag)) as typeof document.createElement);
+  try {
+    run();
+  } finally {
+    create.mockRestore();
+    data.mockRestore();
+    context.mockRestore();
+  }
+}
+
+test('TikTok ignores lowercase nickname, legacy avatar and unrelated user fields', () => {
+  page({
+    uid,
+    uniqueId: 'alice',
+    nickname: 'Wrong legacy name',
+    avatar: PNG,
+    secUid: 'do-not-copy',
+    signature: 'do-not-copy',
+    region: 'do-not-copy',
+  });
+  expect(readPageProfile()).toEqual({ identity: uid, profile: { handle: 'alice' } });
+});
+
+test('TikTok selects the first valid bounded HTTPS string in avatarUri and copies loaded pixels', () => {
+  const url = 'https://www.tiktok.com/avatar.png';
+  page({
+    uid,
+    uniqueId: 'alice',
+    nickName: 'Alice Profile',
+    avatarUri: [
+      null,
+      123,
+      { url },
+      '',
+      'http://www.tiktok.com/avatar.png',
+      PNG,
+      'https://',
+      `https://www.tiktok.com/${'a'.repeat(22000)}`,
+      url,
+      'https://www.tiktok.com/other.png',
+    ],
+  });
+  withLoadedAvatar(url, () => {
+    expect(readPageProfile()).toEqual({
+      identity: uid,
+      profile: { displayName: 'Alice Profile', handle: 'alice', avatar: PNG },
+    });
+  });
+});
+
+test('TikTok malformed avatarUri produces no avatar even with a loaded image or legacy avatar', () => {
+  const url = 'https://www.tiktok.com/avatar.png';
+  for (const avatarUri of [
+    undefined,
+    null,
+    url,
+    { 0: url },
+    [],
+    [null, 42, { url }],
+    ['http://www.tiktok.com/avatar.png'],
+    [PNG],
+    ['https://'],
+  ]) {
+    page({ uid, uniqueId: 'alice', nickName: 'Alice Profile', avatarUri, avatar: PNG });
+    withLoadedAvatar(url, () => {
+      expect(readPageProfile()).toEqual({
+        identity: uid,
+        profile: { displayName: 'Alice Profile', handle: 'alice' },
+      });
+    });
+  }
+});
+
+test('TikTok never substitutes a later loaded avatar when the first HTTPS candidate is unloaded', () => {
+  const loaded = 'https://www.tiktok.com/loaded.png';
+  page({ uid, uniqueId: 'alice', avatarUri: ['https://www.tiktok.com/unloaded.png', loaded] });
+  withLoadedAvatar(loaded, () => {
+    expect(readPageProfile()).toEqual({ identity: uid, profile: { handle: 'alice' } });
+  });
 });

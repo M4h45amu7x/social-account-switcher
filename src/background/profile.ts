@@ -198,8 +198,20 @@ export function readPageProfile(): unknown {
         return null;
       identity = viewer.uid;
       identityStillMatches = () => el?.textContent === source;
-      // Optional candidate fields only from this validated user; no DOM/author fallback.
-      take(viewer, { name: 'nickname', handle: 'uniqueId', avatar: 'avatar' });
+      // Owner-confirmed keys, only from this validated user; no DOM/author fallback.
+      const name = text(viewer.nickName);
+      if (name) profile.displayName = name;
+      profile.handle = viewer.uniqueId;
+      if (Array.isArray(viewer.avatarUri))
+        avatarUrl = viewer.avatarUri.find((value: unknown): value is string => {
+          if (typeof value !== 'string' || value.length > 22000 || !/^https:\/\//i.test(value))
+            return false;
+          try {
+            return new URL(value).protocol === 'https:';
+          } catch {
+            return false;
+          }
+        });
     } else return null;
     if (!identity) return null;
     if (!profile.displayName && root && !on('youtube.com')) {
