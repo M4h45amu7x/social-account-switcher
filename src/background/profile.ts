@@ -1,4 +1,4 @@
-import type { ScriptingApi, TabsApi } from '../lib/ports';
+import type { ScriptingApi, TabsApi, TabUpdatedListener } from '../lib/ports';
 import { type AccountProfile, sanitizeProfile } from '../lib/profile';
 import { platformOfUrl } from '../lib/sites';
 import type { Platform } from '../lib/store';
@@ -30,6 +30,7 @@ export function readPageProfile(): unknown {
     let profile: { displayName?: string; handle?: string; email?: string; avatar?: string } = {};
     let avatarUrl: string | undefined;
     let root: Element | null = null;
+    let identityStillMatches: (() => boolean) | undefined;
     const take = (
       v: Record<string, unknown>,
       keys: { name: string; handle: string; avatar: string },
@@ -87,6 +88,7 @@ export function readPageProfile(): unknown {
       }
     } else if (on('instagram.com')) {
       let viewer = typeof _sharedData === 'undefined' ? {} : record(_sharedData?.config?.viewer);
+      const globalViewer = !!viewer.id;
       if (!viewer.id)
         for (const el of Array.from(
           document.querySelectorAll('script[type="application/json"]'),
@@ -96,6 +98,11 @@ export function readPageProfile(): unknown {
         }
       if (typeof viewer.id === 'string' && /^\d{1,128}$/.test(viewer.id)) {
         identity = viewer.id;
+        identityStillMatches = () =>
+          viewer.id === identity &&
+          (!globalViewer ||
+            (typeof _sharedData !== 'undefined' &&
+              record(_sharedData?.config?.viewer).id === identity));
         take(viewer, { name: 'full_name', handle: 'username', avatar: 'profile_pic_url' });
       }
       for (const el of Array.from(
@@ -129,6 +136,18 @@ export function readPageProfile(): unknown {
       )
         return null;
       identity = typeof pageid === 'string' && pageid ? { authuser, pageid } : { authuser };
+      identityStillMatches = () => {
+        const currentIndex = ytcfg?.get('SESSION_INDEX');
+        const currentPage = ytcfg?.get('DELEGATED_SESSION_ID');
+        return (
+          currentIndex === index &&
+          currentPage === pageid &&
+          (!root ||
+            (root.getAttribute('data-session-index') === String(authuser) &&
+              (root.getAttribute('data-delegated-session-id') || undefined) ===
+                (pageid || undefined)))
+        );
+      };
       take(
         {
           name: ytcfg.get('ACCOUNT_NAME'),
@@ -139,7 +158,16 @@ export function readPageProfile(): unknown {
       );
       const email = text(ytcfg.get('EMAIL'), 254);
       if (email) profile.email = email;
-      root = document.querySelector('ytd-active-account-header-renderer');
+      // A stale rendered menu is not identified by the current global config. Only an
+      // independently associated header may contribute; these attributes are optional candidates.
+      root =
+        Array.from(document.querySelectorAll('ytd-active-account-header-renderer'))
+          .slice(0, 16)
+          .find(
+            (el) =>
+              el.getAttribute('data-session-index') === String(authuser) &&
+              (el.getAttribute('data-delegated-session-id') || undefined) === (pageid || undefined),
+          ) ?? null;
       if (root) {
         const name = text(root.querySelector('#account-name')?.textContent);
         const handle = text(root.querySelector('#channel-handle')?.textContent);
@@ -194,6 +222,7 @@ export function readPageProfile(): unknown {
       }
     }
     // No remote URLs or arbitrary page objects cross the scripting boundary.
+    if (identityStillMatches && !identityStillMatches()) return null;
     profile = { ...profile };
     return { identity, profile };
   } catch {
@@ -202,37 +231,73 @@ export function readPageProfile(): unknown {
 }
 
 export async function readProfile(
-  deps: { tabs: TabsApi; scripting: ScriptingApi },
+  deps: {
+    tabs: TabsApi;
+    scripting: ScriptingApi;
+    currentIdentity(): Promise<string | YouTubeSession | null | undefined>;
+    timeoutMs?: number;
+  },
   platform: Platform,
   identity: string | YouTubeSession,
   tabId?: number,
 ): Promise<AccountProfile | undefined> {
   if (tabId === undefined) return;
+  let finished = false;
+  let navigated = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const updated: TabUpdatedListener = (id, info) => {
+    if (id === tabId && (info.status === 'loading' || info.url !== undefined)) navigated = true;
+  };
+  const matches = (other: unknown): boolean => {
+    if (typeof identity === 'string') return other === identity;
+    if (!other || typeof other !== 'object') return false;
+    const value = other as Partial<YouTubeSession>;
+    return value.authuser === identity.authuser && value.pageid === identity.pageid;
+  };
   try {
-    const before = await deps.tabs.get(tabId);
-    if (before.pendingUrl || before.status === 'loading') return;
-    const beforeUrl = before.url;
-    if (platform === 'tiktok' ? !isTikTok(beforeUrl) : platformOfUrl(beforeUrl) !== platform)
-      return;
-    const result = await deps.scripting.executeScript({
-      target: { tabId },
-      world: 'MAIN',
-      func: readPageProfile,
+    deps.tabs.onUpdated.addListener(updated);
+    // Optional metadata must never retain the account operation's lock indefinitely.
+    const deadline = new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => {
+        finished = true;
+        resolve(undefined);
+      }, deps.timeoutMs ?? 1000);
     });
-    const after = await deps.tabs.get(tabId);
-    if (after.url !== beforeUrl || after.pendingUrl || after.status === 'loading') return;
-    const value = result.find((frame) => frame.frameId === 0)?.result;
-    if (!value || typeof value !== 'object') return;
-    const v = value as { identity?: unknown; profile?: unknown };
-    if (typeof identity === 'string') {
-      if (v.identity !== identity) return;
-    } else {
-      const other = v.identity as Partial<YouTubeSession> | null;
-      if (!other || other.authuser !== identity.authuser || other.pageid !== identity.pageid)
+    const read = async () => {
+      const before = await deps.tabs.get(tabId);
+      if (finished || navigated || before.pendingUrl || before.status === 'loading') return;
+      const beforeUrl = before.url;
+      if (platform === 'tiktok' ? !isTikTok(beforeUrl) : platformOfUrl(beforeUrl) !== platform)
         return;
-    }
-    return sanitizeProfile(v.profile);
+      const result = await deps.scripting.executeScript({
+        target: { tabId },
+        world: 'MAIN',
+        func: readPageProfile,
+      });
+      if (finished || navigated) return;
+      const value = result.find((frame) => frame.frameId === 0)?.result;
+      if (!value || typeof value !== 'object') return;
+      const v = value as { identity?: unknown; profile?: unknown };
+      if (!matches(v.identity)) return;
+      const current = await deps.currentIdentity();
+      if (finished || navigated || !matches(current)) return;
+      const after = await deps.tabs.get(tabId);
+      if (
+        finished ||
+        navigated ||
+        after.url !== beforeUrl ||
+        after.pendingUrl ||
+        after.status === 'loading'
+      )
+        return;
+      return sanitizeProfile(v.profile);
+    };
+    return await Promise.race([deadline, read()]);
   } catch {
     return undefined;
+  } finally {
+    finished = true;
+    if (timer !== undefined) clearTimeout(timer);
+    deps.tabs.onUpdated.removeListener(updated);
   }
 }

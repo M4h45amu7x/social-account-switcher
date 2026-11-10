@@ -1,7 +1,18 @@
 import { afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
-import { readPageProfile, readProfile } from '../../src/background/profile';
+import type { YouTubeSession } from '../../src/background/platforms/types';
+import { readProfile as readCheckedProfile, readPageProfile } from '../../src/background/profile';
+import type { ScriptingApi, TabsApi } from '../../src/lib/ports';
+import type { Platform } from '../../src/lib/store';
 import { fakeChrome } from '../fakes/chrome';
 import { PNG } from '../fixtures/profile';
+
+const readProfile = (
+  deps: { tabs: TabsApi; scripting: ScriptingApi },
+  platform: Platform,
+  identity: string | YouTubeSession,
+  tabId?: number,
+) =>
+  readCheckedProfile({ ...deps, currentIdentity: async () => identity }, platform, identity, tabId);
 
 const imagesDescriptor = Object.getOwnPropertyDescriptor(document, 'images');
 beforeEach(() => {
@@ -47,7 +58,7 @@ test('YouTube binds existing config and already rendered menu to sign-in coordin
     ytcfg: { get: (key: string) => ({ SESSION_INDEX: '2', DELEGATED_SESSION_ID: '333' })[key] },
   });
   document.body.innerHTML =
-    '<ytd-active-account-header-renderer><div id="account-name">YT Name</div><div id="channel-handle">@yt</div><div id="email">yt@example.test</div></ytd-active-account-header-renderer>';
+    '<ytd-active-account-header-renderer data-session-index="2" data-delegated-session-id="333"><div id="account-name">YT Name</div><div id="channel-handle">@yt</div><div id="email">yt@example.test</div></ytd-active-account-header-renderer>';
   expect(readPageProfile()).toMatchObject({
     identity: { authuser: 2, pageid: '333' },
     profile: { displayName: 'YT Name', handle: '@yt', email: 'yt@example.test' },
@@ -221,5 +232,116 @@ test('loaded image pixels scale to 64px and canvas errors never discard the text
     create.mockRestore();
     data.mockRestore();
     drawImage.mockRestore();
+  }
+});
+
+test('page identity changes during property extraction discard the profile', () => {
+  url('www.youtube.com');
+  let index = '1';
+  Object.assign(globalThis, {
+    ytcfg: {
+      get: (key: string) => {
+        if (key === 'SESSION_INDEX') return index;
+        if (key === 'ACCOUNT_NAME') {
+          index = '2';
+          return 'Bob';
+        }
+        return undefined;
+      },
+    },
+  });
+  expect(readPageProfile()).toBeNull();
+  url('www.instagram.com');
+  const viewer = {
+    id: '1001',
+    get full_name() {
+      this.id = '2002';
+      return 'Bob';
+    },
+  };
+  Object.assign(globalThis, { _sharedData: { config: { viewer } } });
+  expect(readPageProfile()).toBeNull();
+});
+
+test('YouTube DOM header needs its own matching account and brand coordinates', () => {
+  url('www.youtube.com');
+  Object.assign(globalThis, {
+    ytcfg: { get: (key: string) => ({ SESSION_INDEX: '2', DELEGATED_SESSION_ID: '333' })[key] },
+  });
+  for (const attributes of [
+    '',
+    'data-session-index="1" data-delegated-session-id="333"',
+    'data-session-index="2" data-delegated-session-id="444"',
+    'data-session-index="2"',
+  ]) {
+    document.body.innerHTML = `<ytd-active-account-header-renderer ${attributes}><div id="account-name">Stale Alice</div><div id="email">alice@example.test</div><img src="${PNG}"></ytd-active-account-header-renderer>`;
+    expect(readPageProfile()).toEqual({ identity: { authuser: 2, pageid: '333' }, profile: {} });
+  }
+});
+
+test('completed same-URL reload during extraction discards profile and removes its listener', async () => {
+  const c = fakeChrome({ tabs: [{ url: 'https://www.facebook.com/', active: true }] });
+  const add = spyOn(c.tabs.onUpdated, 'addListener');
+  const remove = spyOn(c.tabs.onUpdated, 'removeListener');
+  c.scripting.executeScript = async () => {
+    await c.tabs.reload(1);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    return [{ frameId: 0, result: { identity: '1001', profile: { displayName: 'Alice' } } }];
+  };
+  expect(await readProfile(c, 'facebook', '1001', 1)).toBeUndefined();
+  expect(add).toHaveBeenCalledTimes(1);
+  expect(remove).toHaveBeenCalledWith(add.mock.calls[0]?.[0]);
+});
+
+test('all optional read boundaries time out, clean up, and ignore late results', async () => {
+  for (const boundary of ['get', 'script', 'identity'] as const) {
+    const c = fakeChrome({ tabs: [{ url: 'https://www.facebook.com/', active: true }] });
+    c.scripting.pageResults.set(1, { identity: '1001', profile: { displayName: 'Alice' } });
+    const remove = spyOn(c.tabs.onUpdated, 'removeListener');
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const get = c.tabs.get;
+    const script = c.scripting.executeScript;
+    if (boundary === 'get')
+      c.tabs.get = async (id) => {
+        await held;
+        return get(id);
+      };
+    if (boundary === 'script')
+      c.scripting.executeScript = async (options) => {
+        await held;
+        return script(options);
+      };
+    const pending = readCheckedProfile(
+      {
+        ...c,
+        timeoutMs: 10,
+        currentIdentity: async () => {
+          if (boundary === 'identity') await held;
+          return '1001';
+        },
+      },
+      'facebook',
+      '1001',
+      1,
+    );
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const result = await Promise.race([
+        pending,
+        new Promise((resolve) => {
+          watchdog = setTimeout(() => resolve('still blocked'), 80);
+        }),
+      ]);
+      expect(result).toBeUndefined();
+      expect(remove).toHaveBeenCalledTimes(1);
+    } finally {
+      if (watchdog) clearTimeout(watchdog);
+      release();
+      await pending;
+    }
+    expect(await pending).toBeUndefined();
   }
 });

@@ -133,3 +133,68 @@ test('both wipes erase profiles, including derived YouTube labels and quarantine
     if (scope === 'sessions') expect(state.accounts[0]?.label).toBe('YouTube');
   }
 });
+
+for (const platform of ['facebook', 'instagram', 'youtube'] as const) {
+  test(`${platform}: identity rotation after injection discards metadata but saves the captured session`, async () => {
+    const { h, tabId } = await setup(platform);
+    const execute = h.chrome.scripting.executeScript;
+    h.chrome.scripting.executeScript = async (options) => {
+      const result = await execute(options);
+      if (platform === 'youtube') h.youtube.current = { ok: true, value: { authuser: 2 } };
+      else await loginAs(h.chrome, platform, '2002');
+      return result;
+    };
+    const a = await h.must<Account>({
+      type: 'account.addCurrent',
+      platform,
+      tabId,
+      label: 'stale prefill',
+      autoLabel: true,
+    });
+    expect(a).not.toHaveProperty('profile');
+    expect(a.label).not.toBe('Alice');
+    expect(a.platformUserId ?? a.youtube?.authuser).toBe(platform === 'youtube' ? 1 : '1001');
+  });
+}
+
+test('stalled optional profile cannot block saving, a later update or session wipe; late result is ignored', async () => {
+  const { h, tabId } = await setup();
+  const execute = h.chrome.scripting.executeScript;
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  h.chrome.scripting.executeScript = async (options) => {
+    await held;
+    return execute(options);
+  };
+  const pending = h.must<Account>({
+    type: 'account.addCurrent',
+    platform: 'facebook',
+    tabId,
+    label: 'My label',
+  });
+  let watchdog: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const a = await Promise.race([
+      pending,
+      new Promise<null>((resolve) => {
+        watchdog = setTimeout(() => resolve(null), 1500);
+      }),
+    ]);
+    expect(a).not.toBeNull();
+    if (!a) return;
+    expect(a.profile).toBeUndefined();
+    expect(h.deps.busy.has('facebook')).toBe(false);
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect((await h.must<PopupState>({ type: 'state.get' })).accounts[0]?.profile).toBeUndefined();
+    h.chrome.scripting.executeScript = execute;
+    await h.must({ type: 'account.updateSession', accountId: a.id, tabId });
+    await h.must({ type: 'vault.wipe', scope: 'sessions' });
+  } finally {
+    if (watchdog) clearTimeout(watchdog);
+    release();
+    await pending;
+  }
+});

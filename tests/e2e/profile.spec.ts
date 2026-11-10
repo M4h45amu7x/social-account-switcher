@@ -111,7 +111,14 @@ for (const platform of ['facebook', 'instagram', 'youtube'] as const) {
           theme,
         );
         await popup.reload();
-        await popup.screenshot({ path: resolve(shots, `${platform}-${theme}.png`) });
+        await expect(row.locator('.nm')).toHaveText('My chosen name');
+        await expect(row.locator('.profile-details')).toContainText('@new');
+        // Wait for the initial state/view transition before retaining visual evidence.
+        await expect.poll(() => popup.evaluate(() => document.getAnimations().length)).toBe(0);
+        await popup.screenshot({
+          path: resolve(shots, `${platform}-${theme}.png`),
+          animations: 'disabled',
+        });
       }
       if (platform !== 'youtube') {
         id = '9999';

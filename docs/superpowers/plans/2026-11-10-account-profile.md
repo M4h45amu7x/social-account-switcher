@@ -21,7 +21,7 @@
 
 ## Task 1: Reader and validation
 Files: src/lib/profile.ts, src/background/profile.ts; tests/unit/profile.test.ts, profile-reader.test.ts.
-Interfaces: AccountProfile; sanitizeProfile(unknown): AccountProfile|undefined; readPageProfile(): unknown; readProfile({tabs,scripting}, platform, identity, tabId?): Promise<AccountProfile|undefined>.
+Interfaces: AccountProfile; sanitizeProfile(unknown): AccountProfile|undefined; readPageProfile(): unknown; readProfile({tabs,scripting,currentIdentity,timeoutMs?}, platform, identity, tabId?): Promise<AccountProfile|undefined>.
 - [x] Write per-platform JSON/DOM, mismatch, bounded text/image and exact-tab tests; observe failing assertions.
 - [x] Implement bounded readers, ordered sources, PNG/JPEG/WebP magic and dimension validation, existing-image canvas fallback.
 - [x] Run focused tests and record green.
@@ -38,4 +38,4 @@ Files: src/popup/{state,controller,bridge,view}.ts and popup.css; tests/unit/pro
 Interfaces: Add form optional profile/autoLabel; AccountView.profile?; existing request types extended compatibly.
 - [x] Add failing UI/e2e tests for prefill, rename-update preservation, mismatch, literal HTML, avatars and themes.
 - [x] Implement UI data propagation, textContent profile display and image fallback; update privacy and source/manual-check documentation.
-- [ ] Run focused green tests, then full check/e2e, outdated, zip and perm:check. Inspect screenshots and diff; review branch; commit without push and deliver final evidence.
+- [x] Run focused green tests, then full check/e2e, outdated, zip and perm:check. Inspect screenshots and diff; review branch; commit without push and deliver final evidence.

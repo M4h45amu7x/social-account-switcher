@@ -245,6 +245,30 @@ async function matchesTab(deps: RouterDeps, platform: Platform, tabId?: number):
   }
 }
 
+/** Confirm identity again within the optional profile deadline, using the same captured tab. */
+function currentProfile(
+  deps: RouterDeps,
+  platform: Platform,
+  identity: string | YouTubeSession,
+  tabId?: number,
+) {
+  return readProfile(
+    {
+      ...deps,
+      currentIdentity: async () => {
+        const current =
+          platform === 'youtube'
+            ? await deps.youtube.readCurrent(tabId)
+            : await readIdentity(deps.cookies, deps.platforms[platform], tabId);
+        return current.ok ? current.value : undefined;
+      },
+    },
+    platform,
+    identity,
+    tabId,
+  );
+}
+
 /**
  * Who is logged in now. `tail` is the last four characters of the ID (YouTube: the Google account
  * number). `accountId` is the saved account that login belongs to, or null: the popup marks it "On
@@ -263,7 +287,7 @@ async function probe(deps: RouterDeps, platform: Platform, tabId?: number) {
     const mine = accounts.find(
       (a) => a.youtube?.authuser === authuser && a.youtube.pageid === pageid,
     );
-    const profile = await readProfile(deps, platform, current.value, tabId);
+    const profile = await currentProfile(deps, platform, current.value, tabId);
     return ok({
       ...(profile ? { profile } : {}),
       tail: String(authuser + 1),
@@ -279,7 +303,7 @@ async function probe(deps: RouterDeps, platform: Platform, tabId?: number) {
   const mine =
     current.value === null ? undefined : accounts.find((a) => a.platformUserId === current.value);
   const profile =
-    current.value === null ? undefined : await readProfile(deps, platform, current.value, tabId);
+    current.value === null ? undefined : await currentProfile(deps, platform, current.value, tabId);
   return ok({
     ...(profile ? { profile } : {}),
     tail: current.value === null ? null : current.value.slice(-4),
@@ -307,7 +331,7 @@ async function addCurrent(
 async function addYoutube(deps: RouterDeps, label: string, tabId?: number, autoLabel = false) {
   const current = await deps.youtube.readCurrent(tabId);
   if (!current.ok) return current.error === 'no_youtube_tab' ? err('not_logged_in') : current;
-  const profile = await readProfile(deps, 'youtube', current.value, tabId);
+  const profile = await currentProfile(deps, 'youtube', current.value, tabId);
   return editStore(deps, async (store) => {
     const youtube = copySession(current.value);
     const added = addAccount(
@@ -342,7 +366,7 @@ async function addCookieAccount(
   if (!captured.ok) return captured;
   const { identity: userId, cookies } = captured.value;
   if (userId === null) return err('not_logged_in');
-  const profile = await readProfile(deps, platform, userId, tabId);
+  const profile = await currentProfile(deps, platform, userId, tabId);
   const now = deps.now();
   return editStore(deps, async (store) => {
     if (!store.vault) return err('no_vault');
@@ -416,7 +440,7 @@ async function updateCookieSession(
   const { identity: userId, cookies } = captured.value;
   if (userId === null) return err('not_logged_in');
   if (userId !== account.platformUserId) return err('wrong_account');
-  const profile = await readProfile(deps, account.platform, userId, tabId);
+  const profile = await currentProfile(deps, account.platform, userId, tabId);
   const now = deps.now();
   return editStore(deps, async (store) => {
     if (!store.vault || !findAccount(store, accountId)) return err('not_found');
@@ -444,7 +468,7 @@ async function updateCookieSession(
 async function updateYoutube(deps: RouterDeps, accountId: string, tabId?: number) {
   const current = await deps.youtube.readCurrent(tabId);
   if (!current.ok) return current;
-  const profile = await readProfile(deps, 'youtube', current.value, tabId);
+  const profile = await currentProfile(deps, 'youtube', current.value, tabId);
   return patchStore(deps, (store) => {
     if (!findAccount(store, accountId)) return err('not_found');
     const youtube = copySession(current.value);
