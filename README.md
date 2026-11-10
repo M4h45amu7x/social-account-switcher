@@ -4,9 +4,9 @@ Switch between your own Facebook, Instagram, YouTube and TikTok accounts from a 
 
 ![Popup with fictional saved accounts](docs/images/popup.png)
 
-The screenshot uses fictional accounts. The package version remains 0.1.2 while v0.2.0 is in development. TikTok is enabled in this development build; its current-account reader and switching compatibility still need owner checks with real accounts before a v0.2.0 release.
+The screenshot uses fictional accounts. This is the v0.2.0 release candidate. TikTok is enabled, but its current-account reader and switching compatibility still need owner checks with real accounts before publication.
 
-Facebook, Instagram and TikTok sessions are encrypted on this device with a master password. YouTube uses Google's multi-account sign-in with a saved account index and optional channel ID; it does not replace Google cookies. There is no extension server, analytics or remote code. Account labels and identifiers are stored locally without encryption. See [PRIVACY.md](PRIVACY.md) for the privacy policy and [SECURITY.md](SECURITY.md) for reporting a vulnerability.
+Facebook, Instagram and TikTok sessions are encrypted on this device with a master password. YouTube uses Google's multi-account sign-in with a saved account index and optional channel ID; it does not replace Google cookies. There is no extension server, analytics or remote code. Account labels, identifiers and captured profile metadata, including names, handles, email and sanitized avatars, are stored locally without encryption. See [PRIVACY.md](PRIVACY.md) for the privacy policy and [SECURITY.md](SECURITY.md) for reporting a vulnerability.
 
 Facebook and Instagram are trademarks of Meta Platforms, Inc.; YouTube is a trademark of Google LLC; TikTok is a trademark of its respective owner. The marks are not covered by this project’s MIT license. See [logo sources](public/brands/SOURCES.md). This project is not affiliated with, endorsed by or sponsored by Meta, Google or TikTok.
 
@@ -18,10 +18,16 @@ When a release is available, download `social-account-switcher-v<version>.zip` f
 
 To try the development version, follow the build steps below and load `dist/` instead.
 
+### Upgrade from v0.1.x
+
+Keep the existing extension folder and browser profile. Extract the v0.2.0 candidate ZIP over that same folder, then open `chrome://extensions` and choose **Reload** for Social Account Switcher. Do not remove the extension to upgrade: removing it deletes its saved data.
+
+Open the extension's **Details** and check **Site access** for TikTok. Chrome may show a permission prompt or disable the extension after new host access; the exact behavior needs an owner check on the installed Chrome version. Confirm TikTok access before trying to save or switch a TikTok session. If access is missing, the popup shows guidance and leaves saved sessions unchanged. Verify that your existing accounts and custom labels remain after upgrading.
+
 ## Use
 
 1. Open the popup and set a master password on first use. Sign in to an account on the website yourself, including any verification steps.
-2. Select its platform in the popup and choose **Add the account I'm logged in to**. Give it a label you will recognize. Repeat for your other accounts.
+2. Open the popup on the website and choose **Add the account on this tab**. A matched profile can supply the name and a small avatar; otherwise the account keeps a fallback label and initials. Repeat for your other accounts. Rename a label whenever you want; later session updates preserve it.
 3. Choose a saved account to switch. Unlock the vault when asked. Use **Update session** after signing in again if a saved session expires; use the edit or delete button beside an account to rename or remove it.
 
 YouTube entries use accounts already signed in through Google. The popup still asks you to unlock when the vault is locked.
@@ -40,7 +46,7 @@ TikTok uses an unconfirmed candidate for the website's signed-in viewer state. A
 
 Read [known issues](docs/known-issues.md) before switching: YouTube navigation can cause a false expired-session result, a browser API that never answers can leave the worker busy, and the displayed steps follow a timer. Facebook/Instagram browser tests use local models. TikTok tests use a local rotating-session fixture and a candidate viewer schema; they do not verify the live site.
 
-With your own test accounts, complete the [manual checklist](docs/design.md#83-tests-and-manual-checks), including native **Load unpacked** installation, live Facebook/Instagram, YouTube and TikTok checks, and the first GitHub-hosted CI run. Automated tests do not replace those checks.
+With your own test accounts, complete the [manual checklist](docs/design.md#83-tests-and-manual-checks), including native **Load unpacked** installation and upgrade, live Facebook/Instagram, YouTube and TikTok checks, and GitHub-hosted CI. On each platform, add an account, check the captured name/avatar, rename it and switch back. Test **Update session** during expired-session recovery when that button is offered, and confirm your custom name survives. If the button is unavailable, record that check as untested. With two TikTok accounts, switch back and forth three times, restart Chrome and switch again. Record any login or security-check request; never send cookie values. Automated tests do not replace those checks.
 
 ## Develop
 

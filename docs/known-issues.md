@@ -1,4 +1,4 @@
-# Known issues in v0.1.0
+# Known issues in v0.2.0
 
 ## YouTube navigation during sign-in
 
@@ -19,6 +19,18 @@ The popup advances its step labels on a timer while the worker runs. They are no
 ## Simulated websites do not prove live-platform compatibility
 
 The Facebook and Instagram E2E sites are local models. They issue session cookies at login and do not rotate them during normal page loads or reloads. They exercise explicit session revocation, checkpoints, tab reloads and rollback, but do not reproduce Meta's servers or account-risk decisions. These tests do not establish compatibility with session rotation or invalidation on the real websites. A passing test does not guarantee that a real switch will avoid a checkpoint or remain compatible after a website change. Use your own test accounts for the manual checks before relying on the extension.
+
+## TikTok needs live-account validation
+
+TikTok is enabled in the popup, but its candidate signed-in viewer fields, challenge selectors and selected cookie boundary have not been confirmed with real signed-in accounts. Local rotating-session fixtures test the implementation against a model; they do not establish live-site compatibility. An unrecognized page state can prevent Add, Update session or switching. See the [candidate reader and cookie policy](design.md#13-tiktok-implementation-for-v020).
+
+TikTok may require a new login, CAPTCHA, 2FA or another security check after switching. Device binding, session rotation or revocation can invalidate both a saved session and its rollback snapshot. Switching changes the shared account in every TikTok tab in that browser profile and reloads those tabs; unsaved drafts can be lost. Use owned test accounts for the manual checks and report failures without sharing cookie values or credentials.
+
+## Profile fields and avatars are optional
+
+The profile readers use candidate page fields that websites can change or stop exposing. Missing, malformed, stale or mismatched data is discarded. Add and Update session can still save a valid session without profile metadata. Update replaces metadata, so unavailable fields and photos can disappear; it preserves custom names and refreshes automatic names.
+
+The extension reads pixels only from an image already loaded in the page, or accepts bounded embedded image data. It does not fetch an avatar URL. Images from a CDN on another origin often cannot be read because of canvas security rules, so the popup shows initials. Invalid or undecodable images also use initials. See [profile sources](profile-sources.md) for field candidates and image limits.
 
 ## Security hardening: password field while a request is pending
 

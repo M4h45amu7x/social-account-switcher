@@ -4,25 +4,28 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-10
+
 ### Added
 
-- Local TikTok browser tests rotate server-validated sessions on every authenticated page load. They cover repeated switches, rollback and worker recovery, checkpoint handling, migration and both wipe scopes.
-- TikTok session backend with a centralized cookie deny-list, verified rollback and recovery, and session wipe support. The manifest requests the `https://*.tiktok.com/*` host permission.
-- TikTok popup controls for saving, updating, switching, renaming and removing accounts, current-tab selection and badges, and host-access guidance. English and Thai catalogs include TikTok messages; sourced TikTok logos retain their original bytes.
-- A bounded, read-only candidate TikTok hydration reader and fixtures that distinguish the viewer from content authors. The live signed-in schema and cookie roles remain unconfirmed; owner real-account checks are required before releasing v0.2.0.
-- Read optional matched account names, handles, email and small local avatars from the captured Facebook, Instagram, YouTube or TikTok page when adding or updating a session; preserve custom labels. No profile network requests, permissions or dependencies were added. Both wipe scopes erase profile metadata. TikTok uses only the matched app-context user; live profile field names remain unconfirmed.
+- Save, update, switch, rename and remove TikTok sessions, with current-tab account badges and guidance when Chrome has not granted TikTok access. Switching affects all TikTok tabs in the browser profile and may require login or a manual security check.
+- Capture matched profile names, handles and email when available on Facebook, Instagram, YouTube or TikTok. Use the display name for automatic labels on Add and Update session; keep labels you have renamed yourself. Show a small local avatar when the captured image can be validated; otherwise show initials.
+- Add English and Thai TikTok messages and sourced TikTok logos. The manifest requests access to `https://*.tiktok.com/*`.
 
 ### Changed
 
-- Four platform tabs show the selected name in full and keep inactive tabs to their logo and account count. Full names remain in tooltips and accessible names, with keyboard navigation and reduced-motion support.
+- Show the selected platform name in full across four tabs. Inactive tabs show their logo and account count, with full names in tooltips and accessible names. Keyboard navigation and reduced-motion support remain available.
+- Re-encode captured avatars locally as PNG before saving them. Profile capture makes no independent network requests; images on another origin often fall back to initials. Saved profile metadata is unencrypted and both wipe scopes remove it.
 
 ### Fixed
 
-- Re-encode captured avatars locally as PNG before saving; reject incomplete stored images and appended payloads. Invalid images keep the initials fallback.
-- Restore Facebook/Instagram Add from unrelated tabs using existing cookies without borrowing profile metadata.
-- Clarify that session wipe preserves custom names only for retained YouTube shortcuts.
-- Supply the scripting dependency to the TikTok browser-test worker so the composed build passes type checking.
-- Verified TikTok switches and recovery wait for every reloaded tab before saving the session, so a slower response cannot leave an older token in the vault. Other platforms keep their existing load behavior.
+- Wait for all reloaded TikTok tabs before saving a switched or recovered session, so delayed responses cannot leave an older session token in the vault.
+- Keep unknown TikTok page states separate from expired sessions. Verify a bounded candidate viewer record instead of using content-author or profile-page identities.
+- Keep adding Facebook or Instagram accounts from unrelated tabs through existing cookies, without borrowing another tab's profile information.
+
+### Release notes
+
+- This release candidate still needs owner checks with real accounts before publication. TikTok's live viewer fields, challenge selectors and cookie boundary remain unconfirmed. Automated browser tests use local stand-ins, including rotating TikTok sessions, rollback, worker recovery, migration and both wipe scopes.
 
 ## [0.1.2] - 2026-11-10
 
@@ -74,7 +77,8 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 - Document local data handling, the two wipe scopes, switch deadlines and known issues. Keep live-account and installation checks in the manual handoff checklist.
 
-[Unreleased]: https://github.com/M4h45amu7x/social-account-switcher/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/M4h45amu7x/social-account-switcher/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/M4h45amu7x/social-account-switcher/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/M4h45amu7x/social-account-switcher/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/M4h45amu7x/social-account-switcher/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/M4h45amu7x/social-account-switcher/releases/tag/v0.1.0
