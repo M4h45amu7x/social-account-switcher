@@ -120,7 +120,7 @@ Loading defaults unknown settings, retains invalid/duplicate account records unc
 5. After five wrong unlocks, further attempts are delayed by 30 seconds using session-state counters. Successful unlock and wipe clear those counters.
 6. The worker validates request shapes and accepts messages only from this extension's own pages. Session storage access is restricted to trusted extension contexts. Labels and substitutions are escaped before rendering; message markup is constrained.
 7. No independent upload requests, remote code, fonts or runtime dependencies are part of the extension. Browser navigation and website reloads still send normal site traffic and cookies; YouTube coordinates appear in its sign-in URL. Static lint/zip checks and request-observing tests do not constitute proof against every possible indirect network path.
-8. The master password is excluded from HTML markup and cleared from popup state when setup/unlock is sent. The input's DOM property can retain it until the next redraw; disabling the field while waiting is planned for v0.1.1. See the security-hardening item in [known issues](known-issues.md).
+8. The master password is excluded from HTML markup and cleared from popup state when setup/unlock is sent. The input's DOM property can retain it until the next redraw. Disabling the password field while waiting is not implemented yet and is not scheduled for a specific release. See the security-hardening item in [known issues](known-issues.md).
 
 ## 7. Limits and known issues
 

@@ -22,7 +22,7 @@ The Facebook and Instagram E2E sites are local models. They issue session cookie
 
 ## Security hardening: password field while a request is pending
 
-Submitting a valid setup or unlock request clears the password from popup state. The input can still briefly hold it in its DOM property while the request is pending, until the next popup redraw. The password is absent from HTML markup and is cleared for every result, including success, failure and timeout. Disabling the password field while waiting is planned for v0.1.1.
+Submitting a valid setup or unlock request clears the password from popup state. The input can still briefly hold it in its DOM property while the request is pending, until the next popup redraw. The password is absent from HTML markup and is cleared for every result, including success, failure and timeout. Disabling the password field while waiting is not implemented yet and is not scheduled for a specific release.
 
 ## Browser and installation evidence
 
