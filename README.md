@@ -1,14 +1,14 @@
 # Social Account Switcher
 
-Switch between your own Facebook, Instagram and YouTube accounts from a Chrome extension popup. Log in on each website yourself; the extension saves a session you can return to later.
+Switch between your own Facebook, Instagram, YouTube and TikTok accounts from a Chrome extension popup. Log in on each website yourself; the extension saves a session you can return to later.
 
 ![Popup with fictional saved accounts](docs/images/popup.png)
 
-The screenshot uses fictional accounts. Version 0.1.2 is prepared for GitHub distribution; live account checks remain part of the manual handoff below.
+The screenshot uses fictional accounts. The package version remains 0.1.2 while v0.2.0 is in development. TikTok is enabled in this development build; its current-account reader and switching compatibility still need owner checks with real accounts before a v0.2.0 release.
 
-Facebook and Instagram sessions are encrypted on this device with a master password. YouTube uses Google's multi-account sign-in with a saved account index and optional channel ID; it does not replace Google cookies. There is no extension server, analytics or remote code. Account labels and identifiers are stored locally without encryption. See [PRIVACY.md](PRIVACY.md) for the privacy policy and [SECURITY.md](SECURITY.md) for reporting a vulnerability.
+Facebook, Instagram and TikTok sessions are encrypted on this device with a master password. YouTube uses Google's multi-account sign-in with a saved account index and optional channel ID; it does not replace Google cookies. There is no extension server, analytics or remote code. Account labels and identifiers are stored locally without encryption. See [PRIVACY.md](PRIVACY.md) for the privacy policy and [SECURITY.md](SECURITY.md) for reporting a vulnerability.
 
-Facebook and Instagram are trademarks of Meta Platforms, Inc.; YouTube is a trademark of Google LLC. The marks are not covered by this project’s MIT license. See [logo sources](public/brands/SOURCES.md). This project is not affiliated with, endorsed by or sponsored by Meta or Google.
+Facebook and Instagram are trademarks of Meta Platforms, Inc.; YouTube is a trademark of Google LLC; TikTok is a trademark of its respective owner. The marks are not covered by this project’s MIT license. See [logo sources](public/brands/SOURCES.md). This project is not affiliated with, endorsed by or sponsored by Meta, Google or TikTok.
 
 ## Install
 
@@ -28,7 +28,9 @@ YouTube entries use accounts already signed in through Google. The popup still a
 
 ## Limits and risks
 
-- Saved session cookies can grant account access. Use a strong, unique master password: someone who copies your browser profile can try to guess it offline. The password is not stored, and there is no recovery. Forgot password removes saved Facebook/Instagram sessions; Settings offers a separate wipe of all saved entries.
+TikTok uses an unconfirmed candidate for the website's signed-in viewer state. An unrecognized state asks you to verify the account on TikTok; it does not mark a saved account expired. TikTok may require login or a manual security check, and switching cannot prevent account restrictions. Switching changes the account across all TikTok tabs in the same browser profile. See [the TikTok design and owner checks](docs/design.md#13-tiktok-implementation-for-v020).
+
+- Saved session cookies can grant account access. Use a strong, unique master password: someone who copies your browser profile can try to guess it offline. The password is not stored, and there is no recovery. Forgot password removes saved Facebook/Instagram/TikTok sessions; Settings offers a separate wipe of all saved entries.
 - Logging out on a website can invalidate its saved session. A platform may also require another login or a checkpoint. Complete those steps yourself, then update the saved session.
 - Removing a saved entry does not log that account out of the website. Lock the vault when you finish, and protect your browser profile and device.
 - YouTube account indexes can change after logout. Switching checks the resulting account and reports a mismatch. If another YouTube navigation completes just before sign-in finishes, verification can report an expired session; sign in again and choose **Update session**.
@@ -36,9 +38,9 @@ YouTube entries use accounts already signed in through Google. The popup still a
 
 ## Known issues and manual checks
 
-Read [known issues](docs/known-issues.md) before switching: YouTube navigation can cause a false expired-session result, a browser API that never answers can leave the worker busy, and the displayed steps follow a timer. Facebook/Instagram browser tests use local models.
+Read [known issues](docs/known-issues.md) before switching: YouTube navigation can cause a false expired-session result, a browser API that never answers can leave the worker busy, and the displayed steps follow a timer. Facebook/Instagram browser tests use local models. TikTok tests use a local rotating-session fixture and a candidate viewer schema; they do not verify the live site.
 
-With your own test accounts, complete the [manual checklist](docs/design.md#83-tests-and-manual-checks), including native **Load unpacked** installation, live Facebook/Instagram and YouTube checks, and the first GitHub-hosted CI run. Automated tests do not replace those checks.
+With your own test accounts, complete the [manual checklist](docs/design.md#83-tests-and-manual-checks), including native **Load unpacked** installation, live Facebook/Instagram, YouTube and TikTok checks, and the first GitHub-hosted CI run. Automated tests do not replace those checks.
 
 ## Develop
 

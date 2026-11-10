@@ -795,15 +795,9 @@ describe('every error code has a message, in both languages, and no raw code is 
       seen.add(message);
     }
     // two codes may share a sentence on purpose (unknown/internal differ), but never all of them
-    // Four experimental backend-only codes use the generic message until T3 adds reviewed catalogs.
-    const backendOnly = [
-      'tiktok_disabled',
-      'no_tiktok_tab',
-      'tiktok_probe_unavailable',
-      'rollback_failed',
-    ];
-    for (const code of backendOnly)
-      expect(ERROR_TEXT[code as keyof typeof ERROR_TEXT]).toBe('err_unknown');
+    // Disabled remains a defensive backend code; enabled TikTok failures have specific guidance.
+    const backendOnly = ['tiktok_disabled'];
+    expect(ERROR_TEXT.tiktok_disabled).toBe('err_unknown');
     expect(seen.size).toBeGreaterThan(codes.length - 3 - backendOnly.length);
   });
 

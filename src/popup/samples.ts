@@ -67,6 +67,7 @@ export function samplePlatforms(lang: Language): Record<Platform, PlatformView> 
       ],
     },
     instagram: { activeId: null, openTabs: 1, busy: false, accounts: [] },
+    tiktok: { activeId: null, openTabs: 0, busy: false, accounts: [] },
     youtube: {
       activeId: 'yt1',
       openTabs: 3,
@@ -116,6 +117,9 @@ export type SampleName = (typeof SAMPLE_STATES)[number];
  * too, so every platform accent and every error variant is measured. They are not compared with the mockup.
  */
 export const EXTRA_STATES = [
+  'tt-list',
+  'tt-empty',
+  'tt-error',
   'delete-active',
   'add-bad',
   'rename-bad',
@@ -165,6 +169,38 @@ export function sampleState(
     s = reduce(s, a).state;
   };
   switch (name) {
+    case 'tt-empty':
+      go({ type: 'tab', platform: 'tiktok' });
+      break;
+    case 'tt-list':
+    case 'tt-error':
+      go({ type: 'tab', platform: 'tiktok' });
+      s = {
+        ...s,
+        here: { platform: 'tiktok', accountId: 'tt1' },
+        platforms: {
+          ...s.platforms,
+          tiktok: {
+            activeId: 'tt1',
+            openTabs: 2,
+            busy: false,
+            accounts: [
+              account('tt1', 'Alice · fixture', {
+                sub: { kind: 'id', tail: '0001' },
+                used: { kind: 'now' },
+                expired: false,
+              }),
+              account('tt2', 'Bob · fixture', {
+                sub: { kind: 'id', tail: '0002' },
+                used: { kind: 'justNow' },
+                expired: false,
+              }),
+            ],
+          },
+        },
+      };
+      if (name === 'tt-error') go({ type: 'failed', code: 'tiktok_probe_unavailable' });
+      break;
     case 'list':
       break;
     case 'empty':

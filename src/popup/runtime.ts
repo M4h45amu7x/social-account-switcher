@@ -28,6 +28,6 @@ export const activeTab = async (): Promise<{ id?: number; url?: string } | undef
     : undefined;
 };
 
-/** How many open tabs match these URL patterns (host permissions cover the three sites). */
+/** How many open tabs match these URL patterns (host permissions cover the platform sites). */
 export const countTabs = async (patterns: string[]): Promise<number> =>
   (await chrome.tabs.query({ url: patterns })).length;

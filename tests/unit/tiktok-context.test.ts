@@ -12,8 +12,8 @@ function context() {
     ],
     hostPermissions: [...MANIFEST_HOSTS, 'https://*.tiktok.com/*'],
   });
-  c.scripting.pageResults.set(1, { state: 'signed_in', viewerId: 'window-A' });
-  c.scripting.pageResults.set(2, { state: 'signed_in', viewerId: 'window-B' });
+  c.scripting.pageResults.set(1, { state: 'signed_in', viewerId: '1001' });
+  c.scripting.pageResults.set(2, { state: 'signed_in', viewerId: '1002' });
   const queries: unknown[] = [];
   c.tabs.query = async (options) => {
     queries.push(options);
@@ -37,14 +37,14 @@ function context() {
 
 test('TikTok explicit context reads that tab directly without querying other windows', async () => {
   const h = context();
-  expect(await h.platform.probe?.(2)).toEqual({ ok: true, value: 'window-B' });
+  expect(await h.platform.probe?.(2)).toEqual({ ok: true, value: '1002' });
   expect(h.c.scripting.calls.map((c) => c.tabId)).toEqual([2]);
   expect(h.queries).toEqual([]);
 });
 
 test('internal TikTok capture without context queries only the active current-window tab', async () => {
   const h = context();
-  expect(await h.platform.probe?.()).toEqual({ ok: true, value: 'window-B' });
+  expect(await h.platform.probe?.()).toEqual({ ok: true, value: '1002' });
   expect(h.queries).toEqual([
     { url: ['https://*.tiktok.com/*'], active: true, currentWindow: true },
   ]);
@@ -76,21 +76,21 @@ test('router forwards TikTok tabId for probe, both add/update viewer reads and s
   });
   expect(await h.send({ type: 'account.probe', platform: 'tiktok', tabId: 2 })).toEqual({
     ok: true,
-    value: { tail: 'ow-B', accountId: null },
+    value: { tail: '1002', accountId: null },
   });
   const added = await h.send({
     type: 'account.addCurrent',
     platform: 'tiktok',
-    label: 'B',
+    label: '102',
     tabId: 2,
   });
   expect(added.ok).toBe(true);
   if (!added.ok) throw new Error(added.error);
   const account = added.value as { id: string; platformUserId: string };
-  expect(account.platformUserId).toBe('window-B');
+  expect(account.platformUserId).toBe('1002');
   expect(await h.send({ type: 'account.probe', platform: 'tiktok', tabId: 2 })).toEqual({
     ok: true,
-    value: { tail: 'ow-B', accountId: account.id },
+    value: { tail: '1002', accountId: account.id },
   });
   expect(
     (await h.send({ type: 'account.updateSession', accountId: account.id, tabId: 2 })).ok,

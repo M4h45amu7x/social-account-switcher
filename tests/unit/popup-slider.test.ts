@@ -111,7 +111,7 @@ describe('the view draws the same indicator for the tabs and every segmented con
     renderPopup(root, { ...s, platform: 'instagram' }, createTranslator('en'));
     const tabs = root.querySelector<HTMLElement>('.tabs.slide');
     expect(tabs?.dataset.slide).toBe('tabs');
-    expect(tabs?.style.getPropertyValue('--n')).toBe('3');
+    expect(tabs?.style.getPropertyValue('--n')).toBe('4');
     expect(tabs?.style.getPropertyValue('--i')).toBe('1');
     expect(tabs?.firstElementChild?.className).toBe('thumb');
     expect(root.querySelector('.pill')).toBeNull();
@@ -130,4 +130,33 @@ describe('the view draws the same indicator for the tabs and every segmented con
       expect(seg(key)?.querySelectorAll('button[aria-pressed="true"]')).toHaveLength(1);
     }
   });
+});
+
+test('variable-width platform tabs park at the measured selection and glide from the previous geometry', () => {
+  const add = (slot: number, left: number, width: number) => {
+    const el = track('tabs', slot, 4);
+    el.getBoundingClientRect = () => ({ left: 10 }) as DOMRect;
+    const button = document.createElement('button');
+    button.className = 'tab';
+    button.setAttribute('aria-selected', 'true');
+    button.getBoundingClientRect = () => ({ left: left + 10, width }) as DOMRect;
+    el.append(button);
+    document.body.replaceChildren(el);
+    return el;
+  };
+  add(0, 4, 140);
+  syncSliders(document.body);
+  const next = add(3, 188, 144);
+  syncSliders(document.body);
+  expect(next.querySelector<HTMLElement>('.thumb')?.style.left).toBe('188px');
+  expect(next.querySelector<HTMLElement>('.thumb')?.style.width).toBe('144px');
+  expect(calls[0]?.keyframes).toEqual([
+    { translate: '-184px 0', width: '140px' },
+    { translate: '0 0', width: '144px' },
+  ]);
+  setReduced(true);
+  const reduced = add(1, 60, 136);
+  syncSliders(document.body);
+  expect(calls).toHaveLength(1);
+  expect(reduced.querySelector<HTMLElement>('.thumb')?.style.left).toBe('60px');
 });

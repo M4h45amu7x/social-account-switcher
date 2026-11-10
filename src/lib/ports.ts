@@ -159,3 +159,8 @@ export interface ScriptingApi {
     func: () => unknown;
   }): Promise<{ frameId: number; result?: unknown }[]>;
 }
+
+/** Read-only host grant check; no additional manifest permission is required. */
+export interface PermissionsApi {
+  contains(permissions: { origins: string[] }): Promise<boolean>;
+}

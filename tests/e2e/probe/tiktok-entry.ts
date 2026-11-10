@@ -3,6 +3,7 @@
 import {
   cookiesApi,
   localStorageApi,
+  permissionsApi,
   runtimeApi,
   scriptingApi,
   sessionStorageApi,
@@ -49,7 +50,11 @@ const deps = {
   platforms: {
     ...COOKIE_PLATFORMS,
     tiktok: createTikTokPlatform(
-      { tabs: tabsApi, scripting: scriptingApi },
+      {
+        tabs: tabsApi,
+        scripting: scriptingApi,
+        hasPermission: () => permissionsApi.contains({ origins: ['https://*.tiktok.com/*'] }),
+      },
       { ...TIKTOK_EXPERIMENT, enabled: true },
     ),
   },

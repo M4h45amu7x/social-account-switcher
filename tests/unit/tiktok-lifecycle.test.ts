@@ -122,12 +122,12 @@ test('v0.1.0 migration defaults TikTok active and retains old entries, vault and
 
 test('TikTok add/update uses viewer ID, captures sessions, rejects unknown or changed viewer and duplicates', async () => {
   const h = await setup();
-  const id = await h.add('viewerA');
-  expect((await h.store()).accounts[0]?.platformUserId).toBe('viewerA');
+  const id = await h.add('1001');
+  expect((await h.store()).accounts[0]?.platformUserId).toBe('1001');
   expect(
     await h.send({ type: 'account.addCurrent', platform: 'tiktok', label: 'duplicate' }),
   ).toEqual({ ok: false, error: 'duplicate' });
-  await h.login('viewerA', 'rotated');
+  await h.login('1001', 'rotated');
   expect((await h.send({ type: 'account.updateSession', accountId: id })).ok).toBe(true);
   expect((await h.vault())[id]?.cookies[0]?.value).toBe('rotated');
   h.c.scripting.pageResults.set(1, { state: 'unknown' });
@@ -139,7 +139,7 @@ test('TikTok add/update uses viewer ID, captures sessions, rejects unknown or ch
     ok: false,
     error: 'tiktok_probe_unavailable',
   });
-  await h.login('other');
+  await h.login('1003');
   expect(await h.send({ type: 'account.updateSession', accountId: id })).toEqual({
     ok: false,
     error: 'wrong_account',
@@ -153,9 +153,9 @@ test('TikTok add/update uses viewer ID, captures sessions, rejects unknown or ch
 
 test('switch saves departing rotation and verified target rotation, leaves device cookies unchanged', async () => {
   const h = await setup();
-  const a = await h.add('A');
-  const b = await h.add('B');
-  await h.login('B', 'B-new');
+  const a = await h.add('101');
+  const b = await h.add('102');
+  await h.login('102', '102-new');
   await h.c.cookies.set({
     url: 'https://www.tiktok.com/',
     path: '/',
@@ -167,8 +167,8 @@ test('switch saves departing rotation and verified target rotation, leaves devic
   });
   h.c.tabs.onLoad = async () => {
     const token = h.c.cookies.all().find((c) => c.name === 'sid_tt')?.value;
-    if (token === 'A') {
-      await h.login('A', 'A-new');
+    if (token === '101') {
+      await h.login('101', '101-new');
     }
   };
   expect(await switchAccount(h.deps, 'tiktok', a)).toEqual({
@@ -176,11 +176,11 @@ test('switch saves departing rotation and verified target rotation, leaves devic
     value: { reloadedTabs: 1 },
   });
   const v = await h.vault();
-  expect(v[a]?.cookies[0]?.value).toBe('A-new');
-  expect(v[b]?.cookies[0]?.value).toBe('B-new');
+  expect(v[a]?.cookies[0]?.value).toBe('101-new');
+  expect(v[b]?.cookies[0]?.value).toBe('102-new');
   for (const name of ['multi_sids', 'tt_csrf_token', 'unrecognized-login-companion']) {
-    expect(v[a]?.cookies.find((c) => c.name === name)?.value).toBe(`${name}:A-new`);
-    expect(v[b]?.cookies.find((c) => c.name === name)?.value).toBe(`${name}:B-new`);
+    expect(v[a]?.cookies.find((c) => c.name === name)?.value).toBe(`${name}:101-new`);
+    expect(v[b]?.cookies.find((c) => c.name === name)?.value).toBe(`${name}:102-new`);
   }
   expect((await h.store()).active.tiktok).toBe(a);
   expect(h.c.cookies.all().find((c) => c.name === 'msToken')?.value).toBe('device');
@@ -191,13 +191,13 @@ test.each(['unknown', 'logged_out', 'checkpoint'])(
   'post-load %s is distinct and rollback is scoped',
   async (state) => {
     const h = await setup();
-    const a = await h.add('A');
-    await h.add('B');
+    const a = await h.add('101');
+    await h.add('102');
     h.c.tabs.onLoad = async () => {
       const token = h.c.cookies.all().find((c) => c.name === 'sid_tt')?.value;
       h.c.scripting.pageResults.set(
         1,
-        token === 'A' ? { state } : { state: 'signed_in', viewerId: 'B' },
+        token === '101' ? { state } : { state: 'signed_in', viewerId: '102' },
       );
     };
     const result = await switchAccount(h.deps, 'tiktok', a);
@@ -214,11 +214,11 @@ test.each(['unknown', 'logged_out', 'checkpoint'])(
       state === 'logged_out' ? 'expired' : state === 'checkpoint' ? 'checkpoint' : 'ok',
     );
     expect(h.c.cookies.all().find((c) => c.name === 'sid_tt')?.value).toBe(
-      state === 'checkpoint' ? 'A' : 'B',
+      state === 'checkpoint' ? '101' : '102',
     );
     for (const name of ['multi_sids', 'tt_csrf_token', 'unrecognized-login-companion']) {
       expect(h.c.cookies.all().find((c) => c.name === name)?.value).toBe(
-        `${name}:${state === 'checkpoint' ? 'A' : 'B'}`,
+        `${name}:${state === 'checkpoint' ? '101' : '102'}`,
       );
     }
   },
@@ -226,9 +226,12 @@ test.each(['unknown', 'logged_out', 'checkpoint'])(
 
 test('disabled experiment refuses probe/add/switch before cookies or journals change', async () => {
   const h = await setup();
-  const a = await h.add('A');
-  await h.add('B');
-  h.deps.platforms = { ...h.deps.platforms, tiktok: createTikTokPlatform(h.c) };
+  const a = await h.add('101');
+  await h.add('102');
+  h.deps.platforms = {
+    ...h.deps.platforms,
+    tiktok: createTikTokPlatform(h.c, { ...TIKTOK_EXPERIMENT, enabled: false }),
+  };
   const before = h.c.cookies.all();
   const data = h.c.storage.local.dump();
   expect(await switchAccount(h.deps, 'tiktok', a)).toEqual({ ok: false, error: 'tiktok_disabled' });
@@ -248,7 +251,7 @@ test.each(['sessions', 'all'] as const)(
   'wipe %s removes TikTok sessions/journal/key, sessions-only keeps YouTube',
   async (scope) => {
     const h = await setup();
-    await h.add('A');
+    await h.add('101');
     const s = await h.store();
     s.accounts.push({
       id: 'yt',
@@ -272,14 +275,14 @@ test.each(['sessions', 'all'] as const)(
 
 test('recovery verifies restored viewer; unknown/invalid backup retains journal, valid backup clears it', async () => {
   const h = await setup();
-  await h.add('A');
+  await h.add('101');
   const cookies = (await h.vault())['acc-1']?.cookies ?? [];
   const key = await getKey(h.deps.session);
   if (!key) throw new Error('locked');
   await writeJournal(h.deps.session, {
     platform: 'tiktok',
     fromId: null,
-    fromUserId: 'A',
+    fromUserId: '101',
     toId: 'x',
     startedAt: NOW,
     backup: await sealCookies(key, cookies),
@@ -287,15 +290,15 @@ test('recovery verifies restored viewer; unknown/invalid backup retains journal,
   h.c.scripting.pageResults.set(1, { state: 'unknown' });
   expect((await recoverJournal(h.deps)).waiting).toContain('tiktok');
   expect(await readJournal(h.deps.session, 'tiktok')).not.toBeNull();
-  h.c.scripting.pageResults.set(1, { state: 'signed_in', viewerId: 'A' });
+  h.c.scripting.pageResults.set(1, { state: 'signed_in', viewerId: '101' });
   expect((await recoverJournal(h.deps)).rolledBack).toContain('tiktok');
   expect(await readJournal(h.deps.session, 'tiktok')).toBeNull();
 });
 
 test('failed rollback keeps the original journal and refuses a second switch', async () => {
   const h = await setup();
-  const a = await h.add('A');
-  await h.add('B');
+  const a = await h.add('101');
+  await h.add('102');
   h.c.tabs.onLoad = async () => {
     h.c.scripting.pageResults.set(1, { state: 'unknown' });
   };
@@ -303,7 +306,7 @@ test('failed rollback keeps the original journal and refuses a second switch', a
   const journal = await readJournal(h.deps.session, 'tiktok');
   expect(journal).not.toBeNull();
   const before = h.c.cookies.all();
-  await h.login('B');
+  await h.login('102');
   expect(await switchAccount(h.deps, 'tiktok', a)).toEqual({ ok: false, error: 'rollback_failed' });
   expect(await readJournal(h.deps.session, 'tiktok')).toEqual(journal);
   expect(h.c.cookies.all()).toEqual(before);
@@ -313,7 +316,7 @@ test('capture rejects a viewer changing around the cookie snapshot', async () =>
   const h = await setup();
   let calls = 0;
   h.c.scripting.executeScript = async () => [
-    { frameId: 0, result: { state: 'signed_in', viewerId: ++calls === 1 ? 'A' : 'B' } },
+    { frameId: 0, result: { state: 'signed_in', viewerId: ++calls === 1 ? '101' : '102' } },
   ];
   const before = h.c.storage.local.dump();
   expect(await h.send({ type: 'account.addCurrent', platform: 'tiktok', label: 'race' })).toEqual({
@@ -325,7 +328,7 @@ test('capture rejects a viewer changing around the cookie snapshot', async () =>
 
 test('recovery preserves device cookies and refuses forged backup before mutation', async () => {
   const h = await setup();
-  await h.add('A');
+  await h.add('101');
   const key = await getKey(h.deps.session);
   if (!key) throw new Error('locked');
   const cookie = (await h.vault())['acc-1']?.cookies[0];
@@ -334,7 +337,7 @@ test('recovery preserves device cookies and refuses forged backup before mutatio
   await writeJournal(h.deps.session, {
     platform: 'tiktok',
     fromId: null,
-    fromUserId: 'A',
+    fromUserId: '101',
     toId: 'x',
     startedAt: NOW,
     backup: await sealCookies(key, [{ ...cookie, domain: '.tiktok.com.evil.test' }]),
@@ -346,8 +349,8 @@ test('recovery preserves device cookies and refuses forged backup before mutatio
 
 test('a rejected companion-cookie removal cannot produce a successful mixed session', async () => {
   const h = await setup();
-  const a = await h.add('A');
-  await h.add('B');
+  const a = await h.add('101');
+  await h.add('102');
   await h.c.cookies.set({
     url: 'https://www.tiktok.com/',
     domain: '.tiktok.com',
@@ -374,8 +377,8 @@ test.each(['rejected', 'timed_out'])(
   '%s reload cannot verify stale viewer DOM or clear recovery journal',
   async (mode) => {
     const h = await setup();
-    const a = await h.add('A');
-    await h.login('A', 'rotated-current');
+    const a = await h.add('101');
+    await h.login('101', 'rotated-current');
     h.c.tabs.reload = async () => {
       if (mode === 'rejected') throw new Error('reload denied');
     };

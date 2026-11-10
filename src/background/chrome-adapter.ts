@@ -4,6 +4,7 @@
 import type {
   CookiesApi,
   LifecycleApi,
+  PermissionsApi,
   RuntimeApi,
   ScriptingApi,
   SessionStorageApi,
@@ -64,4 +65,8 @@ export const runtimeApi: RuntimeApi = {
       return true;
     });
   },
+};
+
+export const permissionsApi: PermissionsApi = {
+  contains: (permissions) => chrome.permissions.contains(permissions),
 };

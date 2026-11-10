@@ -55,7 +55,7 @@ describe('the remembered tab', () => {
     expect(readPlatformCache(cache)).toBe('youtube');
   });
   test('anything that is not a platform is ignored', () => {
-    for (const v of ['tiktok', '', 'Facebook', '__proto__', 'facebook ']) {
+    for (const v of ['other', '', 'Facebook', '__proto__', 'facebook ']) {
       expect(readPlatformCache(cacheOf({ [PLATFORM_CACHE_KEY]: v }).cache)).toBeNull();
     }
   });

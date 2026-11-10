@@ -83,7 +83,7 @@ const label = (tab: string) => `[data-testid="tab-${tab}"] > span:not(.count)`;
 
 for (const theme of THEMES) {
   test.describe(`${theme} theme`, () => {
-    test('tab switch: every tab name stays readable while the thumb is half way', async ({
+    test('tab switch: selected name and inactive marks stay readable while the thumb is half way', async ({
       context,
       extensionId,
     }) => {
@@ -101,7 +101,7 @@ for (const theme of THEMES) {
           .map((e) => e.className || e.tagName),
       );
       const mid = {
-        facebook: await ink(page, label('facebook')),
+        facebook: await ink(page, '[data-testid="tab-facebook"] > .mark'),
         instagram: await ink(page, label('instagram')),
       };
       await page.screenshot({
@@ -115,7 +115,7 @@ for (const theme of THEMES) {
       });
       // the same labels once everything has settled: half way must show (nearly) as much text
       const done = {
-        facebook: await ink(page, label('facebook')),
+        facebook: await ink(page, '[data-testid="tab-facebook"] > .mark'),
         instagram: await ink(page, label('instagram')),
       };
       expect(done.facebook).toBeGreaterThan(40);
@@ -278,6 +278,7 @@ for (const theme of THEMES) {
     await open(page, extensionId, { state: 'list', lang: 'en', theme });
     await run('tabs', () => page.getByTestId('tab-instagram').click());
     await run('tabs', () => page.getByTestId('tab-youtube').click());
+    await run('tabs', () => page.getByTestId('tab-tiktok').click());
     await run('tabs', () => page.getByTestId('tab-facebook').click());
     await open(page, extensionId, { state: 'settings', lang: 'en', theme });
     for (const group of ['language', 'theme'] as const) {

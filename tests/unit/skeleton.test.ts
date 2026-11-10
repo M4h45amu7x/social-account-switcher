@@ -32,6 +32,7 @@ const tabs = {
   update: mock(async () => undefined),
   create: mock(async () => ({ active: true })),
 };
+const permissions = { contains: mock(async () => true) };
 const scripting = {
   executeScript: mock(async (): Promise<{ frameId: number; result?: unknown }[]> => []),
 };
@@ -47,6 +48,7 @@ Object.assign(globalThis, {
     cookies,
     tabs,
     scripting,
+    permissions,
   },
 });
 const { hardenSessionStorage, start, workerDeps } = await import(
@@ -206,4 +208,19 @@ test('the worker wires real adapters, a clock, UUIDs and the YouTube switcher', 
   expect(tabs.get).toHaveBeenCalledWith(6);
   // create() gives back a tab without an id here, so there is nothing to switch.
   expect(await deps.youtube.switchTo({ authuser: 0 })).toEqual({ ok: false, error: 'invalid_tab' });
+});
+
+test('the real TikTok worker checks the actual host grant before reading a contextual tab', async () => {
+  const platform = workerDeps().platforms?.tiktok;
+  const reads = tabs.get.mock.calls.length;
+  permissions.contains.mockImplementationOnce(async () => false);
+  expect(await platform?.probe?.(6)).toEqual({ ok: false, error: 'tiktok_permission' });
+  expect(permissions.contains).toHaveBeenLastCalledWith({ origins: ['https://*.tiktok.com/*'] });
+  expect(tabs.get.mock.calls.length).toBe(reads);
+  tabs.get.mockImplementationOnce(async () => ({ id: 6, url: 'https://www.tiktok.com/' }));
+  tabs.get.mockImplementationOnce(async () => ({ id: 6, url: 'https://www.tiktok.com/' }));
+  scripting.executeScript.mockImplementationOnce(async () => [
+    { frameId: 0, result: { state: 'signed_in', viewerId: '7100000000000000001' } },
+  ]);
+  expect(await platform?.probe?.(6)).toEqual({ ok: true, value: '7100000000000000001' });
 });

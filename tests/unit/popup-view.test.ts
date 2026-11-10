@@ -104,6 +104,7 @@ describe('screens', () => {
       '3',
       '0',
       '3',
+      '0',
     ]);
   });
 
@@ -478,6 +479,9 @@ describe('layout facts that tests rely on', () => {
 
 describe('extra states used by the contrast gate render in en and th', () => {
   const LANDMARK_EXTRA: Record<ExtraName, string> = {
+    'tt-list': 'account-list',
+    'tt-empty': 'empty',
+    'tt-error': 'notice',
     'delete-active': 'confirm-delete',
     'add-bad': 'add-hint',
     'rename-bad': 'rename-hint',
@@ -543,7 +547,9 @@ describe('official logos', () => {
       const marks = [...root.querySelectorAll<HTMLImageElement>('img.mark')];
       expect(marks.length).toBeGreaterThan(0);
       for (const m of marks) {
-        expect(m.getAttribute('src')).toMatch(/^\/brands\/(facebook|instagram|youtube)\.svg$/);
+        expect(m.getAttribute('src')).toMatch(
+          /^\/brands\/(facebook|instagram|youtube|tiktok)\.svg$/,
+        );
         expect(m.getAttribute('alt')).toBe('');
         expect(m.getAttribute('aria-hidden')).toBe('true');
       }

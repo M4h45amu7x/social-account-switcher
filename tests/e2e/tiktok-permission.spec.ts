@@ -42,14 +42,14 @@ test('TikTok: missing actual host permission refuses probe/add without changing 
     expect(
       await sw.evaluate(() => chrome.permissions.contains({ origins: ['https://*.tiktok.com/*'] })),
     ).toBe(false);
-    // Without the host grant, Chrome withholds this tab's URL, so the contextual reader refuses it.
+    // The grant check identifies denied access before Chrome withholds this tab's URL.
     expect(await send(popup, { type: 'account.probe', platform: 'tiktok', tabId })).toEqual({
       ok: false,
-      error: 'no_tiktok_tab',
+      error: 'tiktok_permission',
     });
     expect(
       await send(popup, { type: 'account.addCurrent', platform: 'tiktok', label: 'Denied', tabId }),
-    ).toEqual({ ok: false, error: 'no_tiktok_tab' });
+    ).toEqual({ ok: false, error: 'tiktok_permission' });
     expect(await sw.evaluate(() => chrome.storage.local.get(null))).toEqual(stored);
     expect(await launched.context.cookies()).toEqual(cookies);
     expect(await sw.evaluate(() => chrome.storage.session.get('journal.tiktok'))).toEqual({});

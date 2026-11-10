@@ -1,22 +1,22 @@
-// Popup-visible platforms and their website matcher. The disabled TikTok backend reserves a host
-// permission separately; it is intentionally absent here until its popup integration is enabled.
-// Pure: no browser globals or DOM.
 import type { PopupPlatform as Platform } from './store';
 
 export interface Site {
   readonly platform: Platform;
   /** The registrable domain. The host permission covers it and every subdomain. */
   readonly domain: string;
+  readonly httpsOnly?: boolean;
 }
 
 export const SITES: readonly Site[] = [
   { platform: 'facebook', domain: 'facebook.com' },
   { platform: 'instagram', domain: 'instagram.com' },
   { platform: 'youtube', domain: 'youtube.com' },
+  { platform: 'tiktok', domain: 'tiktok.com', httpsOnly: true },
 ];
 
 /** The match pattern of a site, as in host_permissions and tabs.query({ url }). */
-export const hostPattern = (site: Site): string => `*://*.${site.domain}/*`;
+export const hostPattern = (site: Site): string =>
+  `${site.httpsOnly ? 'https' : '*'}://*.${site.domain}/*`;
 
 /**
  * The platform whose site `url` is on, or null. Matches the domain itself and its subdomains
@@ -38,6 +38,7 @@ export function platformOfUrl(
   // URL lower-cases the host and decodes IDNA; a trailing dot names the same host
   const host = parsed.hostname.replace(/\.$/, '');
   for (const site of sites) {
+    if (site.httpsOnly && parsed.protocol !== 'https:') continue;
     const domain = site.domain.toLowerCase();
     if (host === domain || host.endsWith(`.${domain}`)) return site.platform;
   }

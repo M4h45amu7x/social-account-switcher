@@ -48,6 +48,7 @@ export interface YoutubeSwitcher {
 export type CookieProbeError =
   | 'tiktok_disabled'
   | 'no_tiktok_tab'
+  | 'tiktok_permission'
   | 'tiktok_probe_unavailable'
   | 'checkpoint'
   | 'api_error';

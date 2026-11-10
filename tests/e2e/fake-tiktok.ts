@@ -1,12 +1,33 @@
-// Synthetic viewer contract only. Tokens are random server-side capabilities, never viewer IDs.
+// Local model of the unconfirmed app-context candidate. Tokens are server-side capabilities, never viewer IDs.
 // Grace accepts retired generations for 1,000 ms after retirement, without extending their expiry
 // on reuse. This permits concurrent documents; strict mode accepts only the current generation.
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import type { SiteHandler } from './https-sites';
 
 export const TOKEN_GRACE_MS = 1000;
 export const TT = 'www.tiktok.com';
 export const TT_OTHER = 'news.example.org';
+// Keep fictional display handles separate from immutable numeric IDs.
+export const fixtureUid = (user: string): string => {
+  if (/^[1-9][0-9]{0,31}$/.test(user)) return user;
+  if (user === 'alice') return '7100000000000000001';
+  if (user === 'bob') return '7100000000000000002';
+  return (
+    BigInt(`0x${createHash('sha256').update(user).digest('hex').slice(0, 15)}`) + 1n
+  ).toString();
+};
+const hydration = (user: string | null) => ({
+  __DEFAULT_SCOPE__: {
+    'webapp.app-context': {
+      isLogin: user !== null,
+      user: user === null ? null : { uid: fixtureUid(user), uniqueId: user },
+    },
+    'webapp.video-detail': {
+      author: { uid: '9999999999999999999', uniqueId: 'misleading.author' },
+      userInfo: { user: { uid: '8888888888888888888' } },
+    },
+  },
+});
 export type ViewerMode = 'normal' | 'missing' | 'malformed' | 'logout' | 'checkpoint' | 'captcha';
 interface Chain {
   user: string;
@@ -66,7 +87,7 @@ export function fakeTikTok() {
         );
         const sessionCookies = (chain: Chain) => [
           `sessionid=${chain.current}; Domain=.tiktok.com; Path=/; Secure; HttpOnly; SameSite=Lax`,
-          `uid_tt=${chain.user}; Domain=.tiktok.com; Path=/; Secure; SameSite=Lax`,
+          `uid_tt=${fixtureUid(chain.user)}; Domain=.tiktok.com; Path=/; Secure; SameSite=Lax`,
           `companion_unknown=${chain.current}; Path=/; Secure; HttpOnly; SameSite=Strict`,
           `partition_session=${chain.user}; Path=/; Secure; SameSite=None; Partitioned`,
           `multi_sids=${chain.user}; Domain=.tiktok.com; Path=/; Secure; SameSite=Lax`,
@@ -114,7 +135,7 @@ export function fakeTikTok() {
             'sessionid=; Domain=.tiktok.com; Path=/; Max-Age=0; Secure; HttpOnly',
           );
           res.end(
-            '<h1 id="who" data-user="">Log in</h1><script id="__SAM_TIKTOK_VIEWER__" type="application/json">{"state":"logged_out"}</script>',
+            '<h1 id="who" data-user="">Log in</h1><script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">{"__DEFAULT_SCOPE__":{"webapp.app-context":{"isLogin":false,"user":null}}}</script>',
           );
           return;
         }
@@ -128,15 +149,9 @@ export function fakeTikTok() {
         const state =
           mode === 'malformed'
             ? '{broken'
-            : JSON.stringify(
-                mode === 'logout'
-                  ? { state: 'logged_out' }
-                  : mode === 'checkpoint' || mode === 'captcha'
-                    ? { state: 'checkpoint' }
-                    : { state: 'signed_in', viewerId: chain.user },
-              );
+            : JSON.stringify(hydration(mode === 'logout' ? null : chain.user));
         res.end(
-          `<!doctype html><meta charset="utf-8"><title>TikTok fixture</title><h1 id="who" data-user="${escapeHtml(chain.user)}" data-generation="${chain.generation}">${escapeHtml(chain.user)}</h1><a href="/video/next">Next</a><p id="manual">${mode === 'captcha' ? 'Complete the captcha yourself' : mode === 'checkpoint' ? 'Verify your identity in this tab' : ''}</p><script type="application/json" id="feed">{"author":{"id":"impostor"},"profile":{"id":"impostor"},"viewerId":"impostor"}</script>${mode === 'missing' ? '' : `<script id="__SAM_TIKTOK_VIEWER__" type="application/json">${state}</script>`}`,
+          `<!doctype html><meta charset="utf-8"><title>TikTok fixture</title><h1 id="who" data-user="${escapeHtml(chain.user)}" data-generation="${chain.generation}">${escapeHtml(chain.user)}</h1><a href="/video/next">Next</a>${mode === 'captcha' ? '<div id="captcha_container"></div>' : mode === 'checkpoint' ? '<div id="verifyEle"></div>' : ''}<p id="manual">${mode === 'captcha' ? 'Complete the captcha yourself' : mode === 'checkpoint' ? 'Verify your identity in this tab' : ''}</p><script type="application/json" id="feed">{"author":{"id":"impostor"},"profile":{"id":"impostor"},"viewerId":"impostor"}</script>${mode === 'missing' ? '' : `<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">${state}</script>`}`,
         );
       };
       const delay = fake.delays.get(url.pathname) ?? 0;

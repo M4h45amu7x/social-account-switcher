@@ -131,7 +131,7 @@ test('TikTok: viewer traps, unknown/malformed state, explicit logout, no-tab and
     const { bob } = await setupPair(h);
     expect(
       await send(h.popup, { type: 'account.probe', platform: 'tiktok', tabId: h.tabId }),
-    ).toEqual({ ok: true, value: { tail: 'bob', accountId: bob } });
+    ).toEqual({ ok: true, value: { tail: '0002', accountId: bob } });
     for (const mode of ['missing', 'malformed'] as const) {
       h.fake.modes.set('bob', mode);
       await h.tab.reload();

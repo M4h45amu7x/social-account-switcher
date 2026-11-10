@@ -97,7 +97,7 @@ export function mountPopup(deps: AppDeps): App {
   reconcileTheme(html, cache, state.settings.theme);
   let tr = createTranslator(resolveLanguage(state.settings.language, deps.uiLanguage));
 
-  // Set by Esc: after the next redraw, focus goes back to the button that opened what was closed.
+  // Restore focus after asynchronous redraws from Esc or platform keyboard navigation.
   let returnFocusTo: string | null = null;
 
   const draw = (): void => {
@@ -172,6 +172,31 @@ export function mountPopup(deps: AppDeps): App {
 
   root.addEventListener('keydown', (ev) => {
     const target = ev.target;
+    if (target instanceof HTMLButtonElement && target.matches('[data-tab]') && !target.disabled) {
+      const tabs = [...root.querySelectorAll<HTMLButtonElement>('[data-tab]')];
+      const index = tabs.indexOf(target);
+      const next =
+        ev.key === 'Home'
+          ? 0
+          : ev.key === 'End'
+            ? tabs.length - 1
+            : ev.key === 'ArrowRight'
+              ? (index + 1) % tabs.length
+              : ev.key === 'ArrowLeft'
+                ? (index + tabs.length - 1) % tabs.length
+                : -1;
+      const button = tabs[next];
+      if (button) {
+        ev.preventDefault();
+        returnFocusTo = `[data-tab="${button.dataset.tab}"]`;
+        button.click();
+        if (next === index) {
+          button.focus();
+          returnFocusTo = null;
+        }
+      }
+      return;
+    }
     if (!(target instanceof HTMLInputElement)) return;
     const field = CHARS[target.id];
     if (ev.key === 'Enter') {

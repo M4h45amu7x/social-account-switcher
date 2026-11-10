@@ -112,7 +112,7 @@ export interface Step {
   effects: Effect[];
 }
 
-const PLATFORM_ORDER: readonly Platform[] = ['facebook', 'instagram', 'youtube'];
+const PLATFORM_ORDER: readonly Platform[] = ['facebook', 'instagram', 'youtube', 'tiktok'];
 
 /** Reads a click target's data-* attributes (see view.ts) into an action. */
 export function parseAction(el: HTMLElement): UserAction | null {
@@ -461,7 +461,7 @@ export function reduce(s: PopupState, a: PopupAction): Step {
     case 'wipe-cancel':
       return same({ ...s, lock: { ...s.lock, wipeConfirm: false } }, 'expand');
     case 'wipe-ok': {
-      const cleared = clearPlatforms(calm(s), ['facebook', 'instagram']);
+      const cleared = clearPlatforms(calm(s), ['facebook', 'instagram', 'tiktok']);
       return same({ ...cleared, page: 'main', platform: 'facebook' }, 'page', {
         dir: -1,
         effects: [{ type: 'wipe', scope: 'sessions' }],

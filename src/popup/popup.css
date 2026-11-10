@@ -268,10 +268,16 @@ button {
 }
 
 .tab .label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: none;
+}
+.tab[aria-selected="true"] .label {
+  display: block;
+  flex: none;
   white-space: nowrap;
+}
+.tabs .tab {
+  gap: 4px;
+  padding: 7px 3px;
 }
 
 .tab .count {
@@ -1077,4 +1083,10 @@ button {
   .steps i {
     transition: none;
   }
+}
+
+/* The supplied full-color TikTok mark contains white paths; a dark tile preserves the source colors in both themes. */
+img[src$="/tiktok.svg"] {
+  background: #161823;
+  border-radius: 3px;
 }

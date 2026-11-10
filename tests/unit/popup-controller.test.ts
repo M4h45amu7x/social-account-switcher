@@ -530,9 +530,10 @@ describe('B5b: results from the worker', () => {
       platforms: {
         facebook: { accounts: s.platforms.facebook.accounts, activeId: 'fb1', busy: false },
         instagram: { accounts: [], activeId: null, busy: false },
+        tiktok: { accounts: [], activeId: null, busy: false },
         youtube: { accounts: s.platforms.youtube.accounts, activeId: 'yt1', busy: false },
       },
-      openTabs: { facebook: 2, instagram: 1, youtube: 3 },
+      openTabs: { facebook: 2, instagram: 1, youtube: 3, tiktok: 0 },
     };
     expect(reduce(s, { type: 'loaded', data }).render).toBe(false);
     const editing = reduce(s, { type: 'rename', id: 'fb2' }).state;
@@ -574,6 +575,7 @@ describe('B5b: results from the worker', () => {
             activeId: s.platforms.instagram.activeId,
             busy: false,
           },
+          tiktok: { accounts: [], activeId: null, busy: false },
           youtube: {
             accounts: s.platforms.youtube.accounts,
             activeId: s.platforms.youtube.activeId,
@@ -584,6 +586,7 @@ describe('B5b: results from the worker', () => {
           facebook: s.platforms.facebook.openTabs,
           instagram: s.platforms.instagram.openTabs,
           youtube: s.platforms.youtube.openTabs,
+          tiktok: 0,
         },
       };
       // nothing differs: no redraw (a caret in a field is not disturbed)

@@ -8,6 +8,7 @@ import {
   cookiesApi,
   lifecycleApi,
   localStorageApi,
+  permissionsApi,
   runtimeApi,
   scriptingApi,
   sessionStorageApi,
@@ -45,7 +46,11 @@ export function workerDeps(): RouterDeps {
     session: sessionStorageApi,
     platforms: {
       ...COOKIE_PLATFORMS,
-      tiktok: createTikTokPlatform({ tabs: tabsApi, scripting: scriptingApi }),
+      tiktok: createTikTokPlatform({
+        tabs: tabsApi,
+        scripting: scriptingApi,
+        hasPermission: () => permissionsApi.contains({ origins: ['https://*.tiktok.com/*'] }),
+      }),
     },
     storeMutex: createMutex(),
     busy: new Set<Platform>(),

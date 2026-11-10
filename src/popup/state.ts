@@ -139,6 +139,7 @@ export function initialState(): PopupState {
       facebook: emptyPlatform(),
       instagram: emptyPlatform(),
       youtube: emptyPlatform(),
+      tiktok: emptyPlatform(),
     },
     switching: null,
     flash: null,

@@ -8,7 +8,7 @@
     "description": "Short name used where space is tight. Max 12 characters is recommended."
   },
   "extDescription": {
-    "message": "Switch between your own Facebook, Instagram and YouTube accounts in one click. Everything stays on this device.",
+    "message": "Switch between your own Facebook, Instagram, YouTube and TikTok accounts in one click. Everything stays on this device.",
     "description": "Web Store / chrome://extensions description. Max 132 characters."
   },
   "actionTitle": {
@@ -454,7 +454,7 @@
     "description": "Lock screen (master password)"
   },
   "lock_sub": {
-    "message": "Facebook and Instagram sessions are encrypted. Unlock once and it stays open until you close Chrome.",
+    "message": "Facebook, Instagram and TikTok sessions are encrypted. Unlock once and it stays open until you close Chrome.",
     "description": "Lock screen (master password)"
   },
   "lock_label": {
@@ -502,7 +502,7 @@
     "description": "Forgot-password wipe confirmation"
   },
   "wipe_detail": {
-    "message": "There is no way to recover it (there is no server). Every saved Facebook and Instagram session is deleted, and you add your accounts again. Your accounts on the sites are fine. YouTube shortcuts stay.",
+    "message": "There is no way to recover it (there is no server). Every saved Facebook, Instagram and TikTok session is deleted, and you add your accounts again. Your accounts on the sites are fine. YouTube shortcuts stay.",
     "description": "Forgot-password wipe confirmation"
   },
   "wipe_ok": {
@@ -620,7 +620,7 @@
     "description": "Popup: new in B5b"
   },
   "setup_sub": {
-    "message": "It encrypts your Facebook and Instagram sessions on this device. It can't be recovered, so keep it safe.",
+    "message": "It encrypts your Facebook, Instagram and TikTok sessions on this device. It can't be recovered, so keep it safe.",
     "description": "Popup: new in B5b"
   },
   "setup_label": {
@@ -818,5 +818,33 @@
   "chip_here": {
     "message": "On this tab",
     "description": "Small badge next to an account name: the browser tab under the popup is logged in to this account"
+  },
+  "platform_tiktok": {
+    "message": "TikTok",
+    "description": "TikTok platform and recovery guidance."
+  },
+  "tiktok_note": {
+    "message": "TikTok sessions are saved on this device. Switching changes the account in all TikTok tabs in this browser profile.",
+    "description": "TikTok platform and recovery guidance."
+  },
+  "tiktok_risk": {
+    "message": "TikTok may ask you to sign in again or complete a security check. Switching cannot prevent account restrictions.",
+    "description": "TikTok platform and recovery guidance."
+  },
+  "err_no_tiktok_tab": {
+    "message": "Open tiktok.com in a tab, then try again.",
+    "description": "TikTok platform and recovery guidance."
+  },
+  "err_tiktok_probe_unavailable": {
+    "message": "The current TikTok account could not be verified. Open TikTok, check the signed-in account, then try again.",
+    "description": "TikTok platform and recovery guidance."
+  },
+  "err_tiktok_permission": {
+    "message": "Allow this extension to access TikTok in Chrome's extension settings, then try again.",
+    "description": "TikTok platform and recovery guidance."
+  },
+  "err_rollback_failed": {
+    "message": "The previous session could not be restored. Check the signed-in account on the site before trying again.",
+    "description": "Session rollback recovery guidance."
   }
 }

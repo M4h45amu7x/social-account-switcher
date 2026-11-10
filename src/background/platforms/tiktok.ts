@@ -1,35 +1,51 @@
-// Experimental TikTok policy. The viewer schema below is synthetic, not a verified live-site API.
+// TikTok reader uses a strictly validated candidate schema; live owner confirmation is pending.
 import type { ScriptingApi, TabsApi } from '../../lib/ports';
 import { err, ok, type Result } from '../../lib/result';
 import type { CookiePlatform, CookieProbeError } from './types';
 
-/** Self-contained MAIN-world reader for local fixtures. Never reads feed authors or calls the site. */
+/** Self-contained MAIN-world reader. Candidate selectors/schema remain owner-unconfirmed.
+ * Parse at most 1,048,576 characters of existing hydration text; return only the stable UID/state.
+ * No site functions, requests, author/profile fallbacks or retained hydration objects.
+ */
 export function readFixtureViewer(): unknown {
   try {
-    const text = document.getElementById('__SAM_TIKTOK_VIEWER__')?.textContent;
-    if (!text || text.length > 4096) return { state: 'unknown' };
+    // Explicit challenge containers take precedence even when hydration is absent or stale.
+    if (document.querySelector('#captcha_container, #verifyEle, [data-e2e="captcha"]'))
+      return { state: 'checkpoint' };
+    const text = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__')?.textContent;
+    if (!text || text.length > 1024 * 1024) return { state: 'unknown' };
+    const object = (v: unknown): v is Record<string, unknown> =>
+      v !== null && typeof v === 'object' && !Array.isArray(v);
     const value: unknown = JSON.parse(text);
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return { state: 'unknown' };
-    const data = value as Record<string, unknown>;
-    if (data.state === 'checkpoint') return { state: 'checkpoint' };
-    if (data.state === 'logged_out') return { state: 'logged_out' };
-    if (
-      data.state === 'signed_in' &&
-      typeof data.viewerId === 'string' &&
-      /^[A-Za-z0-9_-]{1,128}$/.test(data.viewerId)
-    ) {
-      return { state: 'signed_in', viewerId: data.viewerId };
+    if (!object(value) || !object(value.__DEFAULT_SCOPE__)) return { state: 'unknown' };
+    const context = value.__DEFAULT_SCOPE__['webapp.app-context'];
+    if (!object(context)) return { state: 'unknown' };
+    const user = context.user;
+    if (context.isLogin === false) {
+      // Null/empty user plus an explicit false discriminator is the only logout contract.
+      // Contradictory identity data is unknown, never evidence of expiry.
+      return user === null || (object(user) && Object.keys(user).length === 0)
+        ? { state: 'logged_out' }
+        : { state: 'unknown' };
     }
+    if (context.isLogin !== undefined && context.isLogin !== true) return { state: 'unknown' };
+    if (
+      object(user) &&
+      typeof user.uid === 'string' &&
+      /^[1-9][0-9]{0,31}$/.test(user.uid) &&
+      typeof user.uniqueId === 'string' &&
+      /^[A-Za-z0-9_.]{1,128}$/.test(user.uniqueId)
+    )
+      return { state: 'signed_in', viewerId: user.uid };
   } catch {
     /* Unknown page state is never an expiry claim. */
   }
   return { state: 'unknown' };
 }
 
-// Single gate for the experimental cookie boundary and unverified synthetic viewer schema.
-// Enable only in tests until the owner confirms a real authenticated contract (design13).
+// Enabled by the T3 implementation brief; live compatibility and release remain owner gates.
 export const TIKTOK_EXPERIMENT = {
-  enabled: false,
+  enabled: true,
   // Owner-observed names (2026-11-10) establish presence, not function or sufficiency.
   // Preserve browser/security state, including both host-only and domain copies.
   preservedCookieNames: [
@@ -49,6 +65,7 @@ export type TikTokConfig = typeof TIKTOK_EXPERIMENT;
 export interface TikTokDeps {
   tabs: TabsApi;
   scripting: ScriptingApi;
+  hasPermission?: () => Promise<boolean>;
 }
 
 const isTikTok = (url: string | undefined): boolean => {
@@ -72,6 +89,7 @@ async function readViewer(
 ): Promise<Result<string | null, CookieProbeError>> {
   if (!config.enabled) return err('tiktok_disabled');
   try {
+    if (deps.hasPermission && !(await deps.hasPermission())) return err('tiktok_permission');
     // Explicit popup/load context never falls back to a different window.
     const tab =
       tabId === undefined
@@ -102,11 +120,19 @@ async function readViewer(
     if (
       data.state === 'signed_in' &&
       typeof data.viewerId === 'string' &&
-      /^[A-Za-z0-9_-]{1,128}$/.test(data.viewerId)
+      /^[1-9][0-9]{0,31}$/.test(data.viewerId)
     )
       return ok(data.viewerId);
     return err('tiktok_probe_unavailable');
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '';
+    // Chromium's explicit scripting host-denial messages. Never expose raw page/API errors.
+    if (
+      /Cannot access contents of (?:url|the page).*Extension manifest must request permission to access (?:this|the respective) host/i.test(
+        message,
+      )
+    )
+      return err('tiktok_permission');
     return err('api_error');
   }
 }
@@ -132,5 +158,5 @@ export function createTikTokPlatform(
 // Registration has no browser access; production dependencies are injected by the worker.
 export const tiktok: CookiePlatform = {
   ...policy(TIKTOK_EXPERIMENT),
-  probe: async () => err('tiktok_disabled'),
+  probe: async () => err('tiktok_probe_unavailable'),
 };

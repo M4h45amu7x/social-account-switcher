@@ -32,28 +32,30 @@ test('TikTok server rotates each document and bounds grace; forged identities an
     const a = await load(sites.port, '/', first);
     const second = session(a.cookies);
     expect(second).not.toBe(first);
-    expect(a.body).toContain('"viewerId":"alice"');
+    expect(a.body).toContain('"uid":"7100000000000000001"');
     const b = await load(sites.port, '/video/1', second);
     const third = session(b.cookies);
     expect(third).not.toBe(second);
     // Retired generations may serve already-dispatched documents during the bounded grace window.
     const concurrent = await load(sites.port, '/concurrent', second);
-    expect(concurrent.body).toContain('"viewerId":"alice"');
+    expect(concurrent.body).toContain('"uid":"7100000000000000001"');
     expect(
       (await load(sites.port, '/forged-id', `${session(concurrent.cookies)}; uid_tt=bob`)).body,
-    ).toContain('"viewerId":"alice"');
+    ).toContain('"uid":"7100000000000000001"');
     fake.advance(TOKEN_GRACE_MS + 1);
-    expect((await load(sites.port, '/stale', first)).body).toContain('logged_out');
+    expect((await load(sites.port, '/stale', first)).body).toContain('"isLogin":false');
     expect((await load(sites.port, '/', 'sessionid=forged; uid_tt=alice')).body).toContain(
-      'logged_out',
+      '"isLogin":false',
     );
     fake.strict = true;
     const fresh = session((await load(sites.port, '/__e2e/login?user=bob')).cookies);
     const rotated = await load(sites.port, '/', fresh);
-    expect(rotated.body).toContain('"viewerId":"bob"');
-    expect((await load(sites.port, '/old', fresh)).body).toContain('logged_out');
+    expect(rotated.body).toContain('"uid":"7100000000000000002"');
+    expect((await load(sites.port, '/old', fresh)).body).toContain('"isLogin":false');
     fake.revoke('bob');
-    expect((await load(sites.port, '/', session(rotated.cookies))).body).toContain('logged_out');
+    expect((await load(sites.port, '/', session(rotated.cookies))).body).toContain(
+      '"isLogin":false',
+    );
   } finally {
     await sites.close();
   }
@@ -68,7 +70,11 @@ test('TikTok server grace admits three concurrent requests sent with the same ge
     const responses = await Promise.all(
       ['/one', '/two', '/three'].map((path) => load(sites.port, path, token)),
     );
-    expect(responses.map((r) => r.body.includes('"viewerId":"alice"'))).toEqual([true, true, true]);
+    expect(responses.map((r) => r.body.includes('"uid":"7100000000000000001"'))).toEqual([
+      true,
+      true,
+      true,
+    ]);
     expect(new Set(responses.map((r) => session(r.cookies))).size).toBe(3);
   } finally {
     await sites.close();

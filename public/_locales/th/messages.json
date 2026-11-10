@@ -8,7 +8,7 @@
     "description": "Short name used where space is tight. Max 12 characters is recommended."
   },
   "extDescription": {
-    "message": "สลับบัญชี Facebook, Instagram และ YouTube ของคุณเองได้ในคลิกเดียว ข้อมูลทั้งหมดเก็บไว้ในเครื่องนี้",
+    "message": "สลับบัญชี Facebook, Instagram, YouTube และ TikTok ของคุณเองได้ในคลิกเดียว ข้อมูลทั้งหมดเก็บไว้ในเครื่องนี้",
     "description": "Web Store / chrome://extensions description. Max 132 characters."
   },
   "actionTitle": {
@@ -454,7 +454,7 @@
     "description": "Lock screen (master password)"
   },
   "lock_sub": {
-    "message": "session ของ Facebook / Instagram เข้ารหัสอยู่ · ปลดล็อกครั้งเดียวใช้ได้จนปิด Chrome",
+    "message": "session ของ Facebook / Instagram / TikTok เข้ารหัสอยู่ · ปลดล็อกครั้งเดียวใช้ได้จนปิด Chrome",
     "description": "Lock screen (master password)"
   },
   "lock_label": {
@@ -502,7 +502,7 @@
     "description": "Forgot-password wipe confirmation"
   },
   "wipe_detail": {
-    "message": "กู้รหัสผ่านไม่ได้ (ไม่มี server) — session ของ Facebook / Instagram ที่เก็บไว้ทั้งหมดจะถูกลบ แล้วค่อย login เพิ่มบัญชีใหม่ · บัญชีบนเว็บไม่เสียหาย · ทางลัด YouTube ยังอยู่",
+    "message": "กู้รหัสผ่านไม่ได้ (ไม่มี server) — session ของ Facebook / Instagram / TikTok ที่เก็บไว้ทั้งหมดจะถูกลบ แล้วค่อย login เพิ่มบัญชีใหม่ · บัญชีบนเว็บไม่เสียหาย · ทางลัด YouTube ยังอยู่",
     "description": "Forgot-password wipe confirmation"
   },
   "wipe_ok": {
@@ -620,7 +620,7 @@
     "description": "Popup: new in B5b"
   },
   "setup_sub": {
-    "message": "รหัสนี้ใช้เข้ารหัส session ของ Facebook และ Instagram ในเครื่องนี้ กู้คืนไม่ได้ จึงควรเก็บไว้ให้ดี",
+    "message": "รหัสนี้ใช้เข้ารหัส session ของ Facebook, Instagram และ TikTok ในเครื่องนี้ กู้คืนไม่ได้ จึงควรเก็บไว้ให้ดี",
     "description": "Popup: new in B5b"
   },
   "setup_label": {
@@ -818,5 +818,33 @@
   "chip_here": {
     "message": "ในแท็บนี้",
     "description": "Small badge next to an account name: the browser tab under the popup is logged in to this account"
+  },
+  "platform_tiktok": {
+    "message": "TikTok",
+    "description": "TikTok platform and recovery guidance."
+  },
+  "tiktok_note": {
+    "message": "session ของ TikTok เก็บไว้ในเครื่องนี้ — การสลับบัญชีจะมีผลกับทุกแท็บ TikTok ในโปรไฟล์เบราว์เซอร์นี้",
+    "description": "TikTok platform and recovery guidance."
+  },
+  "tiktok_risk": {
+    "message": "TikTok อาจขอให้ login ใหม่ หรือตรวจสอบความปลอดภัย — การสลับบัญชีไม่สามารถป้องกันการถูกจำกัดบัญชีได้",
+    "description": "TikTok platform and recovery guidance."
+  },
+  "err_no_tiktok_tab": {
+    "message": "เปิด tiktok.com ในแท็บ แล้วลองอีกครั้ง",
+    "description": "TikTok platform and recovery guidance."
+  },
+  "err_tiktok_probe_unavailable": {
+    "message": "ตรวจสอบบัญชี TikTok ปัจจุบันไม่ได้ — เปิด TikTok เช็กบัญชีที่ login อยู่ แล้วลองอีกครั้ง",
+    "description": "TikTok platform and recovery guidance."
+  },
+  "err_tiktok_permission": {
+    "message": "อนุญาตให้ส่วนขยายนี้เข้าถึง TikTok ในการตั้งค่าส่วนขยายของ Chrome แล้วลองอีกครั้ง",
+    "description": "TikTok platform and recovery guidance."
+  },
+  "err_rollback_failed": {
+    "message": "The previous session could not be restored. Check the signed-in account on the site before trying again.",
+    "description": "Session rollback recovery guidance."
   }
 }

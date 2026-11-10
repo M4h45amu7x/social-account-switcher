@@ -42,6 +42,7 @@ const SITE_URLS: Record<Platform, { home: string; login: string }> = {
     login: 'https://www.instagram.com/accounts/login/',
   },
   youtube: { home: 'https://www.youtube.com/', login: 'https://www.youtube.com/' },
+  tiktok: { home: 'https://www.tiktok.com/', login: 'https://www.tiktok.com/login' },
 };
 
 export const siteUrl = (platform: Platform, login: boolean): string =>
@@ -123,7 +124,8 @@ export const tabPattern = (p: Platform): string => {
 export function createBridge(deps: BridgeDeps): (effect: Effect, app: App) => void {
   // Cookie accounts outside the contextual flow are profile-wide. YouTube is always page-specific.
   const tabTarget = (app: App, platform: Platform) =>
-    deps.tabId !== undefined && (platform === 'youtube' || app.state().here?.platform === platform)
+    deps.tabId !== undefined &&
+    (platform === 'youtube' || platform === 'tiktok' || app.state().here?.platform === platform)
       ? { tabId: deps.tabId }
       : {};
   /** Runs `work`, giving up with `fallback` after `ms`. An answer that comes later is dropped, never applied. */

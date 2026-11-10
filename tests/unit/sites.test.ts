@@ -60,23 +60,21 @@ describe('platformOfUrl', () => {
   });
 
   test('a new site is one more entry in the list, the matcher is unchanged', () => {
-    const more: Site[] = [...SITES, { platform: 'tiktok' as never, domain: 'tiktok.com' }];
-    expect(platformOfUrl('https://www.tiktok.com/@someone', more)).toBe('tiktok' as never);
-    expect(platformOfUrl('https://www.tiktok.com/@someone')).toBeNull();
+    const more: Site[] = [...SITES, { platform: 'tiktok' as never, domain: 'new.example' }];
+    expect(platformOfUrl('https://new.example/', more)).toBe('tiktok' as never);
+    expect(platformOfUrl('https://new.example/')).toBeNull();
     expect(platformOfUrl('https://tiktok.com.evil.test/', more)).toBeNull();
   });
 });
 
 describe('the site list drives every host list', () => {
   test('manifest host_permissions are the popup sites plus the reserved TikTok backend host', () => {
-    expect([...manifest.host_permissions].sort()).toEqual(
-      [...SITES.map(hostPattern), 'https://*.tiktok.com/*'].sort(),
-    );
+    expect([...manifest.host_permissions].sort()).toEqual(SITES.map(hostPattern).sort());
   });
 
   test('the popup tab counts and the cookie platforms use the same patterns', () => {
     for (const site of SITES) expect(tabPattern(site.platform)).toBe(hostPattern(site));
-    for (const p of Object.values(COOKIE_PLATFORMS).filter((p) => p.id !== 'tiktok')) {
+    for (const p of Object.values(COOKIE_PLATFORMS)) {
       const site = SITES.find((s) => s.platform === p.id);
       expect(site?.domain).toBe(p.cookieDomain);
       expect(p.tabPatterns).toEqual([hostPattern(site as Site)]);

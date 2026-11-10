@@ -6,7 +6,7 @@ import { err, ok, type Result } from './result';
 import type { Vault } from './vault';
 
 export type Platform = 'facebook' | 'instagram' | 'youtube' | 'tiktok';
-export type PopupPlatform = Exclude<Platform, 'tiktok'>;
+export type PopupPlatform = Platform;
 export const PLATFORMS: readonly Platform[] = ['facebook', 'instagram', 'youtube', 'tiktok'];
 
 export type AccountStatus = 'ok' | 'expired' | 'checkpoint';

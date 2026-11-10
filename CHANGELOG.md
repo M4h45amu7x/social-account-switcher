@@ -6,8 +6,14 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ### Added
 
-- Local TikTok browser tests rotate server-validated sessions on every authenticated page load. They cover repeated switches, rollback and worker recovery, checkpoint handling, migration and both wipe scopes. TikTok remains disabled in production.
-- Experimental TikTok session backend with a centralized cookie deny-list, read-only fixture viewer probe, verified rollback and recovery, and session wipe support. It stays disabled and hidden from the popup until the live-site contract is confirmed. The manifest now requests the `https://*.tiktok.com/*` host permission for it.
+- Local TikTok browser tests rotate server-validated sessions on every authenticated page load. They cover repeated switches, rollback and worker recovery, checkpoint handling, migration and both wipe scopes.
+- TikTok session backend with a centralized cookie deny-list, verified rollback and recovery, and session wipe support. The manifest requests the `https://*.tiktok.com/*` host permission.
+- TikTok popup controls for saving, updating, switching, renaming and removing accounts, current-tab selection and badges, and host-access guidance. English and Thai catalogs include TikTok messages; sourced TikTok logos retain their original bytes.
+- A bounded, read-only candidate TikTok hydration reader and fixtures that distinguish the viewer from content authors. The live signed-in schema and cookie roles remain unconfirmed; owner real-account checks are required before releasing v0.2.0.
+
+### Changed
+
+- Four platform tabs show the selected name in full and keep inactive tabs to their logo and account count. Full names remain in tooltips and accessible names, with keyboard navigation and reduced-motion support.
 
 ### Fixed
 

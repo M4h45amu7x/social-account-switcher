@@ -109,7 +109,7 @@ test('TikTok: strict mode rejects stale generations, successful switch stores it
   }
 });
 
-test('TikTok: v0.1.0 encrypted sessions migrate; both wipe scopes remove TikTok; English/Thai popup stays three platforms', async () => {
+test('TikTok: v0.1.0 encrypted sessions migrate; both wipe scopes remove TikTok; English/Thai popup includes four platforms', async () => {
   test.setTimeout(60_000);
   for (const language of ['en', 'th']) {
     const h = await launchTikTok(language);
@@ -168,16 +168,21 @@ test('TikTok: v0.1.0 encrypted sessions migrate; both wipe scopes remove TikTok;
       await h.popup.setViewportSize({ width: 360, height: 600 });
       await h.popup.reload();
       await expect(h.popup.getByTestId('popup')).toHaveAttribute('data-state', 'list');
+      await expect(h.popup.getByTestId('tab-tiktok')).toHaveAttribute('aria-selected', 'true');
+      await expect(h.popup.getByTestId(`row-${id}`)).toBeVisible();
+      await h.popup.getByTestId('tab-facebook').click();
       await expect(h.popup.getByTestId(`row-${oldId}`)).toBeVisible();
+      await h.popup.getByTestId('tab-tiktok').click();
+      await expect(h.popup.getByTestId(`row-${id}`)).toBeVisible();
       await expect(h.popup.locator('.spinner')).toHaveCount(0);
-      await expect(h.popup.getByRole('tab')).toHaveCount(3);
+      await expect(h.popup.getByRole('tab')).toHaveCount(4);
       await expect(h.popup.locator('html')).toHaveAttribute('lang', language);
       await idle(h.popup);
       await h.popup.screenshot({
         path: test.info().outputPath(`popup-${language}.png`),
         animations: 'disabled',
       });
-      await expect(h.popup.locator('body')).not.toContainText('TikTok');
+      await expect(h.popup.getByTestId('tab-tiktok')).toHaveAttribute('aria-label', 'TikTok');
       expect(
         await h.popup.evaluate(
           () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
@@ -225,32 +230,33 @@ test('TikTok: v0.1.0 encrypted sessions migrate; both wipe scopes remove TikTok;
   }
 });
 
-test('TikTok: production worker stays disabled and exposes only the existing three popup platforms', async () => {
+test('TikTok: production worker enables TikTok without fixture hooks and refuses an unrelated tab', async () => {
   const { launchExtension } = await import('./fixtures');
   const launched = await launchExtension();
   try {
     const sw = await worker(launched.context);
+    expect(await sw.evaluate(() => '__tiktokTest' in globalThis)).toBe(false);
     const extensionId = new URL(sw.url()).host;
     const page = await launched.context.newPage();
     await page.goto(`chrome-extension://${extensionId}/popup/index.html`);
     const before = await cookies(sw);
     expect(await send(page, { type: 'account.probe', platform: 'tiktok', tabId: 1 })).toEqual({
       ok: false,
-      error: 'tiktok_disabled',
+      error: 'no_tiktok_tab',
     });
     expect(
       await send(page, {
         type: 'account.addCurrent',
         platform: 'tiktok',
-        label: 'Disabled',
+        label: 'Unrelated tab',
         tabId: 1,
       }),
-    ).toEqual({ ok: false, error: 'tiktok_disabled' });
+    ).toEqual({ ok: false, error: 'no_tiktok_tab' });
     expect(await cookies(sw)).toEqual(before);
     expect(await send(page, { type: 'vault.setup', password: PASSWORD })).toEqual({ ok: true });
     await page.reload();
-    await expect(page.getByRole('tab')).toHaveCount(3);
-    await expect(page.locator('body')).not.toContainText('TikTok');
+    await expect(page.getByRole('tab')).toHaveCount(4);
+    await expect(page.getByTestId('tab-tiktok')).toHaveAttribute('aria-label', 'TikTok');
   } finally {
     await launched.close();
   }

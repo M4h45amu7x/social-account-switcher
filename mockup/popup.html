@@ -118,7 +118,9 @@ button { font: inherit; color: inherit; }
   display: flex; align-items: center; justify-content: center; gap: 1px; font-size: 12px; color: var(--text-idle); min-width: 0; }
 .tab[aria-selected="true"] { color: var(--text); font-weight: 600; }
 .tab .mark { width: 16px; height: 16px; flex: none; }
-.tab .label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab .label { display: none; }
+.tab[aria-selected="true"] .label { display: block; flex: none; white-space: nowrap; }
+.tabs .tab { gap: 4px; padding: 7px 3px; }
 .tab .count { flex: none; font-size: 10.5px; min-width: 16px; padding: 0 4px; border-radius: 9px; background: var(--line);
   color: var(--text-2); font-weight: 600; line-height: 16px; text-align: center; }
 
@@ -443,7 +445,7 @@ const I18N = {
     "error.update": "Update session",
 
     "lock.title": "Enter your master password to unlock",
-    "lock.sub": "Facebook and Instagram sessions are encrypted. Unlock once and it stays open until you close Chrome.",
+    "lock.sub": "Facebook, Instagram and TikTok sessions are encrypted. Unlock once and it stays open until you close Chrome.",
     "lock.label": "Master password",
     "lock.placeholder": "Master password",
     "lock.show": "Show password",
@@ -456,7 +458,7 @@ const I18N = {
     "lock.tryAgain": "Try again",
     "lock.forgot": "Forgot password?",
     "wipe.title": "Forgot your password? You will need to wipe your data",
-    "wipe.detail": "There is no way to recover it (there is no server). Every saved Facebook and Instagram session is deleted, and you add your accounts again. Your accounts on the sites are fine. YouTube shortcuts stay.",
+    "wipe.detail": "There is no way to recover it (there is no server). Every saved Facebook, Instagram and TikTok session is deleted, and you add your accounts again. Your accounts on the sites are fine. YouTube shortcuts stay.",
     "wipe.ok": "Wipe data",
 
     "settings.title": "Settings",
@@ -487,6 +489,8 @@ const I18N = {
     "seed.yt1": "Main channel",
     "seed.yt2": "Food reviews",
     "seed.yt3": "Work account",
+    "tiktok.note": "TikTok sessions are saved on this device. Switching changes the account in all TikTok tabs in this browser profile.",
+    "tiktok.risk": "TikTok may ask you to sign in again or complete a security check. Switching cannot prevent account restrictions.",
   },
   th: {
     "app.title": "สลับบัญชี",
@@ -566,7 +570,7 @@ const I18N = {
     "error.update": "อัปเดต session",
 
     "lock.title": "ใส่รหัสผ่านหลักเพื่อปลดล็อก",
-    "lock.sub": "session ของ Facebook / Instagram เข้ารหัสอยู่ · ปลดล็อกครั้งเดียวใช้ได้จนปิด Chrome",
+    "lock.sub": "session ของ Facebook / Instagram / TikTok เข้ารหัสอยู่ · ปลดล็อกครั้งเดียวใช้ได้จนปิด Chrome",
     "lock.label": "รหัสผ่านหลัก",
     "lock.placeholder": "รหัสผ่านหลัก",
     "lock.show": "แสดงรหัสผ่าน",
@@ -579,7 +583,7 @@ const I18N = {
     "lock.tryAgain": "ลองอีกครั้ง",
     "lock.forgot": "ลืมรหัสผ่าน?",
     "wipe.title": "ลืมรหัสผ่าน = ต้องล้างข้อมูล",
-    "wipe.detail": "กู้รหัสผ่านไม่ได้ (ไม่มี server) — session ของ Facebook / Instagram ที่เก็บไว้ทั้งหมดจะถูกลบ แล้วค่อย login เพิ่มบัญชีใหม่ · บัญชีบนเว็บไม่เสียหาย · ทางลัด YouTube ยังอยู่",
+    "wipe.detail": "กู้รหัสผ่านไม่ได้ (ไม่มี server) — session ของ Facebook / Instagram / TikTok ที่เก็บไว้ทั้งหมดจะถูกลบ แล้วค่อย login เพิ่มบัญชีใหม่ · บัญชีบนเว็บไม่เสียหาย · ทางลัด YouTube ยังอยู่",
     "wipe.ok": "ล้างข้อมูล",
 
     "settings.title": "ตั้งค่า",
@@ -610,6 +614,8 @@ const I18N = {
     "seed.yt1": "ช่องหลัก",
     "seed.yt2": "ช่องรีวิวของกิน",
     "seed.yt3": "บัญชีงาน",
+    "tiktok.note": "session ของ TikTok เก็บไว้ในเครื่องนี้ — การสลับบัญชีจะมีผลกับทุกแท็บ TikTok ในโปรไฟล์เบราว์เซอร์นี้",
+    "tiktok.risk": "TikTok อาจขอให้ login ใหม่ หรือตรวจสอบความปลอดภัย — การสลับบัญชีไม่สามารถป้องกันการถูกจำกัดบัญชีได้",
   },
 };
 
@@ -735,6 +741,7 @@ const ICON = {
   facebook: '<img class="mark" src="../public/brands/facebook.svg" alt="" aria-hidden="true" draggable="false">',
   instagram: '<img class="mark" src="../public/brands/instagram.svg" alt="" aria-hidden="true" draggable="false">',
   youtube: '<img class="mark" src="../public/brands/youtube.svg" alt="" aria-hidden="true" draggable="false">',
+  tiktok: '<img class="mark" src="../public/brands/tiktok.svg" alt="" aria-hidden="true" draggable="false">',
   pencil: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>',
   trash: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
   eye: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
@@ -753,6 +760,7 @@ const PLATFORM = {
   facebook:  { name: "Facebook",  site: "facebook.com",  tabs: 2 },
   instagram: { name: "Instagram", site: "instagram.com", tabs: 1 },
   youtube:   { name: "YouTube",   site: "youtube.com",   tabs: 3 },
+  tiktok:    { name: "TikTok",    site: "tiktok.com",    tabs: 0 },
 };
 const ORDER = Object.keys(PLATFORM);
 
@@ -771,13 +779,14 @@ function seed() {
         { id: "fb3", labelKey: "seed.fb3", sub: ["id", "5512"], used: ["used.daysAgo", { n: 41 }], status: "expired" },
       ],
       instagram: [],
+      tiktok: [],
       youtube: [
         { id: "yt1", labelKey: "seed.yt1", sub: ["sub.google", { n: 1 }], used: ["used.now"], status: "ok" },
         { id: "yt2", labelKey: "seed.yt2", sub: ["sub.googleBrand", { n: 1 }], used: ["used.yesterday"], status: "ok" },
         { id: "yt3", labelKey: "seed.yt3", sub: ["sub.google", { n: 2 }], used: ["used.daysAgo", { n: 5 }], status: "ok" },
       ],
     },
-    active: { facebook: "fb1", instagram: null, youtube: "yt1" },
+    active: { facebook: "fb1", instagram: null, youtube: "yt1", tiktok: null },
     // transient UI state (not stored in the real extension)
     switching: null,      // { id, step }
     flash: null,          // { id, kind: 'ok' | 'bad' }  result badge shown briefly in the row slot
@@ -836,7 +845,7 @@ function header(withBack) {
 }
 const footer = () => `<footer class="foot">${ICON.shield}<span>${t("foot")}</span></footer>`;
 
-function doRender() {
+function drawPopup() {
   const p = S.platform;
   $popup.dataset.platform = p;
   $popup.dataset.state = stateName();
@@ -846,7 +855,7 @@ function doRender() {
   const list = acc();
   const busy = !!S.switching;
   const tabs = ORDER.map((k) => `
-    <button class="tab" role="tab" title="${PLATFORM[k].name}" aria-label="${PLATFORM[k].name}" aria-describedby="tab-count-${k}" aria-selected="${k === p}" data-tab="${k}" data-testid="tab-${k}" ${busy ? "disabled" : ""}>
+    <button class="tab" role="tab" title="${PLATFORM[k].name}" aria-label="${PLATFORM[k].name}" aria-describedby="tab-count-${k}" aria-selected="${k === p}" tabindex="${k === p ? 0 : -1}" data-tab="${k}" data-testid="tab-${k}" ${busy ? "disabled" : ""}>
       ${ICON[k]}<span class="label">${PLATFORM[k].name}</span><span class="count" id="tab-count-${k}">${S.accounts[k].length}</span>
     </button>`).join("");
 
@@ -863,9 +872,11 @@ function doRender() {
     if (p === "youtube") body += `<div class="note info">${t("youtube.note")}</div>`;
   }
 
+  if (p === "tiktok") body += `<div class="note info">${t("tiktok.note")}</div><div class="note warn">${t("tiktok.risk")}</div>`;
+
   $popup.innerHTML = `
     ${header(false)}
-    <nav class="tabs slide" style="--n:3;--i:${ORDER.indexOf(p)}" role="tablist" aria-label="${ta("tabs.aria")}"><span class="thumb" aria-hidden="true"></span>${tabs}</nav>
+    <nav class="tabs slide" data-slide="tabs" style="--n:${ORDER.length};--i:${ORDER.indexOf(p)};grid-template-columns:${ORDER.map((k) => `minmax(0,${k === p ? 2.5 : 1}fr)`).join(" ")}" role="tablist" aria-label="${ta("tabs.aria")}"><span class="thumb" aria-hidden="true"></span>${tabs}</nav>
     <section class="body" data-panel>${body}</section>
     ${S.toast ? `<div class="toast" role="status" data-testid="toast"><span class="ok">${ICON.check}</span><span class="tx"><span>${t("toast.switched", { name: S.toast.name })}</span><small>${t("toast.reloaded", { tabs: tabsText(S.toast.tabs) })}</small></span></div>` : ""}
     ${footer()}
@@ -874,7 +885,42 @@ function doRender() {
   if (f) { f.focus(); if (f.select) f.select(); }
 }
 /* render(mode, opts): mode picks the view transition ("none" = plain DOM update) */
-function render(mode = "none", opts) { transition(mode, doRender, opts); }
+function doRender() { drawPopup(); syncSliders(); }
+const sliderSlots = new Map();
+const sliderBoxes = new Map();
+function syncSliders() {
+  const seen = new Set();
+  for (const track of $popup.querySelectorAll(".slide[data-slide]")) {
+    const key = track.dataset.slide;
+    const now = Number(track.style.getPropertyValue("--i"));
+    const before = sliderSlots.get(key);
+    seen.add(key); sliderSlots.set(key, now);
+    const thumb = track.querySelector(":scope > .thumb");
+    if (!thumb) continue;
+    const selected = track.querySelector(':scope > .tab[aria-selected="true"]');
+    if (selected) {
+      const rect = selected.getBoundingClientRect(), parent = track.getBoundingClientRect();
+      const box = { left: rect.left - parent.left, width: rect.width };
+      const old = sliderBoxes.get(key); sliderBoxes.set(key, box);
+      thumb.style.left = `${box.left}px`; thumb.style.width = `${box.width}px`; thumb.style.transform = "none";
+      if (old && before !== now && !reducedMotion() && typeof thumb.animate === "function") {
+        thumb.animate([{ translate: `${old.left - box.left}px 0`, width: `${old.width}px` }, { translate: "0 0", width: `${box.width}px` }], {
+          duration: tokenMs("--dur-slow") || 420,
+          easing: getComputedStyle(track).getPropertyValue("--ease-out").trim() || "ease-out",
+        });
+      }
+      continue;
+    }
+    if (before === undefined || before === now || reducedMotion() || typeof thumb.animate !== "function") continue;
+    const step = thumb.offsetWidth + (parseFloat(getComputedStyle(track).columnGap) || 0);
+    thumb.animate([{ translate: `${(before - now) * step}px 0` }, { translate: "0 0" }], {
+      duration: tokenMs("--dur-slow") || 420,
+      easing: getComputedStyle(track).getPropertyValue("--ease-out").trim() || "ease-out",
+    });
+  }
+  for (const key of sliderSlots.keys()) if (!seen.has(key)) { sliderSlots.delete(key); sliderBoxes.delete(key); }
+}
+function render(mode = "none", opts) { return transition(mode, doRender, opts); }
 
 function slotView(a, p, sw) {
   if (sw) return `<span class="slot" data-id="${a.id}"><span class="spinner" role="progressbar" aria-label="${ta("switching.aria")}"></span></span>`;
@@ -1030,7 +1076,7 @@ function renderLocked() {
 }
 
 function seg(group, items, current) {
-  return `<div class="seg slide" style="--n:${items.length};--i:${Math.max(0, items.findIndex(([v]) => v === current))}" role="group" aria-label="${ta("settings." + group)}"><span class="thumb" aria-hidden="true"></span>${items.map(([v, key, lang]) =>
+  return `<div class="seg slide" data-slide="${group}" style="--n:${items.length};--i:${Math.max(0, items.findIndex(([v]) => v === current))}" role="group" aria-label="${ta("settings." + group)}"><span class="thumb" aria-hidden="true"></span>${items.map(([v, key, lang]) =>
     `<button data-pref="${group}" data-value="${v}" aria-pressed="${v === current}" data-testid="s-${group}-${v}" ${lang ? `lang="${lang}"` : ""}>${t(key)}</button>`).join("")}</div>`;
 }
 function renderSettings() {
@@ -1179,13 +1225,24 @@ $popup.addEventListener("click", (ev) => {
     case "forgot": S.wipeConfirm = true; S.pwBad = false; return render("expand");
     case "wipe-cancel": S.wipeConfirm = false; return render("expand");
     case "wipe-ok":
-      S.accounts.facebook = []; S.accounts.instagram = []; S.active.facebook = null; S.active.instagram = null;
+      S.accounts.facebook = []; S.accounts.instagram = []; S.accounts.tiktok = []; S.active.facebook = null; S.active.instagram = null; S.active.tiktok = null;
       S.locked = false; S.platform = "facebook"; clearTransient(); return render("page", { dir: -1 });
   }
 });
 
 $popup.addEventListener("keydown", (ev) => {
   const el = ev.target;
+  const tab = el.closest?.("[data-tab]");
+  if (tab && !tab.disabled && ["ArrowRight", "ArrowLeft", "Home", "End"].includes(ev.key)) {
+    ev.preventDefault();
+    const i = ORDER.indexOf(tab.dataset.tab);
+    const next = ev.key === "Home" ? 0 : ev.key === "End" ? ORDER.length - 1 : (i + (ev.key === "ArrowRight" ? 1 : -1) + ORDER.length) % ORDER.length;
+    const platform = ORDER[next];
+    let change;
+    if (platform !== S.platform) { const dir = next > i ? 1 : -1; clearTransient(); S.platform = platform; change = render("tab", { dir }); }
+    Promise.resolve(change?.updateCallbackDone).then(() => $popup.querySelector(`[data-tab="${platform}"]`)?.focus(), () => {});
+    return;
+  }
   if (el.id === "rename-input") {
     if (ev.key === "Enter") saveRename();
     if (ev.key === "Escape") { S.editing = null; render("expand"); }

@@ -16,13 +16,14 @@ import {
   WRITE_ACTIONS,
 } from './state';
 
-export const PLATFORM_ORDER: readonly Platform[] = ['facebook', 'instagram', 'youtube'];
+export const PLATFORM_ORDER: readonly Platform[] = ['facebook', 'instagram', 'youtube', 'tiktok'];
 
 /** Brand names and sites are not translated. */
 export const PLATFORM_INFO: Record<Platform, { name: string; site: string }> = {
   facebook: { name: 'Facebook', site: 'facebook.com' },
   instagram: { name: 'Instagram', site: 'instagram.com' },
   youtube: { name: 'YouTube', site: 'youtube.com' },
+  tiktok: { name: 'TikTok', site: 'tiktok.com' },
 };
 
 const stroke = (size: number, body: string, width = 2, extra = ''): Safe =>
@@ -38,6 +39,7 @@ export const ICON = {
   facebook: logo('facebook'),
   instagram: logo('instagram'),
   youtube: logo('youtube'),
+  tiktok: logo('tiktok'),
   pencil: stroke(16, '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>'),
   trash: stroke(16, '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>'),
   eye: stroke(
@@ -78,6 +80,7 @@ const STEPS: Record<Platform, readonly ('save' | 'apply' | 'reload' | 'google')[
   facebook: ['save', 'apply', 'reload'],
   instagram: ['save', 'apply', 'reload'],
   youtube: ['google', 'reload'],
+  tiktok: ['save', 'apply', 'reload'],
 };
 
 export function stepCount(p: Platform): number {
@@ -488,7 +491,7 @@ function mainBody(tr: Translator, s: PopupState): Safe {
 
   const tabs = PLATFORM_ORDER.map(
     (k) => html`
-    <button class="tab" role="tab" title="${PLATFORM_INFO[k].name}" aria-label="${PLATFORM_INFO[k].name}" aria-describedby="tab-count-${k}" aria-selected="${String(k === p)}" data-tab="${k}" data-testid="tab-${k}" ${busy ? 'disabled' : ''}>
+    <button class="tab" role="tab" title="${PLATFORM_INFO[k].name}" aria-label="${PLATFORM_INFO[k].name}" aria-describedby="tab-count-${k}" aria-selected="${String(k === p)}" tabindex="${k === p ? 0 : -1}" data-tab="${k}" data-testid="tab-${k}" ${busy ? 'disabled' : ''}>
       ${ICON[k]}<span class="label">${PLATFORM_INFO[k].name}</span><span class="count" id="tab-count-${k}">${s.platforms[k].accounts.length}</span>
     </button>`,
   );
@@ -517,13 +520,18 @@ function mainBody(tr: Translator, s: PopupState): Safe {
     if (p === 'youtube') parts.push(html`<div class="note info">${tr.html('youtube_note')}</div>`);
   }
 
+  if (p === 'tiktok')
+    parts.push(
+      html`<div class="note info">${tr.html('tiktok_note')}</div><div class="note warn">${tr.html('tiktok_risk')}</div>`,
+    );
+
   const toast =
     s.toast &&
     html`<div class="toast" role="status" data-testid="toast"><span class="ok">${ICON.check}</span><span class="tx"><span>${tr.html('toast_switched', { name: s.toast.name })}</span><small>${tr.html('toast_reloaded', { tabs: tr.count('tabs', s.toast.tabs) })}</small></span></div>`;
 
   return html`
     ${header(tr, s, 'main')}
-    <nav class="tabs slide" data-slide="tabs" style="--n:${PLATFORM_ORDER.length};--i:${PLATFORM_ORDER.indexOf(p)}" role="tablist" aria-label="${tr.text('tabs_aria')}"><span class="thumb" aria-hidden="true"></span>${tabs}</nav>
+    <nav class="tabs slide" data-slide="tabs" style="--n:${PLATFORM_ORDER.length};--i:${PLATFORM_ORDER.indexOf(p)};grid-template-columns:${PLATFORM_ORDER.map((k) => `minmax(0,${k === p ? 2.5 : 1}fr)`).join(' ')}" role="tablist" aria-label="${tr.text('tabs_aria')}"><span class="thumb" aria-hidden="true"></span>${tabs}</nav>
     <section class="body" data-panel>${parts}</section>
     ${toast}
     ${footer(tr)}`;

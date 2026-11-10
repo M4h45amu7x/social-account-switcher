@@ -56,6 +56,7 @@ export const ERROR_CODES = [
   'not_logged_in',
   'tiktok_disabled',
   'no_tiktok_tab',
+  'tiktok_permission',
   'tiktok_probe_unavailable',
   'rollback_failed',
   // YouTube
