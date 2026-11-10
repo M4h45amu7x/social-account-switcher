@@ -51,8 +51,9 @@ try {
     await page.waitForSelector('html[data-e2e-ready="1"]');
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.evaluate(() => {
-      // Omit the generic encryption footer: labels and YouTube metadata are plaintext.
-      document.querySelector('footer.foot')?.remove();
+      // Keep the installed-version badge; omit the generic encryption claim because labels are plaintext.
+      document.querySelector('.foot-copy')?.remove();
+      document.querySelector('footer.foot > svg')?.remove();
       document.querySelector<HTMLInputElement>('input')?.blur();
     });
     await page

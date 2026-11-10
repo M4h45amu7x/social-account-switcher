@@ -124,10 +124,15 @@ function usedText(tr: Translator, used: UsedLine, active: boolean): string {
 
 // --- pieces ---
 
-function header(tr: Translator, s: PopupState, mode: 'main' | 'settings' | 'locked'): Safe {
+function header(
+  tr: Translator,
+  s: PopupState,
+  mode: 'main' | 'settings' | 'locked',
+  version = '',
+): Safe {
   if (mode === 'settings') {
     return html`<header class="head">
-      <button class="icon-btn" data-act="settings-close" title="${tr.text('app_back')}" aria-label="${tr.text('app_back')}" data-testid="settings-back">${ICON.back}</button><h1>${tr.html('settings_title')}</h1>
+      <button class="icon-btn" data-act="settings-close" title="${tr.text('app_back')}" aria-label="${tr.text('app_back')}" data-testid="settings-back">${ICON.back}</button><h1>${tr.html('settings_title')}</h1>${versionBadge(tr, version, 'settings')}
     </header>`;
   }
   return html`<header class="head">
@@ -136,8 +141,11 @@ function header(tr: Translator, s: PopupState, mode: 'main' | 'settings' | 'lock
     </header>`;
 }
 
-const footer = (tr: Translator): Safe =>
-  html`<footer class="foot">${ICON.shield}<span>${tr.html('foot')}</span></footer>`;
+const versionBadge = (tr: Translator, version: string, place: 'footer' | 'settings'): Safe =>
+  html`${version && html`<span class="extension-version" data-testid="${place}-version" aria-label="${tr.text('version_label', { version })}">v${version}</span>`}`;
+
+const footer = (tr: Translator, version: string): Safe =>
+  html`<footer class="foot">${ICON.shield}<span class="foot-copy" title="${tr.text('foot')}">${tr.html('foot')}</span>${versionBadge(tr, version, 'footer')}</footer>`;
 
 function slot(tr: Translator, s: PopupState, a: AccountView, switchingThis: boolean): Safe {
   if (switchingThis) {
@@ -368,16 +376,16 @@ function setupButton(tr: Translator, s: PopupState): Safe {
   return html`<button class="btn primary sbtn ${cls}" data-sbtn data-act="setup" data-testid="setup-create" data-btn-state="${k}" ${k === 'loading' ? 'disabled' : ''}>${face}</button>`;
 }
 
-function loadingBody(tr: Translator, s: PopupState): Safe {
+function loadingBody(tr: Translator, s: PopupState, version: string): Safe {
   return html`
     ${header(tr, s, 'locked')}
     <section class="lock" data-testid="loading" data-panel>
       <span class="spinner" role="progressbar" aria-label="${tr.text('loading_aria')}"></span>
     </section>
-    ${footer(tr)}`;
+    ${footer(tr, version)}`;
 }
 
-function lockedBody(tr: Translator, s: PopupState): Safe {
+function lockedBody(tr: Translator, s: PopupState, version: string): Safe {
   const { lock } = s;
   const setup = s.page === 'setup';
   const hint = lockHint(s);
@@ -407,7 +415,7 @@ function lockedBody(tr: Translator, s: PopupState): Safe {
       <button class="btn ghost small" data-act="forgot" data-testid="forgot">${tr.html('lock_forgot')}</button>`
       }
     </section>
-    ${footer(tr)}`;
+    ${footer(tr, version)}`;
 }
 
 function segment(
@@ -428,11 +436,11 @@ function segment(
   return html`<div class="seg slide" data-slide="${group}" style="--n:${items.length};--i:${at}" role="group" aria-label="${label}"><span class="thumb" aria-hidden="true"></span>${buttons}</div>`;
 }
 
-function settingsBody(tr: Translator, s: PopupState): Safe {
+function settingsBody(tr: Translator, s: PopupState, version: string): Safe {
   const { settings } = s;
   const langNow = tr.text(settings.uiLanguage === 'th' ? 'lang_name_th' : 'lang_name_en');
   return html`
-    ${header(tr, s, 'settings')}
+    ${header(tr, s, 'settings', version)}
     <section class="body settings" data-panel data-testid="settings">
       ${s.notice && noticeNote(tr, s.notice, s.stale)}
       <div class="set-card" data-card="theme">
@@ -482,10 +490,10 @@ function settingsBody(tr: Translator, s: PopupState): Safe {
           </div>`
       }
     </section>
-    ${footer(tr)}`;
+    ${footer(tr, version)}`;
 }
 
-function mainBody(tr: Translator, s: PopupState): Safe {
+function mainBody(tr: Translator, s: PopupState, version: string): Safe {
   const p = s.platform;
   const view = s.platforms[p];
   const list = view.accounts;
@@ -537,7 +545,7 @@ function mainBody(tr: Translator, s: PopupState): Safe {
     <nav class="tabs slide" data-slide="tabs" style="--n:${PLATFORM_ORDER.length};--i:${PLATFORM_ORDER.indexOf(p)};grid-template-columns:${PLATFORM_ORDER.map((k) => `minmax(0,${k === p ? 2.5 : 1}fr)`).join(' ')}" role="tablist" aria-label="${tr.text('tabs_aria')}"><span class="thumb" aria-hidden="true"></span>${tabs}</nav>
     <section class="body" data-panel>${parts}</section>
     ${toast}
-    ${footer(tr)}`;
+    ${footer(tr, version)}`;
 }
 
 /** Optional page metadata is text; avatars may only use locally validated raster bytes. */
@@ -559,17 +567,22 @@ function fillProfile(root: Element, rawProfile: AccountProfile | undefined): voi
 }
 
 /** Draws the whole popup into `root`. Call it again with the next state; it replaces everything. */
-export function renderPopup(root: HTMLElement, state: PopupState, tr: Translator): void {
+export function renderPopup(
+  root: HTMLElement,
+  state: PopupState,
+  tr: Translator,
+  version = '',
+): void {
   root.dataset.platform = state.platform;
   root.dataset.state = screenOf(state);
   const body =
     state.page === 'loading'
-      ? loadingBody(tr, state)
+      ? loadingBody(tr, state, version)
       : state.page === 'locked' || state.page === 'setup'
-        ? lockedBody(tr, state)
+        ? lockedBody(tr, state, version)
         : state.page === 'settings'
-          ? settingsBody(tr, state)
-          : mainBody(tr, state);
+          ? settingsBody(tr, state, version)
+          : mainBody(tr, state, version);
   // A field the person is typing in keeps its caret and selection when the screen is drawn again under them
   // (a recovery redraw while a password is half typed).
   const typing = document.activeElement;

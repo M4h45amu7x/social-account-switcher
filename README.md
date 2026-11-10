@@ -20,7 +20,7 @@ To try the development version, follow the build steps below and load `dist/` in
 
 ### Upgrade from v0.1.x
 
-Keep the existing extension folder and browser profile. Extract the v0.2.0 candidate ZIP over that same folder, then open `chrome://extensions` and choose **Reload** for Social Account Switcher. Do not remove the extension to upgrade: removing it deletes its saved data.
+Keep the existing extension folder and browser profile. Extract the v0.2.0 candidate ZIP over that same folder, then open `chrome://extensions` and choose **Reload** for Social Account Switcher. Open the popup and check the version in its footer or Settings to confirm which build is loaded. Do not remove the extension to upgrade: removing it deletes its saved data.
 
 Open the extension's **Details** and check **Site access** for TikTok. Chrome may show a permission prompt or disable the extension after new host access; the exact behavior needs an owner check on the installed Chrome version. Confirm TikTok access before trying to save or switch a TikTok session. If access is missing, the popup shows guidance and leaves saved sessions unchanged. Verify that your existing accounts and custom labels remain after upgrading.
 

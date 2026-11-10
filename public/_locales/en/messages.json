@@ -846,5 +846,15 @@
   "err_rollback_failed": {
     "message": "The previous session could not be restored. Check the signed-in account on the site before trying again.",
     "description": "Session rollback recovery guidance."
+  },
+  "version_label": {
+    "message": "Version $VERSION$",
+    "description": "Accessible name for the installed extension version.",
+    "placeholders": {
+      "version": {
+        "content": "$1",
+        "example": "0.2.0"
+      }
+    }
   }
 }

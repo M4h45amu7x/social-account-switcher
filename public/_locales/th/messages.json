@@ -846,5 +846,15 @@
   "err_rollback_failed": {
     "message": "กู้คืน session เดิมไม่ได้ — กรุณาเช็กบัญชีที่ login อยู่บนเว็บก่อนลองอีกครั้ง",
     "description": "Session rollback recovery guidance."
+  },
+  "version_label": {
+    "message": "Version $VERSION$",
+    "description": "Accessible name for the installed extension version; Thai pending approved translation.",
+    "placeholders": {
+      "version": {
+        "content": "$1",
+        "example": "0.2.0"
+      }
+    }
   }
 }

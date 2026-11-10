@@ -1,6 +1,6 @@
 import { mountPopup } from './app';
 import { createBridge, tabPattern } from './bridge';
-import { activeTab, countTabs, i18nApi, openTab, sendRequest } from './runtime';
+import { activeTab, countTabs, extensionVersion, i18nApi, openTab, sendRequest } from './runtime';
 import { pickStartPlatform, readPlatformCache, siteOfActiveTab } from './start';
 
 /** Longest wait for the active tab's URL before the popup draws without it. */
@@ -41,6 +41,7 @@ async function start(root: HTMLElement): Promise<void> {
   // Opening the popup asks the worker what it holds (state.get) and draws the answer.
   const app = mountPopup({
     root,
+    version: extensionVersion(),
     cache,
     uiLanguage: i18nApi.getUILanguage(),
     startPage: 'loading',

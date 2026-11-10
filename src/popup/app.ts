@@ -27,6 +27,8 @@ export const LANGUAGE_CACHE_KEY = 'language';
 
 export interface AppDeps {
   root: HTMLElement;
+  /** Installed manifest version, supplied by the entry point. Optional for isolated DOM fixtures. */
+  version?: string;
   /** localStorage (or a fake). Null when storage is blocked. */
   cache: ThemeCache | null;
   /** chrome.i18n.getUILanguage(), for the Auto language choice. */
@@ -104,7 +106,7 @@ export function mountPopup(deps: AppDeps): App {
     html.lang = tr.lang;
     html.dataset.lang = tr.lang;
     doc.title = tr.text('popupTitle');
-    renderPopup(root, state, tr);
+    renderPopup(root, state, tr, deps.version);
     syncSliders(root);
     if (returnFocusTo) {
       root.querySelector<HTMLElement>(returnFocusTo)?.focus();

@@ -214,6 +214,9 @@ button { font: inherit; color: inherit; }
 .empty .row-btns { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; justify-content: center; }
 
 .foot { padding: 8px 16px 12px; font-size: 11px; color: var(--text-2); display: flex; align-items: center; gap: 6px; border-top: 1px solid var(--line); }
+.foot-copy { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.extension-version { flex: none; white-space: nowrap; font-size: 11px; font-weight: 400; color: var(--text-2); }
+.head .extension-version { margin-left: auto; }
 .foot svg { flex: none; }
 
 .toast { margin: 0 12px 8px; background: var(--text); color: var(--surface);
@@ -835,15 +838,18 @@ function stateName() {
 /* =====================================================================
    Views
    ===================================================================== */
+// Illustration only; the installed popup reads its version from the runtime adapter.
+const SAMPLE_VERSION = "0.2.0";
+const versionBadge = (place) => `<span class="extension-version" data-testid="${place}-version" aria-label="Version ${SAMPLE_VERSION}">v${SAMPLE_VERSION}</span>`;
 function header(withBack) {
   return `<header class="head">
       ${withBack
-        ? `<button class="icon-btn" data-act="settings-close" title="${ta("app.back")}" aria-label="${ta("app.back")}" data-testid="settings-back">${ICON.back}</button><h1>${t("settings.title")}</h1>`
+        ? `<button class="icon-btn" data-act="settings-close" title="${ta("app.back")}" aria-label="${ta("app.back")}" data-testid="settings-back">${ICON.back}</button><h1>${t("settings.title")}</h1>${versionBadge("settings")}`
         : `<div class="logo">${ICON.swap}</div><h1>${t("app.title")}</h1>
       <button class="icon-btn" data-act="settings-open" title="${ta("app.settings")}" aria-label="${ta("app.settings")}" data-testid="settings-btn" ${S.switching ? "disabled" : ""}>${ICON.gear}</button>`}
     </header>`;
 }
-const footer = () => `<footer class="foot">${ICON.shield}<span>${t("foot")}</span></footer>`;
+const footer = () => `<footer class="foot">${ICON.shield}<span class="foot-copy" title="${ta("foot")}">${t("foot")}</span>${versionBadge("footer")}</footer>`;
 
 function drawPopup() {
   const p = S.platform;

@@ -4,7 +4,7 @@
 import { type App, mountPopup } from '../app';
 import type { Effect } from '../controller';
 import { type Language, parseLanguagePref } from '../i18n';
-import { i18nApi } from '../runtime';
+import { extensionVersion, i18nApi } from '../runtime';
 import {
   account,
   baseState,
@@ -117,5 +117,12 @@ function handle(effect: Effect, app: App): void {
   }
 }
 
-mountPopup({ root, cache: localStorage, uiLanguage: ui, state, onEffect: handle });
+mountPopup({
+  root,
+  version: extensionVersion(),
+  cache: localStorage,
+  uiLanguage: ui,
+  state,
+  onEffect: handle,
+});
 document.documentElement.dataset.e2eReady = '1';

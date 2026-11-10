@@ -8,6 +8,7 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ### Added
 
+- Show the installed extension version in the popup footer and Settings.
 - Save, update, switch, rename and remove TikTok sessions, with current-tab account badges and guidance when Chrome has not granted TikTok access. Switching affects all TikTok tabs in the browser profile and may require login or a manual security check.
 - Capture matched profile names, handles and email when available on Facebook, Instagram, YouTube or TikTok. Use the display name for automatic labels on Add and Update session; keep labels you have renamed yourself. Show a small local avatar when the captured image can be validated; otherwise show initials.
 - Add English and Thai TikTok messages and sourced TikTok logos. The manifest requests access to `https://*.tiktok.com/*`.
