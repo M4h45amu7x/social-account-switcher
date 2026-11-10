@@ -389,7 +389,11 @@ function segment(
       html`<button data-pref="${group}" data-value="${value}" aria-pressed="${String(value === current)}" data-testid="s-${group === 'language' ? 'lang' : group}-${value}" ${lang ? raw(`lang="${esc(lang)}"`) : ''}>${tr.html(key)}</button>`,
   );
   const label = tr.text(group === 'theme' ? 'settings_theme' : 'settings_language');
-  return html`<div class="seg" role="group" aria-label="${label}">${buttons}</div>`;
+  const at = Math.max(
+    0,
+    items.findIndex(([value]) => value === current),
+  );
+  return html`<div class="seg slide" data-slide="${group}" style="--n:${items.length};--i:${at}" role="group" aria-label="${label}"><span class="thumb" aria-hidden="true"></span>${buttons}</div>`;
 }
 
 function settingsBody(tr: Translator, s: PopupState): Safe {
@@ -459,7 +463,7 @@ function mainBody(tr: Translator, s: PopupState): Safe {
   const tabs = PLATFORM_ORDER.map(
     (k) => html`
     <button class="tab" role="tab" aria-selected="${String(k === p)}" data-tab="${k}" data-testid="tab-${k}" ${busy ? 'disabled' : ''}>
-      ${k === p && html`<span class="pill"></span>`}${ICON[k]}<span>${PLATFORM_INFO[k].name}</span><span class="count">${s.platforms[k].accounts.length}</span>
+      ${ICON[k]}<span>${PLATFORM_INFO[k].name}</span><span class="count">${s.platforms[k].accounts.length}</span>
     </button>`,
   );
 
@@ -493,7 +497,7 @@ function mainBody(tr: Translator, s: PopupState): Safe {
 
   return html`
     ${header(tr, s, 'main')}
-    <nav class="tabs" role="tablist" aria-label="${tr.text('tabs_aria')}">${tabs}</nav>
+    <nav class="tabs slide" data-slide="tabs" style="--n:${PLATFORM_ORDER.length};--i:${PLATFORM_ORDER.indexOf(p)}" role="tablist" aria-label="${tr.text('tabs_aria')}"><span class="thumb" aria-hidden="true"></span>${tabs}</nav>
     <section class="body" data-panel>${parts}</section>
     ${toast}
     ${footer(tr)}`;

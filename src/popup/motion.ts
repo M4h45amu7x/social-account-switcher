@@ -30,7 +30,6 @@ type Matcher = readonly [
 const NAMED: readonly Matcher[] = [
   ['.row[data-id]', (el) => `row-${el.dataset.id}`, 'row', ['list', 'status', 'expand']],
   ['.slot[data-id]', (el) => `slot-${el.dataset.id}`, 'slot', ['list', 'status', 'expand']],
-  ['.tab .pill', () => 'pill', 'pill', ['tab']],
   ['[data-panel]', () => 'panel', 'panel', ['tab', 'page']],
   ['[data-card]', (el) => `card-${el.dataset.card}`, 'card', ['expand']],
   ['[data-sbtn]', () => 'sbtn', 'sbtn', ['status']],

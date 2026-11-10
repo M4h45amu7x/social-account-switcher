@@ -50,6 +50,15 @@ function measure(): string[] {
         chain.push(c);
         if (c[3] === 1) break;
       }
+      // the selected slot of a tab bar / segmented control sits on its thumb, drawn between the button and the track
+      const thumb = e.parentElement?.querySelector(':scope > .thumb');
+      if (thumb && e.matches('[aria-selected="true"], [aria-pressed="true"]')) {
+        const t = parse(getComputedStyle(thumb).backgroundColor);
+        if (t && t[3] > 0) {
+          chain.push(t);
+          if (t[3] === 1) break;
+        }
+      }
     }
     let acc: number[] = [255, 255, 255];
     for (const c of chain.reverse()) acc = over(c, acc);

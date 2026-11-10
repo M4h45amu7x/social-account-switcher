@@ -12,6 +12,9 @@
   --text: #16181d;
   --text-2: #5b6170;
   --line: #e3e5ea;
+  /* the selected slot of a tab bar / segmented control: raised above its track (surface-2) */
+  --thumb: #ffffff;
+  --thumb-line: #dcdfe5;
   --focus: #1a56d6;
   --ok: #12805c;
   --ok-bg: #e7f6ef;
@@ -51,6 +54,8 @@
     --text: #eceef2;
     --text-2: #9aa1ae;
     --line: #2b3039;
+    --thumb: #333a46;
+    --thumb-line: #465062;
     --focus: #6d97ff;
     --ok: #4cc391;
     --ok-bg: #12301f;
@@ -80,6 +85,8 @@
   --text: #eceef2;
   --text-2: #9aa1ae;
   --line: #2b3039;
+  --thumb: #333a46;
+  --thumb-line: #465062;
   --focus: #6d97ff;
   --ok: #4cc391;
   --ok-bg: #12301f;
@@ -197,16 +204,42 @@ button {
 }
 
 .tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
   margin: 0 12px;
-  padding: 4px;
-  background: var(--surface-2);
   border-radius: 10px;
 }
-.tab {
+/* One slide indicator for the tab bar and the segmented controls (slider.ts): the thumb parks at slot --i of
+   --n by CSS and sits behind the buttons, so it can never cover a label. */
+.slide {
+  --slide-pad: 4px;
+  --slide-gap: 4px;
   position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--slide-gap);
+  padding: var(--slide-pad);
+  background: var(--surface-2);
+}
+.slide > .thumb {
+  position: absolute;
+  z-index: 0;
+  top: var(--slide-pad);
+  bottom: var(--slide-pad);
+  left: var(--slide-pad);
+  width: calc((100% - 2 * var(--slide-pad) - (var(--n) - 1) * var(--slide-gap)) / var(--n));
+  transform: translateX(calc(var(--i) * (100% + var(--slide-gap))));
+  border-radius: 7px;
+  background: var(--thumb);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.12),
+    inset 0 0 0 1px var(--thumb-line);
+  pointer-events: none;
+}
+.slide > :not(.thumb) {
+  position: relative;
+  z-index: 1;
+}
+.tab {
   border: 0;
   background: transparent;
   border-radius: 7px;
@@ -219,18 +252,6 @@ button {
   font-size: 12.5px;
   color: var(--text-2);
   min-width: 0;
-}
-.tab > :not(.pill) {
-  position: relative;
-  z-index: 1;
-}
-.tab .pill {
-  position: absolute;
-  inset: 0;
-  border-radius: 7px;
-  background: var(--surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-  z-index: 0;
 }
 .tab[aria-selected="true"] {
   color: var(--text);
@@ -851,14 +872,10 @@ button {
   overflow-wrap: anywhere;
 }
 .seg {
-  display: flex;
-  gap: 4px;
-  background: var(--surface-2);
+  --slide-pad: 3px;
   border-radius: 9px;
-  padding: 3px;
 }
 .seg button {
-  flex: 1;
   min-width: 0;
   border: 0;
   background: transparent;
@@ -869,10 +886,8 @@ button {
   color: var(--text-2);
 }
 .seg button[aria-pressed="true"] {
-  background: var(--surface);
   color: var(--text);
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 .set-card.danger {
   border-color: var(--err);
@@ -907,7 +922,7 @@ button {
    MOTION (View Transitions API). Six transitions, one set of tokens.
    JS (motion section) sets <html data-vt="..."> for the length of a transition and names the elements.
    1 theme  - Circle Reveal: the new theme grows from the click point (the clip-path is animated in JS)
-   2 tab    - the pill glides to the chosen tab, the panel slides sideways
+   2 tab    - the panel slides sideways (the old page is gone before the new one shows); the tab thumb glides in slider.ts
    3 list   - add = pop in, remove = fade out, the others glide into place (also covers re-ordering)
    4 status - slot/button morph: idle -> loading -> success or error
    5 expand - rename editor, delete confirm and the wipe confirm open and close in place; settings page slides
@@ -933,15 +948,12 @@ button {
 /* 2 tab + page: the panel slides, direction comes from --vt-dir (1 = forward, -1 = back) */
 :root[data-vt="tab"]::view-transition-old(panel),
 :root[data-vt="page"]::view-transition-old(panel) {
-  animation: vt-slide-out var(--dur-base) var(--ease-in-out) both;
+  animation: vt-slide-out var(--dur-fast) var(--ease-in-out) both;
 }
+/* The new page waits until the old one has faded out, so the two never show text at the same time. */
 :root[data-vt="tab"]::view-transition-new(panel),
 :root[data-vt="page"]::view-transition-new(panel) {
-  animation: vt-slide-in var(--dur-slow) var(--ease-out) both;
-}
-:root[data-vt="tab"]::view-transition-group(pill) {
-  animation-duration: var(--dur-slow);
-  animation-timing-function: var(--ease-out);
+  animation: vt-slide-in var(--dur-base) var(--ease-out) var(--dur-fast) both;
 }
 
 /* 3 list: rows with only a "new" side pop in, rows with only an "old" side fade out */
