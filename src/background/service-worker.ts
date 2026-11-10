@@ -42,6 +42,7 @@ export function workerDeps(): RouterDeps {
     extensionId: runtimeApi.id,
     cookies: cookiesApi,
     tabs: tabsApi,
+    scripting: scriptingApi,
     local: localStorageApi,
     session: sessionStorageApi,
     platforms: {

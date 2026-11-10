@@ -95,7 +95,7 @@ test('router forwards TikTok tabId for probe, both add/update viewer reads and s
   expect(
     (await h.send({ type: 'account.updateSession', accountId: account.id, tabId: 2 })).ok,
   ).toBe(true);
-  expect(h.c.scripting.calls.map((c) => c.tabId)).toEqual([2, 2, 2, 2, 2, 2]);
+  expect(h.c.scripting.calls.map((c) => c.tabId)).toEqual([2, 2, 2, 2, 2, 2, 2, 2, 2, 2]);
   expect(h.queries).toEqual([]);
 });
 

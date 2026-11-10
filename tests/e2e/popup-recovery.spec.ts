@@ -18,6 +18,15 @@ const PASSWORD = 'orange cat naps by the canal';
 const screen = (p: Page) => p.getByTestId('popup');
 
 async function ready(context: BrowserContext, extensionId: string) {
+  // Locally fulfill the active platform before the request watcher; no external request is sent.
+  await context.route('https://www.facebook.com/**', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: '<!doctype html><title>Fixture</title><link rel="icon" href="data:,">',
+    }),
+  );
+  const site = await context.newPage();
+  await site.goto('https://www.facebook.com/');
   const page = await context.newPage();
   const worker = context.serviceWorkers()[0] as Worker;
   const external: string[] = [],
@@ -30,6 +39,15 @@ async function ready(context: BrowserContext, extensionId: string) {
     await d.dismiss();
   });
   await page.goto(`chrome-extension://${extensionId}/popup/index.html`);
+  await page.evaluate(async () => {
+    const [site] = await chrome.tabs.query({
+      url: 'https://www.facebook.com/*',
+      currentWindow: true,
+    });
+    if (site?.id === undefined) throw new Error('missing Facebook fixture tab');
+    await chrome.tabs.update(site.id, { active: true });
+  });
+  await page.reload();
   await expect(screen(page)).toHaveAttribute('data-state', 'setup');
   await page.getByTestId('pw-input').fill(PASSWORD);
   await page.getByTestId('setup-create').click();
@@ -124,5 +142,6 @@ test('write and reconcile timeout: retry is read-only and late answers are ignor
     ),
   ).toBe(stateBefore);
   const after = await worker.evaluate(() => (globalThis as unknown as Hooks).__qcRequests);
-  expect(after).toEqual(['account.rename', 'state.get', 'state.get']);
+  // The captured platform context refreshes its badge with one read-only probe after retry.
+  expect(after).toEqual(['account.rename', 'state.get', 'state.get', 'account.probe']);
 });

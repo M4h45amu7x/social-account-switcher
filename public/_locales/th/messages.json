@@ -502,7 +502,7 @@
     "description": "Forgot-password wipe confirmation"
   },
   "wipe_detail": {
-    "message": "กู้รหัสผ่านไม่ได้ (ไม่มี server) — session ของ Facebook / Instagram / TikTok ที่เก็บไว้ทั้งหมดจะถูกลบ แล้วค่อย login เพิ่มบัญชีใหม่ · บัญชีบนเว็บไม่เสียหาย · ทางลัด YouTube ยังอยู่",
+    "message": "กู้รหัสผ่านไม่ได้ (ไม่มี server) — session และข้อมูลโปรไฟล์ที่บันทึกไว้ทั้งหมดจะถูกลบ แล้วค่อยเพิ่มบัญชีเหล่านั้นใหม่ · ทางลัด YouTube ยังอยู่พร้อมชื่อที่คุณตั้งไว้ ส่วนชื่ออัตโนมัติจะถูกรีเซ็ต · บัญชีบนเว็บไม่เสียหาย",
     "description": "Forgot-password wipe confirmation"
   },
   "wipe_ok": {
@@ -844,7 +844,7 @@
     "description": "TikTok platform and recovery guidance."
   },
   "err_rollback_failed": {
-    "message": "The previous session could not be restored. Check the signed-in account on the site before trying again.",
+    "message": "กู้คืน session เดิมไม่ได้ — กรุณาเช็กบัญชีที่ login อยู่บนเว็บก่อนลองอีกครั้ง",
     "description": "Session rollback recovery guidance."
   }
 }

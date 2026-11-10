@@ -502,7 +502,7 @@
     "description": "Forgot-password wipe confirmation"
   },
   "wipe_detail": {
-    "message": "There is no way to recover it (there is no server). Every saved Facebook, Instagram and TikTok session is deleted, and you add your accounts again. Your accounts on the sites are fine. YouTube shortcuts stay.",
+    "message": "There is no password recovery (there is no server). Every saved session and its profile details are deleted, and you add those accounts again. YouTube shortcuts stay with the names you gave them; automatic names reset. Your accounts on the sites are fine.",
     "description": "Forgot-password wipe confirmation"
   },
   "wipe_ok": {

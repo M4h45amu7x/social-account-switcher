@@ -2,6 +2,7 @@
 // Grace accepts retired generations for 1,000 ms after retirement, without extending their expiry
 // on reuse. This permits concurrent documents; strict mode accepts only the current generation.
 import { createHash, randomBytes } from 'node:crypto';
+import { PNG } from '../fixtures/profile';
 import type { SiteHandler } from './https-sites';
 
 export const TOKEN_GRACE_MS = 1000;
@@ -20,10 +21,18 @@ const hydration = (user: string | null) => ({
   __DEFAULT_SCOPE__: {
     'webapp.app-context': {
       isLogin: user !== null,
-      user: user === null ? null : { uid: fixtureUid(user), uniqueId: user },
+      user:
+        user === null
+          ? null
+          : { uid: fixtureUid(user), uniqueId: user, nickname: `${user} Profile`, avatar: PNG },
     },
     'webapp.video-detail': {
-      author: { uid: '9999999999999999999', uniqueId: 'misleading.author' },
+      author: {
+        uid: '9999999999999999999',
+        uniqueId: 'misleading.author',
+        nickname: 'Feed author',
+        avatar: PNG,
+      },
       userInfo: { user: { uid: '8888888888888888888' } },
     },
   },

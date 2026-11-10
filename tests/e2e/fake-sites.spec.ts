@@ -100,6 +100,14 @@ async function pickPlatform(page: Page, platform: Platform) {
 }
 
 async function addAccount(page: Page, platform: Platform, label: string) {
+  // Reopen over the site's tab as a person does: profile probes now bind to the
+  // active tab captured at popup startup, including when switching platform tabs.
+  await page.evaluate(async (host) => {
+    const [site] = await chrome.tabs.query({ url: `https://${host}/*`, currentWindow: true });
+    if (site?.id === undefined) throw new Error('missing fake site tab');
+    await chrome.tabs.update(site.id, { active: true });
+  }, HOST[platform]);
+  await page.reload();
   await pickPlatform(page, platform);
   await page.getByTestId('add-account').click();
   await expect(page.getByTestId('add-form')).toBeVisible();

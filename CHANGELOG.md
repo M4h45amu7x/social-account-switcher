@@ -10,6 +10,7 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 - TikTok session backend with a centralized cookie deny-list, verified rollback and recovery, and session wipe support. The manifest requests the `https://*.tiktok.com/*` host permission.
 - TikTok popup controls for saving, updating, switching, renaming and removing accounts, current-tab selection and badges, and host-access guidance. English and Thai catalogs include TikTok messages; sourced TikTok logos retain their original bytes.
 - A bounded, read-only candidate TikTok hydration reader and fixtures that distinguish the viewer from content authors. The live signed-in schema and cookie roles remain unconfirmed; owner real-account checks are required before releasing v0.2.0.
+- Read optional matched account names, handles, email and small local avatars from the captured Facebook, Instagram, YouTube or TikTok page when adding or updating a session; preserve custom labels. No profile network requests, permissions or dependencies were added. Both wipe scopes erase profile metadata. TikTok uses only the matched app-context user; live profile field names remain unconfirmed.
 
 ### Changed
 
@@ -17,6 +18,10 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ### Fixed
 
+- Re-encode captured avatars locally as PNG before saving; reject incomplete stored images and appended payloads. Invalid images keep the initials fallback.
+- Restore Facebook/Instagram Add from unrelated tabs using existing cookies without borrowing profile metadata.
+- Clarify that session wipe preserves custom names only for retained YouTube shortcuts.
+- Supply the scripting dependency to the TikTok browser-test worker so the composed build passes type checking.
 - Verified TikTok switches and recovery wait for every reloaded tab before saving the session, so a slower response cannot leave an older token in the vault. Other platforms keep their existing load behavior.
 
 ## [0.1.2] - 2026-11-10

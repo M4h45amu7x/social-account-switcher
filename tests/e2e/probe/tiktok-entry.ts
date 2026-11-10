@@ -45,6 +45,7 @@ const deps = {
   extensionId: runtimeApi.id,
   cookies,
   tabs: tabsApi,
+  scripting: scriptingApi,
   local: localStorageApi,
   session: sessionStorageApi,
   platforms: {

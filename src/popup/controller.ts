@@ -2,7 +2,9 @@
 // the background worker has to carry out. No DOM, no timers, no chrome.*. B5a only draws and navigates;
 // B5b turns `effects` into messages for the service worker and feeds its answers back as the
 // "result" actions below.
+
 import { isErrorCode } from '../lib/messages';
+import type { AccountProfile } from '../lib/profile';
 import { initialsOf, MAX_LABEL_LENGTH } from '../lib/store';
 import { validatePassword } from '../lib/vault';
 import type { LanguagePref } from './i18n';
@@ -79,7 +81,16 @@ export type ResultAction =
   /** A request timed out: drop what the popup set while waiting (switching, spinner) before the state is fetched. */
   | { type: 'settle' }
   | { type: 'unlock-result'; ok: boolean; code?: string }
-  | { type: 'add-probed'; found: { idTail: string; defaultName: string; brand?: boolean } | null }
+  | {
+      type: 'add-probed';
+      found: {
+        idTail: string;
+        defaultName: string;
+        brand?: boolean;
+        profile?: AccountProfile;
+        autoLabel?: boolean;
+      } | null;
+    }
   | { type: 'locked'; locked: boolean }
   /** account.probe said which saved account the tab under the popup is logged in to (null: none of them). */
   | { type: 'here-account'; platform: Platform; accountId: string | null };
@@ -93,7 +104,7 @@ export type Effect =
   | { type: 'rename'; platform: Platform; id: string; label: string }
   | { type: 'delete'; platform: Platform; id: string }
   | { type: 'probe-add'; platform: Platform }
-  | { type: 'add'; platform: Platform; label: string }
+  | { type: 'add'; platform: Platform; label: string; autoLabel?: boolean }
   | { type: 'update-session'; platform: Platform; id: string }
   | { type: 'open-site'; platform: Platform; login: boolean }
   | { type: 'unlock'; password: string }
@@ -348,6 +359,8 @@ export function reduce(s: PopupState, a: PopupAction): Step {
                 value: a.found.defaultName,
                 bad: false,
                 idTail: a.found.idTail,
+                ...(a.found.profile ? { profile: a.found.profile } : {}),
+                ...(a.found.autoLabel ? { autoLabel: true } : {}),
                 ...(a.found.brand ? { brand: true } : {}),
               }
             : { kind: 'notLoggedIn' },
@@ -360,7 +373,12 @@ export function reduce(s: PopupState, a: PopupAction): Step {
       if (s.adding?.kind !== 'form') return same(s, 'none', { render: false });
       const label = clipLabel(s.adding.value);
       if (!label) return same({ ...s, adding: { ...s.adding, bad: true } });
-      return same(s, 'none', { render: false, effects: [{ type: 'add', platform: p, label }] });
+      return same(s, 'none', {
+        render: false,
+        effects: [
+          { type: 'add', platform: p, label, ...(s.adding.autoLabel ? { autoLabel: true } : {}) },
+        ],
+      });
     }
 
     case 'err-close':
@@ -392,7 +410,15 @@ export function reduce(s: PopupState, a: PopupAction): Step {
       }
       if (a.field === 'add' && s.adding?.kind === 'form') {
         return same(
-          { ...s, adding: { ...s.adding, value: a.value, bad: s.adding.bad && !a.value.trim() } },
+          {
+            ...s,
+            adding: {
+              ...s.adding,
+              autoLabel: false,
+              value: a.value,
+              bad: s.adding.bad && !a.value.trim(),
+            },
+          },
           'none',
           { render: false },
         );

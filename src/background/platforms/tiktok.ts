@@ -68,7 +68,7 @@ export interface TikTokDeps {
   hasPermission?: () => Promise<boolean>;
 }
 
-const isTikTok = (url: string | undefined): boolean => {
+export const isTikTok = (url: string | undefined): boolean => {
   try {
     const u = new URL(url ?? '');
     return (

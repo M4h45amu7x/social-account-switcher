@@ -1,3 +1,5 @@
+import { type AccountProfile, sanitizeProfile } from '../lib/profile';
+import { initialsOf } from '../lib/store';
 // Pure render: PopupState → DOM. No chrome.*, no timers, no storage. The markup, class names, data-testid
 // and data-act values are the ones in mockup/popup.html, so popup.css and the e2e selectors carry over.
 // Every dynamic value goes through the escaping `html` builder (html.ts).
@@ -210,7 +212,7 @@ function row(tr: Translator, s: PopupState, a: AccountView): Safe {
   const label = tr.text(active ? 'row_activeAria' : 'row_switchTo', { name: a.label });
   return html`<li class="row ${active ? 'active' : ''} ${busy ? 'busy' : ''}" data-id="${a.id}" data-testid="row-${a.id}">
     <button class="main" data-act="switch" data-id="${a.id}" ${active || s.switching || s.platforms[p].busy ? 'disabled' : ''} aria-label="${label}">
-      ${avatar}<span class="who"><div class="name"><span class="nm">${a.label}</span>${chip}</div>${sub}</span>
+      ${avatar}<span class="who"><div class="name"><span class="nm" dir="auto"></span>${chip}</div><div class="profile-details" dir="auto"></div>${sub}</span>
     </button>${slot(tr, s, a, busy)}</li>`;
 }
 
@@ -238,9 +240,10 @@ function addView(tr: Translator, s: PopupState, adding: AddView): Safe {
   return html`<div class="panel add-form" data-testid="add-form">
     <div class="ttl">${tr.html('add_found')}</div>
     ${who && html`<div class="meta">${who}</div>`}
+    <div class="profile-preview" data-profile-preview><span class="avatar" aria-hidden="true"></span><span class="profile-details" dir="auto"></span></div>
     <div class="edit">
       <label class="sr" for="add-input">${tr.html('add_label')}</label>
-      <input id="add-input" dir="auto" data-testid="add-input" maxlength="40" placeholder="${tr.text('add_placeholder')}" value="${adding.value}" data-autofocus>
+      <input id="add-input" dir="auto" data-testid="add-input" maxlength="40" placeholder="${tr.text('add_placeholder')}" data-autofocus>
       <div class="hint ${adding.bad ? 'bad' : ''}" data-testid="add-hint">${tr.html(adding.bad ? 'rename_bad' : 'add_hint')}</div>
       <div class="btns">
         <button class="btn ghost" data-act="add-cancel" data-testid="add-cancel">${tr.html('common_cancel')}</button>
@@ -537,6 +540,24 @@ function mainBody(tr: Translator, s: PopupState): Safe {
     ${footer(tr)}`;
 }
 
+/** Optional page metadata is text; avatars may only use locally validated raster bytes. */
+function fillProfile(root: Element, rawProfile: AccountProfile | undefined): void {
+  const profile = sanitizeProfile(rawProfile);
+  const details = root.querySelector<HTMLElement>('.profile-details');
+  if (details) {
+    details.textContent = [profile?.handle, profile?.email].filter(Boolean).join(' · ');
+    details.title = details.textContent;
+  }
+  const avatar = root.querySelector('.avatar');
+  if (avatar && profile?.avatar) {
+    const img = document.createElement('img');
+    img.alt = '';
+    img.src = profile.avatar;
+    img.addEventListener('error', () => img.remove(), { once: true });
+    avatar.prepend(img);
+  }
+}
+
 /** Draws the whole popup into `root`. Call it again with the next state; it replaces everything. */
 export function renderPopup(root: HTMLElement, state: PopupState, tr: Translator): void {
   root.dataset.platform = state.platform;
@@ -563,6 +584,25 @@ export function renderPopup(root: HTMLElement, state: PopupState, tr: Translator
         }
       : null;
   root.innerHTML = body.value;
+  // Profile values never enter the markup builder: use text/value/src properties only.
+  for (const row of root.querySelectorAll<HTMLElement>('li[data-id]')) {
+    const account = state.platforms[state.platform].accounts.find((a) => a.id === row.dataset.id);
+    if (!account) continue;
+    const name = row.querySelector('.nm');
+    if (name) name.textContent = account.label;
+    fillProfile(row, account.profile);
+  }
+  if (state.adding?.kind === 'form') {
+    const input = root.querySelector<HTMLInputElement>('#add-input');
+    if (input) input.value = state.adding.value;
+    const preview = root.querySelector<HTMLElement>('[data-profile-preview]');
+    if (preview) {
+      preview.hidden = !state.adding.profile;
+      const initials = preview.querySelector('.avatar');
+      if (initials) initials.textContent = initialsOf(state.adding.value);
+      fillProfile(preview, state.adding.profile);
+    }
+  }
   // stale state (the extension did not answer and nothing could be read): nothing may write until a load works
   if (state.stale) {
     for (const el of root.querySelectorAll<HTMLButtonElement>(

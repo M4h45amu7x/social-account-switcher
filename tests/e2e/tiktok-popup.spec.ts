@@ -325,3 +325,64 @@ for (const scope of ['sessions', 'all'] as const) {
     }
   });
 }
+
+test('production TikTok profile: app-context name/handle/avatar, author ignored, uid mismatch discarded', async () => {
+  const h = await launch();
+  try {
+    await setup(h);
+    const tab = await newTab(h, `https://${TT}/__e2e/login?user=alice`);
+    const popup = await popupOver(h, tab.id);
+    await popup.getByTestId('add-account').click();
+    await expect(popup.getByTestId('add-input')).toHaveValue('alice Profile');
+    await popup.getByTestId('add-save').click();
+    await expect(screen(popup)).toHaveAttribute('data-state', 'list');
+    const account = (await store(h.sw)).accounts[0];
+    expect(account).toMatchObject({
+      platformUserId: fixtureUid('alice'),
+      label: 'alice Profile',
+      labelSource: 'profile',
+      profile: { displayName: 'alice Profile', handle: 'alice' },
+    });
+    if (!account) throw new Error('missing saved profile');
+    const saved = row(popup, account.id);
+    await expect(saved.locator('.profile-details')).toContainText('alice');
+    await expect(saved.locator('.avatar > img')).toHaveAttribute('src', /^data:image\/png;base64,/);
+    await expect
+      .poll(() =>
+        saved
+          .locator('.avatar > img')
+          .evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
+      )
+      .toBe(true);
+    expect(JSON.stringify(await store(h.sw))).not.toContain('Feed author');
+    // The first two identity reads bracket captureSession's cookie snapshot. A different
+    // UID on the following metadata read must be discarded without failing the session save.
+    // This page-side getter simulates a stale/changing hydration document without production hooks.
+    await tab.page.evaluate(() => {
+      const el = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
+      if (!el) throw new Error('missing hydration');
+      const original = el.textContent ?? '';
+      const changed = JSON.parse(original);
+      changed.__DEFAULT_SCOPE__['webapp.app-context'].user.uid = '999';
+      changed.__DEFAULT_SCOPE__['webapp.app-context'].user.nickname = 'Wrong viewer';
+      let reads = 0;
+      Object.defineProperty(el, 'textContent', {
+        configurable: true,
+        get: () => (++reads >= 3 ? JSON.stringify(changed) : original),
+      });
+    });
+    expect(
+      await popup.evaluate(
+        ({ id, tabId }) =>
+          chrome.runtime.sendMessage({ type: 'account.updateSession', accountId: id, tabId }),
+        { id: account.id, tabId: tab.id },
+      ),
+    ).toMatchObject({ ok: true });
+    expect((await store(h.sw)).accounts[0]).not.toHaveProperty('profile');
+    await popup.reload();
+    await expect(saved.locator('.nm')).toHaveText('TikTok');
+    await expect(saved.locator('.profile-details')).toBeEmpty();
+  } finally {
+    await h.close();
+  }
+});
