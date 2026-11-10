@@ -1,4 +1,4 @@
-// Builds release/social-account-switcher-v<version>.zip for the Chrome Web Store (docs/design.md §9.7).
+// Builds release/social-account-switcher-v<version>.zip for GitHub Releases (docs/design.md §9.7).
 // Expects a fresh `bun run build`. Deterministic: sorted entries, fixed timestamps.
 import { createHash } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -57,7 +57,8 @@ for (const f of files) {
 }
 
 // 3) deterministic zip (manifest.json at the zip root)
-const mtime = new Date('2000-01-01T00:00:00Z');
+// fflate encodes local calendar fields as DOS time; keep those fields fixed in every TZ.
+const mtime = new Date(2000, 0, 1, 0, 0, 0);
 const entries: Zippable = {};
 for (const f of files) {
   entries[relative(dist, f).split(sep).join('/')] = [readFileSync(f), { mtime, level: 9 }];

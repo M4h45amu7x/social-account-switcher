@@ -4,6 +4,14 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep release ZIP timestamps and checksums identical across UTC and Asia/Bangkok build environments.
+
+### Documentation
+
+- Propose TikTok support for v0.2.0, including validation limits and implementation cards. TikTok support is not included yet.
+
 ## [0.1.0] - 2026-11-10
 
 ### Added
@@ -21,6 +29,5 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 - Document local data handling, the two wipe scopes, switch deadlines and known issues. Keep live-account and installation checks in the manual handoff checklist.
 
-<!-- Replace OWNER/REPOSITORY when the owner creates the destination repository. -->
-[Unreleased]: https://github.com/OWNER/REPOSITORY/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/OWNER/REPOSITORY/releases/tag/v0.1.0
+[Unreleased]: https://github.com/M4h45amu7x/social-account-switcher/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/M4h45amu7x/social-account-switcher/releases/tag/v0.1.0

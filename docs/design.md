@@ -1,6 +1,6 @@
 # Social Account Switcher — v0.1.0 implementation design
 
-> Status: v0.1.0 implementation and GitHub handoff specification, 2026-11-10. Live account checks remain manual; this document does not claim publication or checkpoint-free operation.
+> Status: v0.1.0 implementation specification with a proposed v0.2.0 TikTok design in section 13, 2026-11-10. Live account checks remain manual; this document does not claim publication or checkpoint-free operation.
 > Clickable reference: `mockup/popup.html`; runner: `mockup/e2e/popup.e2e.mjs`; instructions: `mockup/README.md`. Generated captures and run logs are not versioned. Small current popup images are in `docs/images/`.
 > Repository prose is English. English and Thai are supported UI languages.
 
@@ -10,7 +10,7 @@ Switch between the user's own Facebook, Instagram and YouTube accounts from a 36
 
 There is no extension server, account sync, analytics, login automation, remote code, runtime dependency or incognito support. This version does not export/import saved sessions. It does not provide separate Facebook/Instagram accounts in different tabs: cookies are shared within a browser profile. Messenger.com and other domains are outside the host permission list.
 
-Distribution is a zip on GitHub Releases, installed with Chrome's Developer mode and Load unpacked. The owner creates the destination repository and publishes it. No remote or account identity is inferred by the implementation.
+Distribution is a zip on GitHub Releases, installed with Chrome's Developer mode and Load unpacked. The repository is [M4h45amu7x/social-account-switcher](https://github.com/M4h45amu7x/social-account-switcher). The owner controls publication.
 
 ## 2. User flow
 
@@ -216,7 +216,7 @@ Biome and `scripts/check-chrome-access.ts` enforce browser-global restrictions a
 
 ### 9.7 GitHub release zip
 
-`scripts/zip.ts` checks the manifest permission allow-list, the permission table in `PRIVACY.md` and the manifest/package version match. It rejects source maps and code matching its forbidden patterns for remote scripts/imports, dynamic evaluation and direct network APIs. It does not check that required locale files exist. It sorts archive entries and fixes timestamps, producing `release/social-account-switcher-v<version>.zip` and its SHA-256 file with the manifest at archive root. Two unchanged builds must produce the same checksum.
+`scripts/zip.ts` checks the manifest permission allow-list, the permission table in `PRIVACY.md` and the manifest/package version match. It rejects source maps and code matching its forbidden patterns for remote scripts/imports, dynamic evaluation and direct network APIs. It does not check that required locale files exist. It sorts archive entries and fixes local calendar timestamp fields to 2000-01-01 00:00:00, producing `release/social-account-switcher-v<version>.zip` and its SHA-256 file with the manifest at archive root. Unchanged builds under `TZ=UTC` and `TZ=Asia/Bangkok` must produce the same checksum; a subprocess unit test covers both timezone encodings.
 
 ### 9.8 Workflows
 
@@ -224,7 +224,7 @@ Biome and `scripts/check-chrome-access.ts` enforce browser-global restrictions a
 
 ### 9.9 Documentation and assets
 
-README covers the popup image, GitHub zip/manual installation or build, three use steps, risks, known issues/manual checks, development/layout, adding a language and release procedure. PRIVACY describes actual local data handling; SECURITY provides private reporting guidance. CHANGELOG follows Keep a Changelog and SemVer. Repository URL placeholders remain until the owner creates the destination.
+README covers the popup image, GitHub zip/manual installation or build, three use steps, risks, known issues/manual checks, development/layout, adding a language and release procedure. PRIVACY describes actual local data handling; SECURITY provides private reporting guidance. CHANGELOG follows Keep a Changelog and SemVer. Release links point to the public GitHub repository.
 
 The extension icon composes the unchanged Facebook, Instagram and YouTube SVGs supplied from thesvg.org. Six color/mono originals and source dates/hashes are kept in `public/brands/`; marks belong to Meta Platforms or Google and are excluded from MIT. The project is not affiliated with them. `assets/icon.svg` places the originals without changing paths, colors or aspect ratios. `bun run icons` uses Chromium to render 16/32/48/128 px PNGs and a light/dark preview; Chromium is required for the Instagram gradient. `bun run screenshots` captures fictional popup data with HTTP(S) blocked. Its encryption footer omission is disclosed in README because metadata is plaintext.
 
@@ -247,3 +247,106 @@ System follows `prefers-color-scheme`; explicit Light/Dark sets `data-theme`. Pr
 ## 12. Motion
 
 `popup/motion.ts`, controller actions and CSS implement theme reveal, tab/panel transitions, list changes, status changes, inline expansion, page changes and toasts with View Transitions and CSS. Timings are centralized; overlapping transitions are settled rather than leaving a stale owner. With reduced motion, transitions are skipped and spinner animations stop. Without View Transitions support, DOM updates still happen. These animations do not measure worker progress. The local mockup is a visual reference, not a live platform simulation.
+
+## 13. TikTok proposal for v0.2.0
+
+This section is a design proposal, not shipped TikTok support. Sections 1–12 describe v0.1.0 unless noted. No TikTok source, host permission, catalog entry or brand asset is added by this design card. The implementation cards below must update those sections and the privacy inventory together. Public-source checks and an anonymous browser visit were made on 2026-11-10; no real account was logged in, and no existing browser profile or another person's cookies were used.
+
+### 13.1 Switching method and decision
+
+Choose **cookie swap with encrypted snapshots and a per-platform journal**, extending the Facebook/Instagram path. This preserves the local-only architecture and can reuse attribute-preserving restore, busy locking and rollback. TikTok needs its own identity probe and a session-cookie allow-list; copying the Facebook adapter with a different `idCookie` is insufficient.
+
+The alternative is navigating TikTok's own account switcher. No stable, documented account-selection URL comparable to YouTube's sign-in coordinates was verified. Automating a private UI would depend on selectors and account state. This does not establish that TikTok has no built-in account switching; the owner should compare the signed-in web UI during manual checks. [TikTok Login Kit](https://developers.tiktok.com/docs/en/login-kit-web) authorizes an application through OAuth and server-side token handling. It does not document switching the browser's TikTok website session and does not fit this extension's architecture.
+
+Cookie swapping can fail when a session is bound to a device, revoked, rotated or challenged. Rollback restores local cookies; it cannot undo server-side invalidation. Before enabling the feature for release, the owner must test two owned accounts in a disposable browser profile: add/update both, alternate switches with ordinary navigation between them, restart the worker/browser, log one account out, and complete any manual challenge. Verify the current identity and preservation of device cookies without saving cookie values to logs. No real-account test is authorized by this card.
+
+### 13.2 Cookie boundary and evidence
+
+[TikTok's Cookies Policy](https://www.tiktok.com/legal/page/global/cookie-policy/en), under Functionality and customisation, identifies `sid_tt` as remembering login state. Its Safety and security section identifies `ttwid` and `security_verification_ticket` as security cookies. These are primary-source examples, not an exhaustive session schema. The anonymous visit confirmed the presence of `ttwid`, `msToken`, `tt_csrf_token` and `tt_chain_token` without login. Anonymous presence is evidence against treating them as a reliable account ID; it does not by itself establish every cookie's purpose.
+
+| Group | Proposed names on `.tiktok.com` and its permitted HTTPS subdomains | Treatment and confidence |
+|---|---|---|
+| Session credentials | `sid_tt` | Capture/clear/restore as an encrypted session member. Login-state purpose is documented by TikTok; sufficiency for switching is unverified. |
+| Candidate companion credentials | `sessionid`, `sessionid_ss`, `sid_guard`, `sid_ucp_v1`, `ssid_ucp_v1` | Candidate names for owner verification, not a confirmed required set. Admit a name to the session allow-list only after comparing the owner's two accounts and a logout/rotation case. No claim is made that every region emits these names. |
+| Candidate account markers | `uid_tt`, `uid_tt_ss` | Candidate encrypted snapshot members, pending the same check. Do not interpret their values as a numeric user ID or use them alone to report success. |
+| Browser/security state | `ttwid`, `msToken`, `security_verification_ticket`, `s_v_web_id`, `odin_tt`, `tt_chain_token`, `tt_csrf_token`, `passport_csrf_token`, `passport_csrf_token_default`, `x-web-secsdk-uid`, `gd_random` | Preserve by default; never import from a saved account. Only `ttwid` and `security_verification_ticket` have the policy classification above. The rest are a conservative preserve set, not verified anti-bot classifications. CSRF coupling to login is an open question; if preservation breaks switching, stop for a reviewed rule change rather than clearing more cookies. |
+| Preferences, routing and multi-account state | `default_lang`, `locale`, `tiktok_webapp_theme`, `tiktok_webapp_theme_source`, `store-idc`, `tt-target-idc`, `tt-target-idc-sign`, `multi_sids`, all unknown names | Preserve. Routing and remembered-account behavior are unverified; do not use a deny-list that captures every new cookie. |
+
+The candidate names are explicit design hypotheses, not observations of an authenticated session or sourced statements of TikTok's internal contract. This card cannot verify that set without crossing the no-login boundary. `sid_tt` is the only session name documented by the primary source checked here; no complete switching set is verified. Implementation/release acceptance requires owner confirmation of the companion set. A synthetic fixture only tests the chosen model.
+
+Introduce a TikTok-specific session selection rule used consistently by snapshot, clear, restore, pre-switch save and journal recovery. Existing Facebook/Instagram filtering stays unchanged. Preserve host-only, domain/path, expiry, Secure, HttpOnly, SameSite and partition keys. Restrict restore to allowed names/domains and HTTPS; preserve all unlisted cookies, including multiple `msToken` variants. If the session set is empty or fully expired, refuse the switch. Do not record secret values in evidence, telemetry or error messages.
+
+### 13.3 Read-only identity probe and expiry
+
+Use injected `TabsApi`/`ScriptingApi` through the existing adapter, with `executeScript({ world: 'MAIN' })` in the top frame of an open HTTPS TikTok tab. Read existing page state or authenticated navigation elements only. Do not invoke a site function, submit a form, intercept traffic, call an endpoint or introduce `fetch`, XHR or another request from the extension. The page may make its own normal traffic.
+
+The anonymous visit found `#__UNIVERSAL_DATA_FOR_REHYDRATION__`, a visible login control, and content-author IDs inside the feed. **A video author's ID is not the viewer's identity.** Do not use generic `author`, `/@handle` links, a viewed profile or an arbitrary `userInfo` record as the current account. A possible authenticated app-context/current-user store is an unverified selector/schema; an implementer must establish an explicit current-viewer field with the owner before enabling a success result. Read only a bounded object and return a validated stable account ID plus a signed-in/logged-out/challenge/unknown discriminator. Discard names, avatars, feed data and all unrelated state inside the page. Treat handles as mutable and never use them as the sole stable key.
+
+`account.probe` must remain read-only: no new tab, reload, storage write or cookie change. With no suitable tab, return `no_tiktok_tab`; with an unrecognized page/state, return `tiktok_probe_unavailable`. Return a null identity only for a positively recognized logged-out state. Both cases must avoid labelling a saved session expired. A challenge takes precedence over a login prompt or missing data. Validate hostname/path and selector evidence; tentative challenge routes such as `/captcha` or `/verify` require manual confirmation, and a generic modal alone is insufficient.
+
+Extend the cookie-platform contract with an injected current-identity probe used by add/update, unsaved-current detection and post-reload verification. The shared switcher currently reads `idCookie` directly at its pre-switch and verification stages; both stages need the hook. Facebook/Instagram retain their cookie-ID behavior. Store TikTok's verified stable viewer ID as plaintext `platformUserId`, with the user's label, while cookies remain encrypted. A missing identity cookie alone is not proof of server revocation.
+
+After restoring and loading a TikTok page, compare its verified viewer ID with the saved target. A recognized logout or a different viewer yields `not_signed_in`/expired and attempted rollback; unknown state yields a probe error without marking the account expired. A challenge yields `checkpoint` and manual action. Keep popup unknown-outcome reconciliation and the existing worker deadline limitation. Save the server's latest rotated target snapshot after successful identity verification, and save the departing current session immediately before replacement. On an ambiguous or failed verification, do not overwrite a good saved snapshot with unverified cookies. Account identity and cookie state can race across tabs; use the platform lock, a before/after viewer check for capture, and fail closed on disagreement.
+
+### 13.4 Permissions, update behavior and storage changes
+
+Propose one new host pattern: `https://*.tiktok.com/*`, covering the apex and HTTPS subdomains needed for domain cookies, tab queries/reloads and the page reader. Keep the existing `cookies`, `storage` and `scripting` permissions. Do not add HTTP TikTok access, `tabs`, `<all_urls>`, TikTok CDN/advertising domains, webRequest or content scripts. If the owner finds a required authentication host outside this boundary, stop and review that requirement.
+
+[Chrome's permission warning guidance](https://developer.chrome.com/docs/extensions/develop/concepts/permission-warnings) says a warning-bearing permission increase can disable an installed extension pending acceptance. [Declare permissions](https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions) includes host-pattern changes among warning triggers. Those packaged-update rules do not justify claiming the same prompt for a Load unpacked reload. [Chrome's older unpacked guidance](https://developer.chrome.com/docs/extensions/mv2/permission-warnings) explicitly says unpacked loads do not show permission warnings; it is historical MV2 guidance, not a verified current MV3 update result.
+
+This project distributes unpacked folders through GitHub. Document the upgrade as replacing extracted files and reloading the same directory at `chrome://extensions`, then reviewing TikTok access in Details/Site access. Whether the current Chrome build disables it or prompts on that reload remains a manual acceptance check; do not promise either outcome from documentation alone. Test an existing v0.1.0 profile with fictional saved entries before/after upgrade, record Chrome version and actual consent UI, confirm granted access before any cookie write, and preserve the old data on denial/missing access. Test a new Load unpacked separately. Do not uninstall merely to upgrade.
+
+The implementation must change manifest and `scripts/permissions.ts` together. Update `PRIVACY.md`'s cookies row to include TikTok, scripting row to include the minimal viewer reader, and add the new host row explaining cookie access, tab reloads and identity reading. Expand the encrypted-cookie data row, plaintext identity/status row and `journal.tiktok` inventory. Forgot-password wipe must remove TikTok entries/vault sessions while retaining YouTube; both wipes must clear its journal, lock and recovery state. Add a default `active.tiktok: null` when reading old v1 stores, preserve old accounts/quarantine and reject malformed TikTok entries without losing data. Test upgrade and wipe scopes. Encryption, session-key handling, local retention and absence of an extension backend/analytics remain unchanged. Website reload requests remain disclosed.
+
+### 13.5 Rotating-session fixture and E2E acceptance
+
+Add a local fake HTTPS TikTok host using fictional accounts and isolated test certificates. Extend the fixture harness's resolver, host routing and extension test manifest; CI must never visit the live site. The fixture must issue a new session generation **on every ordinary authenticated document load**, including reloads, not only on login. The next generation must resolve to the same stable viewer ID; invalid generations cannot impersonate another user. Define an explicit previous-token grace rule for concurrent loads and a strict invalidation mode, then test both. Serve a minimal viewer-state script and authenticated navigation separately from feed-author/profile data, so the reader can be tested against misleading content.
+
+Acceptance includes two accounts alternating at least five times with normal navigation between switches; assertions on token-generation changes and server acceptance; the saved latest target and departing-session snapshot; device/security cookies unchanged; host-only/partitioned attributes; all TikTok tabs reloaded and unrelated tabs untouched; false viewer/author/profile traps; missing/malformed state; no-tab and denied-host errors. Revoke a saved session server-side, distinguish explicit logout from unknown page state, and verify rollback where the backup is still valid. Also invalidate the backup and assert a reported recovery failure with the journal retained, rather than a false recovery success.
+
+Provide separate checkpoint/captcha controls that leave the operation in a visible manual-action state without automation. Test worker restart/journal recovery, busy concurrency, duplicate identity, lock/unlock, both wipe scopes, v0.1.0 migration, English/Thai layout and absence of independent extension requests. A client-only token change or a fixture accepting every stale token does not prove rotation support. This new fixture closes the TikTok rotation coverage gap; the existing Facebook/Instagram fixtures and their documented limit remain unchanged.
+
+### 13.6 Risks and owner validation
+
+TikTok may bind sessions to device/security state and require CAPTCHA, 2FA, re-login or additional checks after a swap. Preserving browser cookies can make a saved credential unusable; importing those cookies could damage other sessions, so automatic broadening is prohibited. Server rotation/revocation can make both target and rollback snapshots stale. Restrictions, temporary locks or account bans are possible; no claim is made about their frequency or avoidance. The owner must review TikTok's applicable terms and use disposable owned test accounts before deciding whether to ship.
+
+A successful synthetic test proves behavior against the local model. It does not prove live TikTok compatibility, an authenticated viewer schema, complete cookie classification, regional routing, stable challenge selectors or safety from account enforcement. The owner must validate those items and update the confirmed set without sharing cookies/passwords. No CAPTCHA bypass, stealth patching, fingerprint spoofing, automated login or anti-bot evasion is proposed. All TikTok tabs in one profile share the switched session; unsaved page drafts can be lost. Existing popup timeouts and worker busy limitations continue to apply.
+
+### 13.7 Logo sources and licence check
+
+The [theSVG TikTok page](https://thesvg.org/icon/tiktok) embeds an ImageObject licence link to [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) for its default and mono variants. Both files were downloaded for hashing on 2026-11-10; the implementation card will copy the unmodified SVGs into `public/brands/` and add the date, source URLs and hashes to `public/brands/SOURCES.md`. They are not installed by this design card.
+
+| Future file | Source URL | SHA-256 of downloaded bytes |
+|---|---|---|
+| `tiktok.svg` | https://thesvg.org/icons/tiktok/default.svg | `3e014b901b0de29d50e0b15c99fc563a21a8e538f2271fef8c9e404d3926d07b` |
+| `tiktok-mono.svg` | https://thesvg.org/icons/tiktok/mono.svg | `6f54ac8d325faacea8935bdc44cbed60206a6b408641799e5fea1cba7c1a0af7` |
+
+The licence declaration applies to the supplied drawing, not trademark rights or endorsement. TikTok's mark remains its owner's property, outside this project's MIT licence; update brand documentation and non-affiliation text. Recheck hashes/licence if upstream bytes change. Check for scripts, event handlers and external references before packaging; preserve geometry, colours and proportions. Verify the colour and mono marks at popup sizes in light/dark themes. The existing three-mark toolbar icon can remain for v0.2.0; changing it is a separate owner decision.
+
+### 13.8 Catalog keys for Thai review
+
+Draft English values for the lead to send to kru-thai; no Thai translation is added on this card. Add both catalogs together after approval and keep placeholder parity. Existing generic Add, Update session, checkpoint, expiry, lock, delete and switch messages can be reused with `TikTok` as the platform substitution.
+
+| New key | English draft | Use |
+|---|---|---|
+| `platform_tiktok` | TikTok | Platform selector accessible name and account-list heading substitution. |
+| `tiktok_note` | TikTok sessions are saved on this device. Switching changes the account in all TikTok tabs in this browser profile. | Account-list note. |
+| `tiktok_risk` | TikTok may ask you to sign in again or complete a security check. Switching cannot prevent account restrictions. | Pre-save risk text. |
+| `err_no_tiktok_tab` | Open tiktok.com in a tab, then try again. | Read-only probe has no suitable tab. |
+| `err_tiktok_probe_unavailable` | The current TikTok account could not be verified. Open TikTok, check the signed-in account, then try again. | Unknown state, never an expiry claim. |
+| `err_tiktok_permission` | Allow this extension to access TikTok in Chrome's extension settings, then try again. | Missing/withheld host access. |
+
+All six keys have no placeholders. Update the existing extension description and any three-platform/wipe wording in both catalogs to include TikTok; submit the affected existing keys with their final English wording in the UI card. Do not append Thai text by machine translation. Check four-platform navigation, long Thai labels, narrow layouts and screen-reader names with locale parity tests.
+
+### 13.9 Proposed implementation cards and dependencies
+
+These are proposals for the lead to create; this design does not create or implement them. Each card needs fail-before-pass evidence, its own bounded commit, independent QC and the current integration base.
+
+| Card | Single deliverable | Acceptance and dependency |
+|---|---|---|
+| T1: TikTok backend session lifecycle | Adapter, verified viewer probe, session allow-list, shared-switcher probe hook and store/journal integration, with unit tests. | Depends on owner confirmation of authenticated viewer fields and companion-cookie set. Test no-network read-only probe, domain/name boundaries, rotation resnapshot, unknown vs logout vs checkpoint, rollback, migration and wipes; preserve FB/IG/YT behavior, coverage ≥90%, check passes. Permission allow-list and PRIVACY inventory changes land atomically here with the new host; no popup feature enabled yet. |
+| T2: TikTok rotation E2E | Local rotating TikTok fixture and browser scenarios from 13.5. | Depends on T1. Demonstrate fresh server generations on normal requests, five alternating switches, strict revocation/invalid-backup handling, misleading author IDs, checkpoints, isolation and no independent requests. E2E runs without live TikTok; close all browsers/servers. |
+| T3: TikTok popup and reviewed language/assets | Enable the fourth platform, approved catalogs and unchanged sourced logos. | Depends on T1 + T2 and kru-thai approval. Wire new error results and permission guidance, add source hashes/trademark notices, check four-platform keyboard/Thai/theme layouts with screenshots and E2E. No live credentials in screenshots. |
+| T4: v0.2.0 release documentation and verification | Reconcile documentation with the composed implementation. | Depends on T1–T3 and owner manual-account/upgrade observations. Re-audit PRIVACY against code, refresh README/known issues/design/CHANGELOG, record unsupported cases and exact version. Full CI/E2E/outdated gates and equal UTC/Bangkok package hashes; prepare GitHub zip/checksum. Tag/push/publication need separate authorization. |
+
+The source/permission/privacy contract lands with T1, while T4 audits the final composition. Until the owner confirms the authenticated cookie/probe contract, T1 can develop against fakes but cannot claim live compatibility or enable an unverified success path.
