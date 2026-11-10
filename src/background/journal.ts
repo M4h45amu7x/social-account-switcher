@@ -4,17 +4,20 @@
 //
 // There is one journal per platform (key `journal.facebook`, `journal.instagram`) rather than the
 // single `journal` of design 5, because Facebook and Instagram may switch at the same time.
-import { clear, restore, type StoredCookie } from '../lib/cookies';
+import { clear, isExpired, isSessionCookie, restore, type StoredCookie } from '../lib/cookies';
 import type { CookiesApi, SessionStorageApi, TabsApi } from '../lib/ports';
 import { err, ok, type Result } from '../lib/result';
 import type { Platform } from '../lib/store';
 import { openCookies } from '../lib/vault';
 import { getKey } from './keyring';
+import { clearSession, readIdentity } from './platforms/identity';
 import type { CookiePlatform, CookiePlatformId } from './platforms/types';
+import { reloadTabs } from './reload-tabs';
 
 export interface Journal {
   platform: CookiePlatformId;
   fromId: string | null;
+  fromUserId?: string | null;
   toId: string;
   /** sealCookies() of the snapshot taken before the switch. Never plain cookies. */
   backup: string;
@@ -66,6 +69,7 @@ export interface RecoverDeps {
    */
   busy: Set<Platform>;
   now(): number;
+  loadTimeoutMs?: number;
 }
 
 export interface RecoverReport {
@@ -98,6 +102,10 @@ export async function recoverJournal(deps: RecoverDeps): Promise<RecoverReport> 
 async function recoverPlatform(deps: RecoverDeps, platform: CookiePlatform, report: RecoverReport) {
   const journal = await readJournal(deps.session, platform.id);
   if (!journal) return;
+  if (platform.enabled === false) {
+    report.waiting.push(platform.id);
+    return;
+  }
   const backup = await openBackup(deps.session, journal);
   if (!backup.ok) {
     if (backup.error === 'locked') {
@@ -106,6 +114,46 @@ async function recoverPlatform(deps: RecoverDeps, platform: CookiePlatform, repo
     }
     await clearJournal(deps.session, platform.id);
     report.dropped.push(platform.id);
+    return;
+  }
+  if (platform.probe) {
+    // A missing expected viewer or an out-of-scope backup must never mutate browser state.
+    if (
+      journal.fromUserId === undefined ||
+      !backup.value.every((c) => isSessionCookie(c, platform))
+    ) {
+      report.waiting.push(platform.id);
+      return;
+    }
+    if (!(await clearSession(deps.cookies, platform))) {
+      report.waiting.push(platform.id);
+      return;
+    }
+    const restored = await restore(deps.cookies, backup.value, deps.now(), platform);
+    if (
+      !restored.ok ||
+      restored.value !== backup.value.filter((c) => !isExpired(c, deps.now())).length
+    ) {
+      report.waiting.push(platform.id);
+      return;
+    }
+    const loaded = await (
+      await reloadTabs(
+        { ...deps, loadTimeoutMs: deps.loadTimeoutMs ?? 15000, requireComplete: true },
+        platform,
+      )
+    ).firstLoaded;
+    if (!loaded || loaded.id === undefined) {
+      report.waiting.push(platform.id);
+      return;
+    }
+    const viewer = await readIdentity(deps.cookies, platform, loaded.id);
+    if (!viewer.ok || viewer.value !== journal.fromUserId) {
+      report.waiting.push(platform.id);
+      return;
+    }
+    await clearJournal(deps.session, platform.id);
+    report.rolledBack.push(platform.id);
     return;
   }
   await clear(deps.cookies, platform);

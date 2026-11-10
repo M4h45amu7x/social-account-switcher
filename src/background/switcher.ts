@@ -1,15 +1,15 @@
 // Switches the browser from one Facebook or Instagram account to another by swapping session
 // cookies (docs/design.md 3.0, steps 0 to 8, and 3.4).
-import { clear, isExpired, restore, type StoredCookie, snapshot } from '../lib/cookies';
+import {
+  clear,
+  isExpired,
+  isSessionCookie,
+  restore,
+  type StoredCookie,
+  snapshot,
+} from '../lib/cookies';
 import type { Mutex } from '../lib/mutex';
-import type {
-  BrowserTab,
-  CookiesApi,
-  SessionStorageApi,
-  StorageAreaApi,
-  TabsApi,
-  TabUpdatedListener,
-} from '../lib/ports';
+import type { CookiesApi, SessionStorageApi, StorageAreaApi, TabsApi } from '../lib/ports';
 import { err, ok, type Result } from '../lib/result';
 import {
   type Account,
@@ -20,12 +20,17 @@ import {
   updateAccount,
 } from '../lib/store';
 import { readVault, sealCookies, writeVault } from '../lib/vault';
-import { clearJournal, writeJournal } from './journal';
+import { clearJournal, readJournal, writeJournal } from './journal';
 import { getKey } from './keyring';
-import type { CookiePlatform, CookiePlatformId } from './platforms/types';
+import { captureSession, clearSession, readIdentity } from './platforms/identity';
+import type { CookiePlatform, CookiePlatformId, CookieProbeError } from './platforms/types';
+import { reloadTabs } from './reload-tabs';
 import { editStore, patchStore, readStore, type StoreError } from './store-access';
 
 export type SwitchError =
+  | CookieProbeError
+  | 'invalid_session'
+  | 'rollback_failed'
   | 'locked'
   | 'busy'
   | 'expired'
@@ -63,6 +68,9 @@ export async function switchAccount(
   deps.busy.add(platform);
   try {
     return await runSwitch(deps, deps.platforms[platform], accountId, opts.force === true);
+  } catch (error) {
+    if (deps.platforms[platform].probe) return err('api_error');
+    throw error;
   } finally {
     deps.busy.delete(platform);
   }
@@ -74,6 +82,8 @@ async function runSwitch(
   accountId: string,
   force: boolean,
 ): Promise<Result<{ reloadedTabs: number }, SwitchError>> {
+  if (p.enabled === false) return err('tiktok_disabled');
+  if (p.probe) return runProbedSwitch(deps, p, accountId, force);
   const key = await getKey(deps.session);
   if (!key) return err('locked');
   const loaded = await readStore(deps);
@@ -191,43 +201,93 @@ async function markAccount(
   });
 }
 
-/**
- * Reloads every tab of the platform. `firstLoaded` resolves with the first tab (the active one if
- * there is one) once it has finished loading, or null when there is no tab or it takes too long.
- */
-async function reloadTabs(deps: SwitchDeps, p: CookiePlatform) {
-  const tabs = (await deps.tabs.query({ url: p.tabPatterns })).filter(
-    (t): t is BrowserTab & { id: number } => t.id !== undefined,
-  );
-  const watched = tabs.find((t) => t.active) ?? tabs[0];
-  const firstLoaded = watched ? waitForLoad(deps, watched.id) : Promise.resolve(null);
-  let reloaded = 0;
-  for (const tab of tabs) {
-    if (
-      await deps.tabs.reload(tab.id).then(
-        () => true,
-        () => false,
-      )
-    )
-      reloaded += 1;
+/** Cookie tokens are opaque: only the page's current viewer can verify this experimental switch. */
+async function runProbedSwitch(
+  deps: SwitchDeps,
+  p: CookiePlatform,
+  accountId: string,
+  force: boolean,
+): Promise<Result<{ reloadedTabs: number }, SwitchError>> {
+  if (await readJournal(deps.session, p.id)) return err('rollback_failed');
+  const key = await getKey(deps.session);
+  if (!key) return err('locked');
+  const loaded = await readStore(deps);
+  if (!loaded.ok) return loaded;
+  const target = findAccount(loaded.value, accountId);
+  if (!target || target.platform !== p.id || !loaded.value.vault) return err('not_found');
+  const saved = (await readVault(key, loaded.value.vault))[accountId]?.cookies ?? [];
+  if (!saved.every((c) => isSessionCookie(c, p))) return err('invalid_session');
+  if (!saved.length || saved.every((c) => isExpired(c, deps.now()))) {
+    await markAccount(deps, accountId, { status: 'expired' });
+    return err('expired');
   }
-  return { reloaded, firstLoaded };
-}
-
-function waitForLoad(deps: SwitchDeps, tabId: number): Promise<BrowserTab | null> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      stop();
-      // Too slow: check the cookies anyway, with whatever URL the tab has now.
-      deps.tabs.get(tabId).then(resolve, () => resolve(null));
-    }, deps.loadTimeoutMs);
-    const listener: TabUpdatedListener = (id, info, tab) => {
-      if (id !== tabId || info.status !== 'complete') return;
-      clearTimeout(timer);
-      stop();
-      resolve(tab);
-    };
-    const stop = () => deps.tabs.onUpdated.removeListener(listener);
-    deps.tabs.onUpdated.addListener(listener);
+  const captured = await captureSession(deps.cookies, p);
+  if (!captured.ok) return captured;
+  const { identity, cookies: current } = captured.value;
+  const from = loaded.value.accounts.find(
+    (a) => a.platform === p.id && identity !== null && a.platformUserId === identity,
+  );
+  if (identity !== null && !from && !force) return err('unsaved_current');
+  await writeJournal(deps.session, {
+    platform: p.id,
+    fromId: from?.id ?? null,
+    fromUserId: identity,
+    toId: accountId,
+    backup: await sealCookies(key, current),
+    startedAt: deps.now(),
   });
+  let known = false;
+  const rollback = async (): Promise<boolean> => {
+    try {
+      if (!(await clearSession(deps.cookies, p))) return false;
+      const restored = await restore(deps.cookies, current, deps.now(), p);
+      if (
+        !restored.ok ||
+        restored.value !== current.filter((c) => !isExpired(c, deps.now())).length
+      )
+        return false;
+      const loaded = await (await reloadTabs({ ...deps, requireComplete: true }, p)).firstLoaded;
+      if (!loaded || loaded.id === undefined) return false;
+      const viewer = await readIdentity(deps.cookies, p, loaded.id);
+      return viewer.ok && viewer.value === identity;
+    } catch {
+      return false;
+    }
+  };
+  const fail = async (error: SwitchError): Promise<Result<never, SwitchError>> => {
+    known = await rollback();
+    return err(known ? error : 'rollback_failed');
+  };
+  try {
+    if (from) await saveSession(deps, key, from.id, current);
+    if (!(await clearSession(deps.cookies, p))) return await fail('api_error');
+    const restored = await restore(deps.cookies, saved, deps.now(), p);
+    if (!restored.ok || restored.value !== saved.filter((c) => !isExpired(c, deps.now())).length)
+      return await fail('invalid_session');
+    const { reloaded, firstLoaded } = await reloadTabs({ ...deps, requireComplete: true }, p);
+    const loadedTab = await firstLoaded;
+    if (!loadedTab || loadedTab.id === undefined) return await fail('tiktok_probe_unavailable');
+    const after = await captureSession(deps.cookies, p, loadedTab.id);
+    if (!after.ok) {
+      if (after.error === 'checkpoint') {
+        await markAccount(deps, target.id, { status: 'checkpoint', lastUsedAt: deps.now() }, true);
+        known = true;
+        return after;
+      }
+      return await fail(after.error);
+    }
+    if (after.value.identity !== target.platformUserId) {
+      const result = await fail('expired');
+      if (known) await markAccount(deps, target.id, { status: 'expired' });
+      return result;
+    }
+    await saveSession(deps, key, target.id, after.value.cookies);
+    await markAccount(deps, target.id, { status: 'ok', lastUsedAt: deps.now() }, true);
+    known = true;
+    return ok({ reloadedTabs: reloaded });
+  } catch {
+    return await fail('api_error');
+  } finally {
+    if (known) await clearJournal(deps.session, p.id);
+  }
 }

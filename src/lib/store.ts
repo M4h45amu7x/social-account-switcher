@@ -5,8 +5,9 @@ import type { StorageAreaApi } from './ports';
 import { err, ok, type Result } from './result';
 import type { Vault } from './vault';
 
-export type Platform = 'facebook' | 'instagram' | 'youtube';
-export const PLATFORMS: readonly Platform[] = ['facebook', 'instagram', 'youtube'];
+export type Platform = 'facebook' | 'instagram' | 'youtube' | 'tiktok';
+export type PopupPlatform = Exclude<Platform, 'tiktok'>;
+export const PLATFORMS: readonly Platform[] = ['facebook', 'instagram', 'youtube', 'tiktok'];
 
 export type AccountStatus = 'ok' | 'expired' | 'checkpoint';
 
@@ -56,7 +57,7 @@ export function emptyStore(): StoreV1 {
   return {
     schemaVersion: 1,
     accounts: [],
-    active: { facebook: null, instagram: null, youtube: null },
+    active: { facebook: null, instagram: null, youtube: null, tiktok: null },
     vault: null,
     settings: { ...DEFAULT_SETTINGS },
   };

@@ -68,13 +68,15 @@ describe('platformOfUrl', () => {
 });
 
 describe('the site list drives every host list', () => {
-  test('manifest host_permissions are exactly the sites', () => {
-    expect([...manifest.host_permissions].sort()).toEqual(SITES.map(hostPattern).sort());
+  test('manifest host_permissions are the popup sites plus the reserved TikTok backend host', () => {
+    expect([...manifest.host_permissions].sort()).toEqual(
+      [...SITES.map(hostPattern), 'https://*.tiktok.com/*'].sort(),
+    );
   });
 
   test('the popup tab counts and the cookie platforms use the same patterns', () => {
     for (const site of SITES) expect(tabPattern(site.platform)).toBe(hostPattern(site));
-    for (const p of Object.values(COOKIE_PLATFORMS)) {
+    for (const p of Object.values(COOKIE_PLATFORMS).filter((p) => p.id !== 'tiktok')) {
       const site = SITES.find((s) => s.platform === p.id);
       expect(site?.domain).toBe(p.cookieDomain);
       expect(p.tabPatterns).toEqual([hostPattern(site as Site)]);

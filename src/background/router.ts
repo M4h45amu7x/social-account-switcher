@@ -1,6 +1,6 @@
 // Answers the popup's messages (docs/design.md 2, 6 and 8.2). Every message is checked for its sender
 // and shape first, and every answer is a Result: nothing is thrown back across the message channel.
-import { currentUserId, snapshot } from '../lib/cookies';
+
 import { type ErrorCode, isTrustedSender, parseRequest, type Request } from '../lib/messages';
 import type { MessageSender } from '../lib/ports';
 import { err, ok, type Result } from '../lib/result';
@@ -25,6 +25,7 @@ import { holdPlatform } from './busy';
 import { journalKey, type RecoverReport, recoverJournal } from './journal';
 import { getKey, lock, storeKey } from './keyring';
 import { isCookiePlatform } from './platforms';
+import { captureSession, readIdentity } from './platforms/identity';
 import type { CookiePlatformId, YouTubeSession, YoutubeSwitcher } from './platforms/types';
 import { editStore, patchStore, readStore } from './store-access';
 import { type SwitchDeps, switchAccount } from './switcher';
@@ -218,7 +219,7 @@ async function dropSessions(deps: RouterDeps): Promise<void> {
     ...store,
     vault: null,
     accounts: store.accounts.filter((a) => a.platform === 'youtube'),
-    active: { facebook: null, instagram: null, youtube: store.active.youtube },
+    active: { facebook: null, instagram: null, youtube: store.active.youtube, tiktok: null },
   });
 }
 
@@ -258,10 +259,17 @@ async function probe(deps: RouterDeps, platform: Platform, tabId?: number) {
       accountId: mine?.id ?? null,
     });
   }
-  if (!(await matchesTab(deps, platform, tabId))) return ok({ tail: null, accountId: null });
-  const userId = await currentUserId(deps.cookies, deps.platforms[platform]);
-  const mine = userId === null ? undefined : accounts.find((a) => a.platformUserId === userId);
-  return ok({ tail: userId === null ? null : userId.slice(-4), accountId: mine?.id ?? null });
+  if (platform !== 'tiktok' && !(await matchesTab(deps, platform, tabId)))
+    return ok({ tail: null, accountId: null });
+  if (platform === 'tiktok' && tabId === undefined) return err('no_tiktok_tab');
+  const current = await readIdentity(deps.cookies, deps.platforms[platform], tabId);
+  if (!current.ok) return current;
+  const mine =
+    current.value === null ? undefined : accounts.find((a) => a.platformUserId === current.value);
+  return ok({
+    tail: current.value === null ? null : current.value.slice(-4),
+    accountId: mine?.id ?? null,
+  });
 }
 
 async function addCurrent(deps: RouterDeps, platform: Platform, label: string, tabId?: number) {
@@ -269,8 +277,8 @@ async function addCurrent(deps: RouterDeps, platform: Platform, label: string, t
   if (platform === 'youtube')
     return holdPlatform(deps.busy, platform, () => addYoutube(deps, label, tabId));
   return holdPlatform(deps.busy, platform, async () =>
-    (await matchesTab(deps, platform, tabId))
-      ? addCookieAccount(deps, platform, label)
+    platform === 'tiktok' || (await matchesTab(deps, platform, tabId))
+      ? addCookieAccount(deps, platform, label, tabId)
       : err('not_logged_in'),
   );
 }
@@ -294,12 +302,19 @@ async function addYoutube(deps: RouterDeps, label: string, tabId?: number) {
 const copySession = (s: YouTubeSession) =>
   s.pageid === undefined ? { authuser: s.authuser } : { authuser: s.authuser, pageid: s.pageid };
 
-async function addCookieAccount(deps: RouterDeps, platform: CookiePlatformId, label: string) {
+async function addCookieAccount(
+  deps: RouterDeps,
+  platform: CookiePlatformId,
+  label: string,
+  tabId?: number,
+) {
+  if (platform === 'tiktok' && tabId === undefined) return err('no_tiktok_tab');
   const p = deps.platforms[platform];
   const key = await getKey(deps.session);
-  const userId = await currentUserId(deps.cookies, p);
+  const captured = await captureSession(deps.cookies, p, tabId);
+  if (!captured.ok) return captured;
+  const { identity: userId, cookies } = captured.value;
   if (userId === null) return err('not_logged_in');
-  const cookies = await snapshot(deps.cookies, p);
   const now = deps.now();
   return editStore(deps, async (store) => {
     if (!store.vault) return err('no_vault');
@@ -331,14 +346,30 @@ async function updateSession(deps: RouterDeps, accountId: string, tabId?: number
   if (account.platform === 'youtube') {
     return holdPlatform(deps.busy, 'youtube', () => updateYoutube(deps, accountId, tabId));
   }
-  if (deps.busy.has(account.platform)) return err('busy');
+  return holdPlatform(deps.busy, account.platform, () =>
+    updateCookieSession(
+      deps,
+      { ...account, platform: account.platform as CookiePlatformId },
+      tabId,
+    ),
+  );
+}
+
+async function updateCookieSession(
+  deps: RouterDeps,
+  account: Account & { platform: CookiePlatformId },
+  tabId?: number,
+) {
+  if (account.platform === 'tiktok' && tabId === undefined) return err('no_tiktok_tab');
+  const accountId = account.id;
   const p = deps.platforms[account.platform];
   const key = await getKey(deps.session);
   if (!key) return err('locked');
-  const userId = await currentUserId(deps.cookies, p);
+  const captured = await captureSession(deps.cookies, p, tabId);
+  if (!captured.ok) return captured;
+  const { identity: userId, cookies } = captured.value;
   if (userId === null) return err('not_logged_in');
   if (userId !== account.platformUserId) return err('wrong_account');
-  const cookies = await snapshot(deps.cookies, p);
   const now = deps.now();
   return editStore(deps, async (store) => {
     if (!store.vault || !findAccount(store, accountId)) return err('not_found');

@@ -54,6 +54,10 @@ export const ERROR_CODES = [
   'unsaved_current',
   'wrong_account',
   'not_logged_in',
+  'tiktok_disabled',
+  'no_tiktok_tab',
+  'tiktok_probe_unavailable',
+  'rollback_failed',
   // YouTube
   'no_youtube_tab',
   'not_signed_in',

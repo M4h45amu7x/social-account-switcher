@@ -119,7 +119,11 @@ export type TabUpdatedListener = (
 ) => void;
 
 export interface TabsApi {
-  query(options: { url?: string[]; active?: boolean }): Promise<BrowserTab[]>;
+  query(options: {
+    url?: string[];
+    active?: boolean;
+    currentWindow?: boolean;
+  }): Promise<BrowserTab[]>;
   get(tabId: number): Promise<BrowserTab>;
   update(tabId: number, options: { url: string; active: boolean }): Promise<BrowserTab | undefined>;
   create(options: { url: string; active: boolean }): Promise<BrowserTab>;

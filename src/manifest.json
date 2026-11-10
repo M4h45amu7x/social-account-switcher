@@ -25,6 +25,11 @@
     "128": "icons/128.png"
   },
   "permissions": ["cookies", "storage", "scripting"],
-  "host_permissions": ["*://*.facebook.com/*", "*://*.instagram.com/*", "*://*.youtube.com/*"],
+  "host_permissions": [
+    "*://*.facebook.com/*",
+    "*://*.instagram.com/*",
+    "*://*.youtube.com/*",
+    "https://*.tiktok.com/*"
+  ],
   "incognito": "not_allowed"
 }

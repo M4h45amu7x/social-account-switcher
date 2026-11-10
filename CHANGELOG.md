@@ -6,8 +6,9 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ### Added
 
-- The popup opens on the platform of the page you are on. On a Facebook, Instagram or YouTube page it shows that platform's tab from the first frame, without sliding over from Facebook. On any other page it opens on the tab you picked last, or on Facebook the first time. No permission was added: Chrome gives the extension the address of the three sites only, and the popup uses it in memory without saving it.
+- The popup opens on the platform of the page you are on. On a Facebook, Instagram or YouTube page it shows that platform's tab from the first frame, without sliding over from Facebook. On any other page it opens on the tab you picked last, or on Facebook the first time. This popup behavior uses the existing site permissions and keeps the address in memory without saving it. The experimental TikTok backend reserves its own host permission separately.
 - On a supported site, the add button reads **Add the account on this tab** and the empty list no longer offers to open the site again. The saved account that the site is logged in to shows an **On this tab** badge.
+- Experimental TikTok session backend with a centralized cookie deny-list, read-only fixture viewer probe, verified rollback and recovery, and session wipe support. It stays disabled and hidden from the popup until the live-site contract is confirmed.
 
 ### Changed
 
@@ -22,7 +23,7 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ### Documentation
 
-- Propose TikTok support for v0.2.0, including validation limits and implementation cards. TikTok support is not included yet.
+- Propose TikTok support for v0.2.0, including validation limits and implementation cards. TikTok remains disabled and absent from the popup.
 
 ## [0.1.0] - 2026-11-10
 
