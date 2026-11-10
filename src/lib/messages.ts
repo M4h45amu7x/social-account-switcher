@@ -13,9 +13,9 @@ export type Request =
   | { type: 'vault.wipe'; scope?: 'sessions' | 'all' }
   | { type: 'settings.set'; theme?: Settings['theme']; language?: Settings['language'] }
   /** Who is logged in on a platform right now, without saving anything. `tail` is null when nobody is. */
-  | { type: 'account.probe'; platform: Platform }
-  | { type: 'account.addCurrent'; platform: Platform; label: string }
-  | { type: 'account.updateSession'; accountId: string }
+  | { type: 'account.probe'; platform: Platform; tabId?: number }
+  | { type: 'account.addCurrent'; platform: Platform; label: string; tabId?: number }
+  | { type: 'account.updateSession'; accountId: string; tabId?: number }
   | { type: 'account.rename'; accountId: string; label: string }
   | { type: 'account.remove'; accountId: string }
   | { type: 'account.switch'; accountId: string; force?: boolean };
@@ -72,6 +72,7 @@ export const MAX_FIELD_LENGTH = 1024;
 
 type FieldCheck = (v: unknown) => boolean;
 const text: FieldCheck = (v) => typeof v === 'string' && v.length <= MAX_FIELD_LENGTH;
+const tabId: FieldCheck = (v) => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
 const nonEmpty: FieldCheck = (v) => text(v) && v !== '';
 const oneOf =
   (values: readonly unknown[]): FieldCheck =>
@@ -89,9 +90,13 @@ const SHAPES: Record<RequestType, Record<string, [FieldCheck, boolean]>> = {
     theme: [oneOf(['system', 'light', 'dark']), false],
     language: [oneOf(['auto', 'en', 'th']), false],
   },
-  'account.probe': { platform: [oneOf(PLATFORMS), true] },
-  'account.addCurrent': { platform: [oneOf(PLATFORMS), true], label: [text, true] },
-  'account.updateSession': { accountId: [nonEmpty, true] },
+  'account.probe': { platform: [oneOf(PLATFORMS), true], tabId: [tabId, false] },
+  'account.addCurrent': {
+    platform: [oneOf(PLATFORMS), true],
+    label: [text, true],
+    tabId: [tabId, false],
+  },
+  'account.updateSession': { accountId: [nonEmpty, true], tabId: [tabId, false] },
   'account.rename': { accountId: [nonEmpty, true], label: [text, true] },
   'account.remove': { accountId: [nonEmpty, true] },
   'account.switch': { accountId: [nonEmpty, true], force: [(v) => typeof v === 'boolean', false] },

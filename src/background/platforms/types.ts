@@ -36,7 +36,7 @@ export type YouTubeError =
 
 /** What the router needs from the YouTube code (youtube.ts provides it). */
 export interface YoutubeSwitcher {
-  /** The Google session and channel shown in an open YouTube tab. */
-  readCurrent(): Promise<Result<YouTubeSession, YouTubeError>>;
+  /** The Google session in exactly this tab; a missing id must never select another window. */
+  readCurrent(tabId?: number): Promise<Result<YouTubeSession, YouTubeError>>;
   switchTo(target: YouTubeSession): Promise<Result<{ reloadedTabs: number }, YouTubeError>>;
 }

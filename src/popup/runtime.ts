@@ -18,11 +18,15 @@ export const openTab = async (url: string): Promise<void> => {
 };
 
 /**
- * The URL of the tab the popup was opened over. Chrome fills it in only for sites in the extension's
- * host permissions; for any other page it is undefined. Nothing here keeps it.
+ * The id and URL of the tab the popup was opened over, from one current-window query. Chrome
+ * exposes the URL only for sites in the host permissions. The popup keeps only the id.
  */
-export const activeTabUrl = async (): Promise<string | undefined> =>
-  (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.url;
+export const activeTab = async (): Promise<{ id?: number; url?: string } | undefined> => {
+  const tab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
+  return tab
+    ? { ...(tab.id !== undefined ? { id: tab.id } : {}), ...(tab.url ? { url: tab.url } : {}) }
+    : undefined;
+};
 
 /** How many open tabs match these URL patterns (host permissions cover the three sites). */
 export const countTabs = async (patterns: string[]): Promise<number> =>

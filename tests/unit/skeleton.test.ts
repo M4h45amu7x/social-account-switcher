@@ -148,14 +148,12 @@ test('every other adapter function is a straight pass-through', async () => {
 
 test('the real YouTube switcher reads a tab through the tabs and scripting adapters', async () => {
   const deps = workerDeps();
-  tabs.query.mockImplementationOnce(async () => [
-    { id: 6, active: true, url: 'https://www.youtube.com/' },
-  ]);
+  tabs.get.mockImplementationOnce(async () => ({ id: 6, url: 'https://www.youtube.com/' }));
   tabs.get.mockImplementationOnce(async () => ({ id: 6, url: 'https://www.youtube.com/' }));
   scripting.executeScript.mockImplementationOnce(async () => [
     { frameId: 0, result: { authuser: 1, pageid: '42' } },
   ]);
-  expect(await deps.youtube.readCurrent()).toEqual({
+  expect(await deps.youtube.readCurrent(6)).toEqual({
     ok: true,
     value: { authuser: 1, pageid: '42' },
   });
@@ -204,8 +202,8 @@ test('the worker wires real adapters, a clock, UUIDs and the YouTube switcher', 
   expect(deps.newId()).toMatch(/^[0-9a-f-]{36}$/);
   expect(deps.newId()).not.toBe(deps.newId());
   // The stand-in chrome has no tabs: the real YouTube code answers through the tabs adapter.
-  expect(await deps.youtube.readCurrent()).toEqual({ ok: false, error: 'no_youtube_tab' });
-  expect(tabs.query).toHaveBeenCalledWith({ url: ['*://*.youtube.com/*'] });
+  expect(await deps.youtube.readCurrent(6)).toEqual({ ok: false, error: 'no_youtube_tab' });
+  expect(tabs.get).toHaveBeenCalledWith(6);
   // create() gives back a tab without an id here, so there is nothing to switch.
   expect(await deps.youtube.switchTo({ authuser: 0 })).toEqual({ ok: false, error: 'invalid_tab' });
 });

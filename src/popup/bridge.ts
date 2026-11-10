@@ -14,6 +14,8 @@ import { parseThemePref } from './theme';
 import { PLATFORM_INFO, PLATFORM_ORDER, stepCount } from './view';
 
 export interface BridgeDeps {
+  /** Frozen id from the same current-window tab query that selected the initial platform. */
+  tabId?: number;
   /** One request to the worker; resolves with whatever it answered, rejects when it can't be reached. */
   send(message: Request): Promise<unknown>;
   openTab(url: string): Promise<unknown>;
@@ -119,6 +121,11 @@ export const tabPattern = (p: Platform): string => {
 };
 
 export function createBridge(deps: BridgeDeps): (effect: Effect, app: App) => void {
+  // Cookie accounts outside the contextual flow are profile-wide. YouTube is always page-specific.
+  const tabTarget = (app: App, platform: Platform) =>
+    deps.tabId !== undefined && (platform === 'youtube' || app.state().here?.platform === platform)
+      ? { tabId: deps.tabId }
+      : {};
   /** Runs `work`, giving up with `fallback` after `ms`. An answer that comes later is dropped, never applied. */
   const withDeadline = <T>(work: Promise<T>, ms: number, fallback: T): Promise<T> =>
     new Promise<T>((resolve) => {
@@ -181,7 +188,7 @@ export function createBridge(deps: BridgeDeps): (effect: Effect, app: App) => vo
     const s = app.state();
     if (!s.here || s.page !== 'main' || s.platforms[s.here.platform].accounts.length === 0) return;
     const { platform } = s.here;
-    const reply = await ask({ type: 'account.probe', platform });
+    const reply = await ask({ type: 'account.probe', platform, ...tabTarget(app, platform) });
     if (!reply.ok) return;
     const id = (reply.value as { accountId?: unknown } | null)?.accountId;
     app.dispatch({ type: 'here-account', platform, accountId: typeof id === 'string' ? id : null });
@@ -306,7 +313,11 @@ export function createBridge(deps: BridgeDeps): (effect: Effect, app: App) => vo
         return;
       }
       case 'probe-add': {
-        const reply = await ask({ type: 'account.probe', platform: effect.platform });
+        const reply = await ask({
+          type: 'account.probe',
+          platform: effect.platform,
+          ...tabTarget(app, effect.platform),
+        });
         if (!reply.ok) return failAndReload(app, reply.error, { retry: effect });
         const found = reply.value as { tail?: unknown; brand?: unknown } | null;
         const tail = found?.tail;
@@ -328,6 +339,7 @@ export function createBridge(deps: BridgeDeps): (effect: Effect, app: App) => vo
         try {
           const reply = await ask({
             type: 'account.addCurrent',
+            ...tabTarget(app, effect.platform),
             platform: effect.platform,
             label: effect.label,
           });
@@ -341,7 +353,11 @@ export function createBridge(deps: BridgeDeps): (effect: Effect, app: App) => vo
         }
       }
       case 'update-session': {
-        const reply = await ask({ type: 'account.updateSession', accountId: effect.id });
+        const reply = await ask({
+          type: 'account.updateSession',
+          accountId: effect.id,
+          ...(deps.tabId !== undefined ? { tabId: deps.tabId } : {}),
+        });
         if (reply.ok) return load(app, true);
         return failAndReload(app, reply.error, { id: effect.id, retry: effect });
       }

@@ -272,15 +272,25 @@ export async function switchAccount(
 /** The YouTube side of the router (design 3.3): read the open tab's account, or switch to one. */
 export function createYoutubeSwitcher(deps: YouTubeDeps): YoutubeSwitcher {
   return {
-    async readCurrent() {
+    async readCurrent(tabId) {
+      if (tabId === undefined) return err('no_youtube_tab');
+      // A closed or navigated tab is not a reason to inspect another window's session.
       try {
-        const tabs = await youTubeTabs(deps);
-        const tab = tabs.find((t) => t.active) ?? tabs[0];
-        if (tab?.id === undefined) return err('no_youtube_tab');
-        return await readSession(deps, tab.id);
+        const tab = await deps.tabs.get(tabId);
+        if (!isYouTubeUrl(tab.url)) return err('no_youtube_tab');
       } catch {
-        return err('api_error');
+        return err('no_youtube_tab');
       }
+      const read = await readSession(deps, tabId);
+      if (!read.ok && read.error === 'api_error') {
+        // The tab may have closed or left YouTube between get() and injection.
+        try {
+          if (!isYouTubeUrl((await deps.tabs.get(tabId)).url)) return err('no_youtube_tab');
+        } catch {
+          return err('no_youtube_tab');
+        }
+      }
+      return !read.ok && read.error === 'invalid_tab' ? err('no_youtube_tab') : read;
     },
     async switchTo(target) {
       const switched = await switchAccount(deps, target);

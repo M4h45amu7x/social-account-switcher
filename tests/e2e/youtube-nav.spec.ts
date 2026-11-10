@@ -86,12 +86,16 @@ test('switching YouTube accounts through real redirects in Chromium', async () =
   const youtube = await context.newPage();
   google.current = { SESSION_INDEX: '0' };
   await youtube.goto(ORIGINAL);
+  const tabId = await sw.evaluate(
+    async () => (await chrome.tabs.query({ url: 'https://www.youtube.com/*' }))[0]?.id,
+  );
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup/index.html`);
 
   // Two accounts, read from the page's ytcfg.
   const personal = await send(popup, {
     type: 'account.addCurrent',
+    tabId,
     platform: 'youtube',
     label: 'Me',
   });
@@ -100,6 +104,7 @@ test('switching YouTube accounts through real redirects in Chromium', async () =
   await youtube.reload();
   const brand = await send(popup, {
     type: 'account.addCurrent',
+    tabId,
     platform: 'youtube',
     label: 'Brand',
   });

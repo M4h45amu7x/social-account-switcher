@@ -4,6 +4,7 @@ import { currentUserId, snapshot } from '../lib/cookies';
 import { type ErrorCode, isTrustedSender, parseRequest, type Request } from '../lib/messages';
 import type { MessageSender } from '../lib/ports';
 import { err, ok, type Result } from '../lib/result';
+import { platformOfUrl } from '../lib/sites';
 import {
   type Account,
   addAccount,
@@ -108,11 +109,11 @@ function dispatch(
         updateSettings(store, { theme: request.theme, language: request.language }),
       );
     case 'account.probe':
-      return probe(deps, request.platform);
+      return probe(deps, request.platform, request.tabId);
     case 'account.addCurrent':
-      return addCurrent(deps, request.platform, request.label);
+      return addCurrent(deps, request.platform, request.label, request.tabId);
     case 'account.updateSession':
-      return updateSession(deps, request.accountId);
+      return updateSession(deps, request.accountId, request.tabId);
     case 'account.rename':
       return patchStore(deps, (store) => renameAccount(store, request.accountId, request.label));
     case 'account.remove':
@@ -223,18 +224,30 @@ async function dropSessions(deps: RouterDeps): Promise<void> {
 
 // --- accounts ---
 
+/** FB/IG cookies are shared by the profile; contextual requests additionally validate the source tab. */
+async function matchesTab(deps: RouterDeps, platform: Platform, tabId?: number): Promise<boolean> {
+  if (tabId === undefined) return true;
+  try {
+    return platformOfUrl((await deps.tabs.get(tabId)).url) === platform;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Who is logged in now. `tail` is the last four characters of the ID (YouTube: the Google account
  * number). `accountId` is the saved account that login belongs to, or null: the popup marks it "On
  * this tab". Only what is already in the browser and the store is read; nothing is saved.
  */
-async function probe(deps: RouterDeps, platform: Platform) {
+async function probe(deps: RouterDeps, platform: Platform, tabId?: number) {
   const loaded = await readStore(deps);
   const accounts = loaded.ok ? loaded.value.accounts.filter((a) => a.platform === platform) : [];
   if (platform === 'youtube') {
-    const current = await deps.youtube.readCurrent();
+    const current = await deps.youtube.readCurrent(tabId);
     if (!current.ok)
-      return current.error === 'not_signed_in' ? ok({ tail: null, accountId: null }) : current;
+      return current.error === 'not_signed_in' || current.error === 'no_youtube_tab'
+        ? ok({ tail: null, accountId: null })
+        : current;
     const { authuser, pageid } = current.value;
     const mine = accounts.find(
       (a) => a.youtube?.authuser === authuser && a.youtube.pageid === pageid,
@@ -245,21 +258,26 @@ async function probe(deps: RouterDeps, platform: Platform) {
       accountId: mine?.id ?? null,
     });
   }
+  if (!(await matchesTab(deps, platform, tabId))) return ok({ tail: null, accountId: null });
   const userId = await currentUserId(deps.cookies, deps.platforms[platform]);
   const mine = userId === null ? undefined : accounts.find((a) => a.platformUserId === userId);
   return ok({ tail: userId === null ? null : userId.slice(-4), accountId: mine?.id ?? null });
 }
 
-async function addCurrent(deps: RouterDeps, platform: Platform, label: string) {
+async function addCurrent(deps: RouterDeps, platform: Platform, label: string, tabId?: number) {
   // Held like a switch, so what is read here can't change half-way through.
   if (platform === 'youtube')
-    return holdPlatform(deps.busy, platform, () => addYoutube(deps, label));
-  return holdPlatform(deps.busy, platform, () => addCookieAccount(deps, platform, label));
+    return holdPlatform(deps.busy, platform, () => addYoutube(deps, label, tabId));
+  return holdPlatform(deps.busy, platform, async () =>
+    (await matchesTab(deps, platform, tabId))
+      ? addCookieAccount(deps, platform, label)
+      : err('not_logged_in'),
+  );
 }
 
-async function addYoutube(deps: RouterDeps, label: string) {
-  const current = await deps.youtube.readCurrent();
-  if (!current.ok) return current;
+async function addYoutube(deps: RouterDeps, label: string, tabId?: number) {
+  const current = await deps.youtube.readCurrent(tabId);
+  if (!current.ok) return current.error === 'no_youtube_tab' ? err('not_logged_in') : current;
   return editStore(deps, async (store) => {
     const youtube = copySession(current.value);
     const added = addAccount(store, { platform: 'youtube', label, youtube }, ids(deps));
@@ -305,13 +323,13 @@ async function addCookieAccount(deps: RouterDeps, platform: CookiePlatformId, la
 
 const ids = (deps: RouterDeps) => ({ id: deps.newId(), now: deps.now() });
 
-async function updateSession(deps: RouterDeps, accountId: string) {
+async function updateSession(deps: RouterDeps, accountId: string, tabId?: number) {
   const loaded = await readStore(deps);
   if (!loaded.ok) return loaded;
   const account = findAccount(loaded.value, accountId);
   if (!account) return err('not_found');
   if (account.platform === 'youtube') {
-    return holdPlatform(deps.busy, 'youtube', () => updateYoutube(deps, accountId));
+    return holdPlatform(deps.busy, 'youtube', () => updateYoutube(deps, accountId, tabId));
   }
   if (deps.busy.has(account.platform)) return err('busy');
   const p = deps.platforms[account.platform];
@@ -335,8 +353,8 @@ async function updateSession(deps: RouterDeps, accountId: string) {
   });
 }
 
-async function updateYoutube(deps: RouterDeps, accountId: string) {
-  const current = await deps.youtube.readCurrent();
+async function updateYoutube(deps: RouterDeps, accountId: string, tabId?: number) {
+  const current = await deps.youtube.readCurrent(tabId);
   if (!current.ok) return current;
   return patchStore(deps, (store) => {
     if (!findAccount(store, accountId)) return err('not_found');

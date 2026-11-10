@@ -194,9 +194,10 @@ describe('state and vault', () => {
       accountId: null,
     });
     h.youtube.current = err('no_youtube_tab');
-    expect(await h.send({ type: 'account.probe', platform: 'youtube' })).toEqual(
-      err('no_youtube_tab'),
-    );
+    expect(await h.must({ type: 'account.probe', platform: 'youtube' })).toEqual({
+      tail: null,
+      accountId: null,
+    });
   });
 
   test('probe names the saved account that is logged in, and only that one', async () => {
@@ -494,7 +495,7 @@ describe('YouTube goes through the YoutubeSwitcher interface', () => {
       err('no_youtube_tab'),
     );
     expect(await h.send({ type: 'account.addCurrent', platform: 'youtube', label: 'x' })).toEqual(
-      err('no_youtube_tab'),
+      err('not_logged_in'),
     );
 
     await h.must({ type: 'account.remove', accountId: added.id });
@@ -541,6 +542,7 @@ describe('YouTube through the real switcher (youtube.ts on the fake Chrome)', ()
     const brand = await h.must<{ id: string; youtube: unknown }>({
       type: 'account.addCurrent',
       platform: 'youtube',
+      tabId: 1,
       label: 'Brand',
     });
     expect(brand.youtube).toEqual({ authuser: 1, pageid: '777' });
@@ -548,6 +550,7 @@ describe('YouTube through the real switcher (youtube.ts on the fake Chrome)', ()
     const me = await h.must<{ id: string }>({
       type: 'account.addCurrent',
       platform: 'youtube',
+      tabId: 1,
       label: 'Me',
     });
 
@@ -579,7 +582,7 @@ describe('YouTube through the real switcher (youtube.ts on the fake Chrome)', ()
     );
     expect((await state(h)).accounts.find((a) => a.id === me.id)?.status).toBe('expired');
     page({ authuser: 0 });
-    await h.must({ type: 'account.updateSession', accountId: me.id });
+    await h.must({ type: 'account.updateSession', tabId: 1, accountId: me.id });
     expect((await state(h)).accounts.find((a) => a.id === me.id)?.status).toBe('ok');
   });
 
@@ -589,6 +592,7 @@ describe('YouTube through the real switcher (youtube.ts on the fake Chrome)', ()
     const a = await h.must<{ id: string }>({
       type: 'account.addCurrent',
       platform: 'youtube',
+      tabId: 1,
       label: 'Gone',
     });
     h.chrome.tabs.redirect = () => 'https://accounts.google.com/v3/signin/identifier';
@@ -602,6 +606,7 @@ describe('YouTube through the real switcher (youtube.ts on the fake Chrome)', ()
     const a = await h.must<{ id: string }>({
       type: 'account.addCurrent',
       platform: 'youtube',
+      tabId: 1,
       label: 'One',
     });
     h.chrome.tabs.finishLoading = false; // the switch waits until its timeout
@@ -610,8 +615,8 @@ describe('YouTube through the real switcher (youtube.ts on the fake Chrome)', ()
     expect((await state(h)).busy).toEqual(['youtube']);
     for (const m of [
       { type: 'account.switch', accountId: a.id },
-      { type: 'account.addCurrent', platform: 'youtube', label: 'Two' },
-      { type: 'account.updateSession', accountId: a.id },
+      { type: 'account.addCurrent', platform: 'youtube', tabId: 1, label: 'Two' },
+      { type: 'account.updateSession', tabId: 1, accountId: a.id },
       { type: 'account.remove', accountId: a.id },
       { type: 'vault.wipe' },
     ]) {
@@ -630,6 +635,7 @@ describe('YouTube through the real switcher (youtube.ts on the fake Chrome)', ()
     const one = await h.must<{ id: string }>({
       type: 'account.addCurrent',
       platform: 'youtube',
+      tabId: 1,
       label: 'One',
     });
     page({ authuser: 2 });
@@ -641,7 +647,12 @@ describe('YouTube through the real switcher (youtube.ts on the fake Chrome)', ()
           read(injection).then(resolve, reject);
         };
       });
-    const adding = h.send({ type: 'account.addCurrent', platform: 'youtube', label: 'Two' });
+    const adding = h.send({
+      type: 'account.addCurrent',
+      platform: 'youtube',
+      tabId: 1,
+      label: 'Two',
+    });
     await new Promise((r) => setTimeout(r, 10));
     expect(await h.send({ type: 'account.switch', accountId: one.id })).toEqual(err('busy'));
     release();
@@ -654,17 +665,18 @@ describe('YouTube through the real switcher (youtube.ts on the fake Chrome)', ()
       fakeChrome({ now: NOW }),
       createYoutubeSwitcher({ tabs: fakeChrome().tabs, scripting: fakeChrome().scripting }),
     );
-    expect(await h.send({ type: 'account.addCurrent', platform: 'youtube', label: 'X' })).toEqual(
-      err('no_youtube_tab'),
-    );
+    expect(
+      await h.send({ type: 'account.addCurrent', platform: 'youtube', tabId: 1, label: 'X' }),
+    ).toEqual(err('not_logged_in'));
   });
 
   test('a browser error while reading becomes api_error', async () => {
     const chrome = fakeChrome({ now: NOW });
-    chrome.tabs.query = async () => {
+    chrome.tabs.tabs.push({ id: 1, url: YT });
+    chrome.scripting.executeScript = async () => {
       throw new Error('extension context invalidated');
     };
     const youtube = createYoutubeSwitcher({ tabs: chrome.tabs, scripting: chrome.scripting });
-    expect(await youtube.readCurrent()).toEqual(err('api_error'));
+    expect(await youtube.readCurrent(1)).toEqual(err('api_error'));
   });
 });

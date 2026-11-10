@@ -1,6 +1,6 @@
 import { mountPopup } from './app';
 import { createBridge, tabPattern } from './bridge';
-import { activeTabUrl, countTabs, i18nApi, openTab, sendRequest } from './runtime';
+import { activeTab, countTabs, i18nApi, openTab, sendRequest } from './runtime';
 import { pickStartPlatform, readPlatformCache, siteOfActiveTab } from './start';
 
 /** Longest wait for the active tab's URL before the popup draws without it. */
@@ -20,9 +20,19 @@ const later = (fn: () => void, ms: number): void => {
 
 async function start(root: HTMLElement): Promise<void> {
   const cache = localCache();
-  const here = await siteOfActiveTab(activeTabUrl, ACTIVE_TAB_WAIT_MS, later);
+  let tabId: number | undefined;
+  const here = await siteOfActiveTab(
+    async () => {
+      const tab = await activeTab();
+      tabId = tab?.id;
+      return tab?.url;
+    },
+    ACTIVE_TAB_WAIT_MS,
+    later,
+  );
   const onEffect = createBridge({
     send: sendRequest,
+    ...(tabId !== undefined ? { tabId } : {}),
     openTab,
     countTabs: (platform) => countTabs([tabPattern(platform)]),
     later,

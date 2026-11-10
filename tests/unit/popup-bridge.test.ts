@@ -48,12 +48,18 @@ interface Rig {
 
 function rig(
   send: Send,
-  opts: { ui?: string; tabs?: number; here?: 'facebook' | 'instagram' | 'youtube' } = {},
+  opts: {
+    ui?: string;
+    tabs?: number;
+    here?: 'facebook' | 'instagram' | 'youtube';
+    tabId?: number;
+  } = {},
 ): Rig {
   const sent: Request[] = [];
   const opened: string[] = [];
   const later: Rig['later'] = [];
   const onEffect = createBridge({
+    ...(opts.tabId !== undefined ? { tabId: opts.tabId } : {}),
     send: (m) => {
       sent.push(m);
       return send(m);
@@ -1447,4 +1453,26 @@ describe('the master password does not stay in the markup or in the state', () =
     expect(root.querySelector<HTMLInputElement>('#pw-input')?.value).toBe('short');
     expect(root.outerHTML).not.toContain('value="short"');
   });
+});
+
+test('startup tab id survives load, contextual probe-add and add', async () => {
+  const h = await startWorker();
+  await h.must({ type: 'vault.setup', password: PASSWORD });
+  await loginAs(h.chrome, 'facebook', '123456');
+  await h.must({ type: 'account.addCurrent', platform: 'facebook', label: 'Here' });
+  h.chrome.tabs.tabs.push({ id: 22, url: 'https://www.facebook.com/', active: true });
+  const r = rig(reply(h), { here: 'facebook', tabId: 22 });
+  await screen('list');
+  await wait(() => r.sent.some((m) => m.type === 'account.probe'), 'the contextual probe');
+  expect(r.sent.find((m) => m.type === 'account.probe')).toEqual({
+    type: 'account.probe',
+    platform: 'facebook',
+    tabId: 22,
+  });
+  r.onEffect({ type: 'probe-add', platform: 'facebook' }, r.app);
+  await wait(() => r.sent.filter((m) => m.type === 'account.probe').length === 2, 'add probe');
+  expect(r.sent.filter((m) => m.type === 'account.probe').at(-1)).toMatchObject({ tabId: 22 });
+  r.onEffect({ type: 'add', platform: 'facebook', label: 'Another' }, r.app);
+  await wait(() => r.sent.some((m) => m.type === 'account.addCurrent'), 'save');
+  expect(r.sent.find((m) => m.type === 'account.addCurrent')).toMatchObject({ tabId: 22 });
 });
