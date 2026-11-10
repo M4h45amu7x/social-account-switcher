@@ -14,7 +14,13 @@ export type Request =
   | { type: 'settings.set'; theme?: Settings['theme']; language?: Settings['language'] }
   /** Who is logged in on a platform right now, without saving anything. `tail` is null when nobody is. */
   | { type: 'account.probe'; platform: Platform; tabId?: number }
-  | { type: 'account.addCurrent'; platform: Platform; label: string; tabId?: number }
+  | {
+      type: 'account.addCurrent';
+      platform: Platform;
+      label: string;
+      tabId?: number;
+      autoLabel?: boolean;
+    }
   | { type: 'account.updateSession'; accountId: string; tabId?: number }
   | { type: 'account.rename'; accountId: string; label: string }
   | { type: 'account.remove'; accountId: string }
@@ -98,6 +104,7 @@ const SHAPES: Record<RequestType, Record<string, [FieldCheck, boolean]>> = {
   'account.addCurrent': {
     platform: [oneOf(PLATFORMS), true],
     label: [text, true],
+    autoLabel: [(v) => typeof v === 'boolean', false],
     tabId: [tabId, false],
   },
   'account.updateSession': { accountId: [nonEmpty, true], tabId: [tabId, false] },

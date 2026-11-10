@@ -11,6 +11,7 @@ TikTok support is experimental, disabled by default and absent from the popup. T
 | Data | Where | Purpose and protection |
 |---|---|---|
 | Account labels and initials, internal IDs, platform, Facebook/Instagram user IDs and experimental TikTok viewer IDs, status, active-account choices, and creation, last-use and session-capture times | `chrome.storage.local`, under `store` | Display and manage the account list. These fields are not encrypted. |
+| Optional display name, handle, email, avatar data URL and automatic/custom label choice | The same local store, without encryption | Identify saved accounts without decrypting session cookies. Names/handles are limited to 80 Unicode code points, email to 254; avatars are PNG/JPEG/WebP, at most 64 by 64 pixels and 32 KiB decoded. The locked popup still shows the lock screen. |
 | YouTube account index (`authuser`) and optional channel ID (`pageid`) | The same local store, without encryption | Build YouTube's multi-account sign-in URL and verify the selected account. No Google or YouTube cookies are saved by the extension. |
 | Facebook, Instagram and experimental TikTok saved session cookies, including values and cookie attributes | An encrypted vault in the local store | Restore a saved session. New vaults use PBKDF2-SHA-256 with 600,000 iterations and a random 16-byte salt to derive an AES-GCM-256 key. Vault writes use a fresh 12-byte IV. The salt, iteration count, IV and encrypted password-check value are stored with the ciphertext. |
 | Theme and language preferences; malformed or duplicate account records retained in `quarantine` | The local store, without encryption | Keep preferences and preserve records that fail validation rather than silently discarding them. |
@@ -25,6 +26,12 @@ The master password is used to derive the key and is not saved in extension stor
 ### The page you are on
 
 When the popup opens, it asks Chrome for the address of the active tab in the current window. The host permissions below let Chrome expose addresses for Facebook, Instagram and YouTube, and reserve HTTPS TikTok access for the disabled experimental backend. For pages outside these permissions the extension gets no address or title. The popup recognizes only the first three platforms; a TikTok page follows the same fallback as other unrecognized pages. The popup uses the address in memory to choose which platform tab to show. On a supported site it also asks the service worker which saved account is logged in there, using the same local read as adding an account. The address is not stored, logged or sent anywhere, and no new permission is requested for this.
+
+### Profile details from the open page
+
+On Add and Update session, and during an account probe, the extension can read the signed-in account's display name, handle, email if already present, and avatar from the page in the captured active tab of the current window. It uses existing page JSON/configuration or narrowly selected profile UI. It does not open menus, click, navigate, request an API or read passwords, messages or unrelated page content. Metadata is discarded if its identity does not match the session probe and subsequent identity confirmation, the tab navigates or reloads during the read, or the source is unavailable. Optional profile reading has a one-second deadline; expiry discards metadata and lets the session save continue. A rendered YouTube account header is ignored unless it independently identifies the same account and channel coordinates. YouTube matching uses its account index and optional channel ID, not a stable Google user ID. TikTok's profile reader is synthetic and remains behind the disabled backend.
+
+An avatar is copied only from an embedded raster data URL or pixels of an image the page already loaded. A detached canvas can resize those pixels without fetching the image again; if canvas access is blocked, the popup falls back to initials and the platform colour. The popup never loads platform CDN avatars. Profile strings are bounded and displayed as text, and image data is checked for MIME type, magic bytes, dimensions and byte size. Missing or invalid profile details do not prevent saving a session. A manually chosen account label is never overwritten on refresh; automatic labels may follow the latest matched display name. Profiles read for a probe remain in memory until the popup closes unless saved by Add/Update. See [profile sources and verification limits](docs/profile-sources.md).
 
 ### Retention and locking
 
@@ -42,10 +49,10 @@ Use a strong, unique master password. Someone who copies the encrypted vault can
 |---|---|
 | `cookies` | Read, remove and restore Facebook, Instagram and experimental TikTok session cookies when adding, updating, switching or recovering a session. The host permissions bound the API's domain access. |
 | `storage` | Keep the local store and in-memory key, journals and unlock-attempt record described above. The extension does not use `chrome.storage.sync`. |
-| `scripting` | Execute a small reader in an open YouTube page's main world. It returns only `SESSION_INDEX` and `DELEGATED_SESSION_ID` from `ytcfg`. The disabled experimental TikTok reader returns only a viewer ID or signed-out, checkpoint or unknown state from a synthetic fixture; it makes no network call. |
-| `*://*.facebook.com/*`, `*://*.instagram.com/*` | Access those sites' cookies, identify tabs to reload or check after a switch, and open the popup on the platform of the page you are on. |
+| `scripting` | Read YouTube sign-in coordinates and the optional matched profile fields described above from an open supported page in its main world. The disabled TikTok backend also reads viewer ID or signed-out, checkpoint or unknown state from a synthetic fixture. These readers make no network call. |
+| `*://*.facebook.com/*`, `*://*.instagram.com/*` | Read matched profile details from the captured tab, access those sites' cookies, identify tabs to reload or check after a switch, and open the popup on the platform of the page you are on. |
 | `https://*.tiktok.com/*` | Reserve cookie access and main-world viewer reading for the experimental TikTok backend. It is disabled by default and hidden from the popup. |
-| `*://*.youtube.com/*` | Read the two sign-in coordinates, identify, navigate and reload YouTube tabs, and open the popup on YouTube when you are on it. |
+| `*://*.youtube.com/*` | Read sign-in coordinates and optional matched profile details, identify, navigate and reload YouTube tabs, and open the popup on YouTube when you are on it. |
 
 No Google-domain host permission, all-sites permission, browsing-history permission or network-interception permission is requested. Incognito use is disabled.
 
@@ -58,7 +65,7 @@ Switching still uses the websites. Reloaded pages make their normal requests wit
 ## Deleting your data
 
 - **One account:** choose its delete button in the popup and confirm. A Facebook or Instagram entry and its encrypted saved session are removed; a YouTube entry is removed from the list. This does not sign the website out. Experimental TikTok entries have no popup controls yet; both wipe actions below remove them.
-- **Forgot password:** confirm the wipe on the locked page. This removes the vault and saved Facebook/Instagram/TikTok entries, but keeps YouTube entries and preferences. Preserved `quarantine` records remain. If the store cannot be read safely, the entire local store is removed instead.
+- **Forgot password:** confirm the wipe on the locked page. This removes the vault and saved Facebook/Instagram/TikTok entries, and all optional profile details, including quarantined copies. YouTube shortcut coordinates and preferences remain; their custom labels remain, while automatic labels become “YouTube”. Quarantine is cleared. If the store cannot be read safely, the entire local store is removed instead.
 - **Settings → Wipe all data:** confirm to remove the local `store`, including all entries, the vault, preferences and `quarantine`. Both wipe actions remove the unlocked key, unlock-attempt record and switch journals. A wipe is refused while a platform is busy. The theme cache is separate from the store and is not explicitly erased by the worker's wipe operation.
 - **Uninstall:** remove the extension at `chrome://extensions`. Chrome removes its `storage.local` data, as described in the linked storage documentation.
 

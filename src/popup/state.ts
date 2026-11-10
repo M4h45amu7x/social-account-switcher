@@ -1,6 +1,8 @@
 // What the popup knows how to draw. The view only reads these types; the background worker
 // (src/lib/messages.ts) has its own wire types, and B5b maps one onto the other.
+
 import type { ErrorCode } from '../lib/messages';
+import type { AccountProfile } from '../lib/profile';
 import type { PopupPlatform as Platform } from '../lib/store';
 import type { Effect } from './controller';
 import type { Language, LanguagePref } from './i18n';
@@ -20,6 +22,7 @@ export type UsedLine =
   | { kind: 'hoursAgo' | 'daysAgo'; n: number };
 
 export interface AccountView {
+  profile?: AccountProfile;
   id: string;
   label: string;
   initials: string;
@@ -39,7 +42,15 @@ export interface PlatformView {
 }
 
 export type AddView =
-  | { kind: 'form'; value: string; bad: boolean; idTail: string; brand?: boolean }
+  | {
+      kind: 'form';
+      value: string;
+      bad: boolean;
+      idTail: string;
+      brand?: boolean;
+      profile?: AccountProfile;
+      autoLabel?: boolean;
+    }
   | { kind: 'notLoggedIn' };
 
 export type UnlockButton = 'idle' | 'loading' | 'ok' | 'err';

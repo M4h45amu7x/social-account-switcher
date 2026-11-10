@@ -2,6 +2,7 @@
 // encrypted vault (docs/design.md 5). Every change is a pure function from one StoreV1 to the next;
 // loadStore/saveStore are the only parts that touch storage.
 import type { StorageAreaApi } from './ports';
+import { type AccountProfile, profileText, sanitizeProfile } from './profile';
 import { err, ok, type Result } from './result';
 import type { Vault } from './vault';
 
@@ -14,8 +15,11 @@ export type AccountStatus = 'ok' | 'expired' | 'checkpoint';
 export interface Account {
   id: string;
   platform: Platform;
-  /** 1–40 characters, chosen by the user. */
+  /** 1–40 characters. A custom label always wins over page metadata. */
   label: string;
+  profile?: AccountProfile;
+  /** Missing on older accounts means custom. */
+  labelSource?: 'profile' | 'custom';
   /** Shown in the avatar circle; derived from the label. */
   initials: string;
   /** Facebook c_user or Instagram ds_user_id. */
@@ -133,7 +137,13 @@ export function migrate(raw: unknown): Result<StoreV1, 'unknown_schema'> {
   for (const a of raw.accounts as unknown[]) {
     if (isAccount(a) && !seen.has(a.id)) {
       seen.add(a.id);
-      accounts.push(a);
+      const { profile: rawProfile, labelSource, ...account } = a;
+      const profile = sanitizeProfile(rawProfile);
+      accounts.push({
+        ...account,
+        ...(profile ? { profile } : {}),
+        ...(labelSource === 'profile' || labelSource === 'custom' ? { labelSource } : {}),
+      });
     } else {
       quarantine.push(a);
     }
@@ -200,6 +210,8 @@ export function initialsOf(label: string): string {
 // --- accounts ---
 
 export interface NewAccount {
+  profile?: AccountProfile;
+  labelSource?: 'profile' | 'custom';
   platform: Platform;
   label: string;
   platformUserId?: string;
@@ -236,6 +248,9 @@ export function addAccount(
     lastUsedAt: null,
     sessionCapturedAt: null,
   };
+  const profile = sanitizeProfile(input.profile);
+  if (profile) account.profile = profile;
+  if (input.labelSource) account.labelSource = input.labelSource;
   if (input.platformUserId !== undefined) account.platformUserId = input.platformUserId;
   if (input.youtube) account.youtube = { ...input.youtube };
   return ok({ store: { ...store, accounts: [...store.accounts, account] }, account });
@@ -261,10 +276,30 @@ export function renameAccount(
   if (!normalized.ok) return normalized;
   return replaceAccount(store, id, (a) => ({
     ...a,
+    labelSource: 'custom',
     label: normalized.value,
     initials: initialsOf(normalized.value),
   }));
 }
+
+/** Replaces page metadata only; legacy/custom labels are never renamed by a page. */
+export function refreshProfile(account: Account, value: unknown): Account {
+  const { profile: _old, ...rest } = account;
+  const profile = sanitizeProfile(value);
+  const label =
+    account.labelSource === 'profile'
+      ? (profileText(profile?.displayName, MAX_LABEL_LENGTH) ?? defaultLabel(account.platform))
+      : account.label;
+  return { ...rest, label, initials: initialsOf(label), ...(profile ? { profile } : {}) };
+}
+
+export const defaultLabel = (platform: Platform): string =>
+  ({
+    facebook: 'Facebook',
+    instagram: 'Instagram',
+    youtube: 'YouTube',
+    tiktok: 'TikTok',
+  })[platform];
 
 export function updateAccount(
   store: StoreV1,

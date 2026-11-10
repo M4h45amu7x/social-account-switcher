@@ -7,6 +7,7 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 ### Added
 
 - Local TikTok browser tests rotate server-validated sessions on every authenticated page load. They cover repeated switches, rollback and worker recovery, checkpoint handling, migration and both wipe scopes. TikTok remains disabled in production.
+- Read optional matched account names, handles, email and small local avatars from the open Facebook, Instagram and YouTube page when adding or updating a session; preserve custom labels. TikTok profile extraction is fixture-only and stays disabled. No network requests, permissions or dependencies were added. Both wipe scopes erase profile metadata.
 - Experimental TikTok session backend with a centralized cookie deny-list, read-only fixture viewer probe, verified rollback and recovery, and session wipe support. It stays disabled and hidden from the popup until the live-site contract is confirmed. The manifest now requests the `https://*.tiktok.com/*` host permission for it.
 
 ### Fixed
