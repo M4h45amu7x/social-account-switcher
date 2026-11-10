@@ -213,10 +213,11 @@ button { font: inherit; color: inherit; }
 .empty ol { text-align: left; margin: 0; padding-left: 20px; color: var(--text-2); font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
 .empty .row-btns { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; justify-content: center; }
 
-.foot { padding: 8px 16px 12px; font-size: 11px; color: var(--text-2); display: flex; align-items: center; gap: 6px; border-top: 1px solid var(--line); }
-.foot-copy { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.foot { padding: 8px 16px 12px; font-size: 11px; color: var(--text-2); display: grid;
+  grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 4px 6px; border-top: 1px solid var(--line); }
+.foot-copy { min-width: 0; overflow-wrap: anywhere; }
+.foot .extension-version { grid-column: 2; justify-self: end; }
 .extension-version { flex: none; white-space: nowrap; font-size: 11px; font-weight: 400; color: var(--text-2); }
-.head .extension-version { margin-left: auto; }
 .foot svg { flex: none; }
 
 .toast { margin: 0 12px 8px; background: var(--text); color: var(--surface);
@@ -840,16 +841,16 @@ function stateName() {
    ===================================================================== */
 // Illustration only; the installed popup reads its version from the runtime adapter.
 const SAMPLE_VERSION = "0.2.0";
-const versionBadge = (place) => `<span class="extension-version" data-testid="${place}-version" aria-label="Version ${SAMPLE_VERSION}">v${SAMPLE_VERSION}</span>`;
+const versionBadge = () => `<span class="extension-version" data-testid="footer-version" aria-label="Version ${SAMPLE_VERSION}">v${SAMPLE_VERSION}</span>`;
 function header(withBack) {
   return `<header class="head">
       ${withBack
-        ? `<button class="icon-btn" data-act="settings-close" title="${ta("app.back")}" aria-label="${ta("app.back")}" data-testid="settings-back">${ICON.back}</button><h1>${t("settings.title")}</h1>${versionBadge("settings")}`
+        ? `<button class="icon-btn" data-act="settings-close" title="${ta("app.back")}" aria-label="${ta("app.back")}" data-testid="settings-back">${ICON.back}</button><h1>${t("settings.title")}</h1>`
         : `<div class="logo">${ICON.swap}</div><h1>${t("app.title")}</h1>
       <button class="icon-btn" data-act="settings-open" title="${ta("app.settings")}" aria-label="${ta("app.settings")}" data-testid="settings-btn" ${S.switching ? "disabled" : ""}>${ICON.gear}</button>`}
     </header>`;
 }
-const footer = () => `<footer class="foot">${ICON.shield}<span class="foot-copy" title="${ta("foot")}">${t("foot")}</span>${versionBadge("footer")}</footer>`;
+const footer = () => `<footer class="foot">${ICON.shield}<span class="foot-copy" title="${ta("foot")}">${t("foot")}</span>${versionBadge()}</footer>`;
 
 function drawPopup() {
   const p = S.platform;

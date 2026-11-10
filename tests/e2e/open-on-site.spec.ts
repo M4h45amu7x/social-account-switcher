@@ -210,17 +210,9 @@ async function shoot(page: Page, name: string) {
         // The platform badge extends 3px beyond the avatar; visible overflow also
         // contributes to ancestor scroll sizes. Check their child text boxes instead.
         const decorated = el.matches('.avatar') || el.querySelector('.avatar') !== null;
-        // Only the footer copy intentionally ellipsizes. Its full text remains accessible.
-        const style = getComputedStyle(el);
-        const ellipsis =
-          el.matches('footer.foot > .foot-copy') &&
-          style.overflowX === 'hidden' &&
-          style.textOverflow === 'ellipsis' &&
-          style.whiteSpace === 'nowrap' &&
-          el.title === el.textContent;
         return r.right > box.right + 1 ||
           r.left < box.left - 1 ||
-          (!decorated && !ellipsis && el.scrollWidth > el.clientWidth + 1) ||
+          (!decorated && el.scrollWidth > el.clientWidth + 1) ||
           (!decorated && el.scrollHeight > el.clientHeight + 1)
           ? [
               `${el.tagName}.${el.className} bounds=${r.left},${r.right}; client=${el.clientWidth}x${el.clientHeight}; scroll=${el.scrollWidth}x${el.scrollHeight}`,

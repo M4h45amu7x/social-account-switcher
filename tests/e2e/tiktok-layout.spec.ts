@@ -33,17 +33,9 @@ for (const lang of ['en', 'th'])
             const r = el.getBoundingClientRect();
             if (!r.width || !r.height) return [];
             const decorated = el.matches('.avatar') || el.querySelector('.avatar') !== null;
-            // Only the footer copy intentionally ellipsizes. Its full text remains accessible.
-            const style = getComputedStyle(el);
-            const ellipsis =
-              el.matches('footer.foot > .foot-copy') &&
-              style.overflowX === 'hidden' &&
-              style.textOverflow === 'ellipsis' &&
-              style.whiteSpace === 'nowrap' &&
-              el.title === el.textContent;
             return r.right > box.right + 1 ||
               r.left < box.left - 1 ||
-              (!decorated && !ellipsis && el.scrollWidth > el.clientWidth + 1) ||
+              (!decorated && el.scrollWidth > el.clientWidth + 1) ||
               (!decorated && el.scrollHeight > el.clientHeight + 1)
               ? [`${el.tagName}.${el.className}`]
               : [];

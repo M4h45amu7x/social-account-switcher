@@ -456,6 +456,7 @@ test('22: a saved Dark theme on a light OS is on <html> before <body> exists', a
 
   // back to System for whoever runs next
   await page.getByTestId('settings-btn').click();
+  await expect(page.locator('html')).not.toHaveAttribute('data-vt-busy', '1');
   await page.getByTestId('s-theme-system').click();
   await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.*/);
   popup = page;

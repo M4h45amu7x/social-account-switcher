@@ -124,15 +124,10 @@ function usedText(tr: Translator, used: UsedLine, active: boolean): string {
 
 // --- pieces ---
 
-function header(
-  tr: Translator,
-  s: PopupState,
-  mode: 'main' | 'settings' | 'locked',
-  version = '',
-): Safe {
+function header(tr: Translator, s: PopupState, mode: 'main' | 'settings' | 'locked'): Safe {
   if (mode === 'settings') {
     return html`<header class="head">
-      <button class="icon-btn" data-act="settings-close" title="${tr.text('app_back')}" aria-label="${tr.text('app_back')}" data-testid="settings-back">${ICON.back}</button><h1>${tr.html('settings_title')}</h1>${versionBadge(tr, version, 'settings')}
+      <button class="icon-btn" data-act="settings-close" title="${tr.text('app_back')}" aria-label="${tr.text('app_back')}" data-testid="settings-back">${ICON.back}</button><h1>${tr.html('settings_title')}</h1>
     </header>`;
   }
   return html`<header class="head">
@@ -141,11 +136,11 @@ function header(
     </header>`;
 }
 
-const versionBadge = (tr: Translator, version: string, place: 'footer' | 'settings'): Safe =>
-  html`${version && html`<span class="extension-version" data-testid="${place}-version" aria-label="${tr.text('version_label', { version })}">v${version}</span>`}`;
+const versionBadge = (tr: Translator, version: string): Safe =>
+  html`${version && html`<span class="extension-version" data-testid="footer-version" aria-label="${tr.text('version_label', { version })}">v${version}</span>`}`;
 
 const footer = (tr: Translator, version: string): Safe =>
-  html`<footer class="foot">${ICON.shield}<span class="foot-copy" title="${tr.text('foot')}">${tr.html('foot')}</span>${versionBadge(tr, version, 'footer')}</footer>`;
+  html`<footer class="foot">${ICON.shield}<span class="foot-copy" title="${tr.text('foot')}">${tr.html('foot')}</span>${versionBadge(tr, version)}</footer>`;
 
 function slot(tr: Translator, s: PopupState, a: AccountView, switchingThis: boolean): Safe {
   if (switchingThis) {
@@ -440,7 +435,7 @@ function settingsBody(tr: Translator, s: PopupState, version: string): Safe {
   const { settings } = s;
   const langNow = tr.text(settings.uiLanguage === 'th' ? 'lang_name_th' : 'lang_name_en');
   return html`
-    ${header(tr, s, 'settings', version)}
+    ${header(tr, s, 'settings')}
     <section class="body settings" data-panel data-testid="settings">
       ${s.notice && noticeNote(tr, s.notice, s.stale)}
       <div class="set-card" data-card="theme">

@@ -30,8 +30,8 @@ for (const lang of ['en', 'th']) {
         await expect(badge).toHaveAccessibleName(
           new RegExp(manifest.version.replaceAll('.', '\\.')),
         );
-        if (state === 'settings' || state === 'settings-wipe')
-          await expect(page.getByTestId('settings-version')).toHaveText(`v${manifest.version}`);
+        await expect(page.locator('.extension-version')).toHaveCount(1);
+        await expect(page.getByTestId('settings-version')).toHaveCount(0);
         expect(
           await page.locator('footer').evaluate((footer) => {
             const badge = footer.querySelector('[data-testid="footer-version"]')!;
@@ -39,16 +39,32 @@ for (const lang of ['en', 'th']) {
             const b = badge.getBoundingClientRect();
             const t = text.getBoundingClientRect();
             const f = footer.getBoundingClientRect();
+            const style = getComputedStyle(text);
+            const range = document.createRange();
+            range.selectNodeContents(text);
+            const lines = [...range.getClientRects()];
             return (
               b.right <= f.right &&
-              b.left >= t.right &&
-              Math.abs(b.y + b.height / 2 - t.y - t.height / 2) < 2 &&
+              b.left >= f.left &&
+              b.bottom <= f.bottom &&
+              b.top >= t.bottom &&
+              style.textOverflow !== 'ellipsis' &&
+              style.whiteSpace !== 'nowrap' &&
+              style.overflowX === 'visible' &&
+              text.scrollWidth <= text.clientWidth + 1 &&
+              text.scrollHeight <= text.clientHeight + 1 &&
+              lines.every(
+                (line) =>
+                  line.left >= t.left - 1 &&
+                  line.right <= t.right + 1 &&
+                  line.bottom <= t.bottom + 1,
+              ) &&
               footer.scrollWidth <= footer.clientWidth &&
               document.documentElement.scrollWidth <= 360
             );
           }),
         ).toBe(true);
-        if (['list', 'settings', 'locked', 'setup'].includes(state)) {
+        if (['list', 'empty', 'settings', 'locked', 'setup'].includes(state)) {
           await idle(page);
           await page.screenshot({
             path: test.info().outputPath(`${state}-${lang}-${theme}.png`),
@@ -83,7 +99,8 @@ test('production popup reads installed getManifest version, including a differen
       await page.getByTestId('setup-create').click();
       await expect(page.getByTestId('empty')).toBeVisible();
       await page.getByTestId('settings-btn').click();
-      await expect(page.getByTestId('settings-version')).toHaveText(`v${runtimeVersion}`);
+      await expect(page.getByTestId('footer-version')).toHaveText(`v${runtimeVersion}`);
+      await expect(page.locator('.extension-version')).toHaveCount(1);
       await page.getByTestId('lock-now').click();
       await expect(page.getByTestId('locked')).toBeVisible();
       await expect(page.getByTestId('footer-version')).toHaveText(`v${runtimeVersion}`);

@@ -6,7 +6,7 @@ import { EXTRA_STATES, SAMPLE_STATES, sampleState } from '../../src/popup/sample
 import { renderPopup } from '../../src/popup/view';
 
 for (const lang of ['en', 'th'] as const) {
-  test(`version is accessible in every footer and Settings (${lang})`, () => {
+  test(`version appears once in every footer (${lang})`, () => {
     for (const name of [...SAMPLE_STATES, ...EXTRA_STATES]) {
       const root = document.createElement('main');
       renderPopup(root, sampleState(name, lang), createTranslator(lang), manifest.version);
@@ -15,10 +15,8 @@ for (const lang of ['en', 'th'] as const) {
       expect(badge?.getAttribute('aria-label')).toBe(
         createTranslator(lang).text('version_label', { version: manifest.version }),
       );
-      if (name === 'settings' || name === 'settings-wipe')
-        expect(root.querySelector('[data-testid="settings-version"]')?.textContent).toBe(
-          `v${manifest.version}`,
-        );
+      expect(root.querySelectorAll('.extension-version').length).toBe(1);
+      expect(root.querySelector('[data-testid="settings-version"]')).toBeNull();
     }
   });
 }
@@ -40,4 +38,10 @@ test('injected installed version survives settings, language and lock redraws', 
     app.dispatch(action);
     expect(root.querySelector('[data-testid="footer-version"]')?.textContent).toBe('v9.8.7.3');
   }
+});
+
+test('approved Thai installed version label preserves the VERSION substitution', () => {
+  expect(createTranslator('th').text('version_label', { version: '9.8.7.3' })).toBe(
+    'เวอร์ชัน 9.8.7.3',
+  );
 });

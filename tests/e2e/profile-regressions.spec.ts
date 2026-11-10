@@ -90,7 +90,9 @@ for (const platform of ['facebook', 'instagram'] as const) {
       await popup.getByTestId('add-account').click();
       await expect(popup.getByTestId('add-input')).toHaveValue('Matched Alice');
       await popup.getByTestId('add-save').click();
-      await expect(popup.locator('.profile-details')).toContainText('@alice');
+      const savedRow = popup.locator('[data-testid^="row-"]');
+      await expect(savedRow).toHaveCount(1);
+      await expect(savedRow.locator('.profile-details')).toContainText('@alice');
       expect((await h.accounts())[0]?.profile).toMatchObject({
         displayName: 'Matched Alice',
         handle: '@alice',

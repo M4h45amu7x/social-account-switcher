@@ -848,8 +848,8 @@
     "description": "Session rollback recovery guidance."
   },
   "version_label": {
-    "message": "Version $VERSION$",
-    "description": "Accessible name for the installed extension version; Thai pending approved translation.",
+    "message": "เวอร์ชัน $VERSION$",
+    "description": "Accessible name for the installed extension version.",
     "placeholders": {
       "version": {
         "content": "$1",
