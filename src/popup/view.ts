@@ -488,8 +488,8 @@ function mainBody(tr: Translator, s: PopupState): Safe {
 
   const tabs = PLATFORM_ORDER.map(
     (k) => html`
-    <button class="tab" role="tab" aria-selected="${String(k === p)}" data-tab="${k}" data-testid="tab-${k}" ${busy ? 'disabled' : ''}>
-      ${ICON[k]}<span>${PLATFORM_INFO[k].name}</span><span class="count">${s.platforms[k].accounts.length}</span>
+    <button class="tab" role="tab" title="${PLATFORM_INFO[k].name}" aria-label="${PLATFORM_INFO[k].name}" aria-describedby="tab-count-${k}" aria-selected="${String(k === p)}" data-tab="${k}" data-testid="tab-${k}" ${busy ? 'disabled' : ''}>
+      ${ICON[k]}<span class="label">${PLATFORM_INFO[k].name}</span><span class="count" id="tab-count-${k}">${s.platforms[k].accounts.length}</span>
     </button>`,
   );
 

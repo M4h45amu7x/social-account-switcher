@@ -114,11 +114,12 @@ button { font: inherit; color: inherit; }
   transform: translateX(calc(var(--i) * (100% + var(--slide-gap)))); border-radius: 7px; background: var(--thumb);
   box-shadow: 0 1px 2px rgba(0,0,0,.12), inset 0 0 0 1px var(--thumb-line); pointer-events: none; }
 .slide > :not(.thumb) { position: relative; z-index: 1; }
-.tab { border: 0; background: transparent; border-radius: 7px; padding: 7px 4px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 12.5px; color: var(--text-idle); min-width: 0; }
+.tab { border: 0; background: transparent; border-radius: 7px; padding: 7px 1px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 1px; font-size: 12px; color: var(--text-idle); min-width: 0; }
 .tab[aria-selected="true"] { color: var(--text); font-weight: 600; }
 .tab .mark { width: 16px; height: 16px; flex: none; }
-.tab .count { font-size: 10.5px; min-width: 16px; padding: 0 4px; border-radius: 9px; background: var(--line);
+.tab .label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab .count { flex: none; font-size: 10.5px; min-width: 16px; padding: 0 4px; border-radius: 9px; background: var(--line);
   color: var(--text-2); font-weight: 600; line-height: 16px; text-align: center; }
 
 .body { flex: 1; display: flex; flex-direction: column; padding: 12px; gap: 8px; }
@@ -845,8 +846,8 @@ function doRender() {
   const list = acc();
   const busy = !!S.switching;
   const tabs = ORDER.map((k) => `
-    <button class="tab" role="tab" aria-selected="${k === p}" data-tab="${k}" data-testid="tab-${k}" ${busy ? "disabled" : ""}>
-      ${ICON[k]}<span>${PLATFORM[k].name}</span><span class="count">${S.accounts[k].length}</span>
+    <button class="tab" role="tab" title="${PLATFORM[k].name}" aria-label="${PLATFORM[k].name}" aria-describedby="tab-count-${k}" aria-selected="${k === p}" data-tab="${k}" data-testid="tab-${k}" ${busy ? "disabled" : ""}>
+      ${ICON[k]}<span class="label">${PLATFORM[k].name}</span><span class="count" id="tab-count-${k}">${S.accounts[k].length}</span>
     </button>`).join("");
 
   let body = "";
