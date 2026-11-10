@@ -34,7 +34,7 @@ YouTube entries use accounts already signed in through Google. The popup still a
 
 ## Limits and risks
 
-TikTok uses an unconfirmed candidate for the website's signed-in viewer state. An unrecognized state asks you to verify the account on TikTok; it does not mark a saved account expired. TikTok may require login or a manual security check, and switching cannot prevent account restrictions. Switching changes the account across all TikTok tabs in the same browser profile. See [the TikTok design and owner checks](docs/design.md#13-tiktok-implementation-for-v020).
+The owner observed TikTok's signed-in viewer field names and types. UID value constraints, avatar array contents, logout/challenge shapes and the cookie boundary still need live validation. An unrecognized state asks you to verify the account on TikTok; it does not mark a saved account expired. TikTok may require login or a manual security check, and switching cannot prevent account restrictions. Switching changes the account across all TikTok tabs in the same browser profile. See [the TikTok design and owner checks](docs/design.md#13-tiktok-implementation-for-v020).
 
 - Saved session cookies can grant account access. Use a strong, unique master password: someone who copies your browser profile can try to guess it offline. The password is not stored, and there is no recovery. Forgot password removes saved Facebook/Instagram/TikTok sessions; Settings offers a separate wipe of all saved entries.
 - Logging out on a website can invalidate its saved session. A platform may also require another login or a checkpoint. Complete those steps yourself, then update the saved session.

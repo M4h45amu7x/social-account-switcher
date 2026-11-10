@@ -22,7 +22,7 @@ The Facebook and Instagram E2E sites are local models. They issue session cookie
 
 ## TikTok needs live-account validation
 
-TikTok is enabled in the popup, but its candidate signed-in viewer fields, challenge selectors and selected cookie boundary have not been confirmed with real signed-in accounts. Local rotating-session fixtures test the implementation against a model; they do not establish live-site compatibility. An unrecognized page state can prevent Add, Update session or switching. See the [candidate reader and cookie policy](design.md#13-tiktok-implementation-for-v020).
+TikTok is enabled in the popup. On 2026-11-10 the owner confirmed that the signed-in hydration app-context user contains `uid`, `uniqueId` and `nickName` as strings, and `avatarUri` as an array. No values were recorded. Numeric UID contents and validation bounds, avatar array member types, logout/challenge shapes and the selected cookie boundary remain unconfirmed. Local rotating-session fixtures test the implementation against a model; they do not establish live-site compatibility. An unrecognized page state can prevent Add, Update session or switching. See the [candidate reader and cookie policy](design.md#13-tiktok-implementation-for-v020).
 
 TikTok may require a new login, CAPTCHA, 2FA or another security check after switching. Device binding, session rotation or revocation can invalidate both a saved session and its rollback snapshot. Switching changes the shared account in every TikTok tab in that browser profile and reloads those tabs; unsaved drafts can be lost. Use owned test accounts for the manual checks and report failures without sharing cookie values or credentials.
 

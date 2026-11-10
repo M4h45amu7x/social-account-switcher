@@ -25,7 +25,7 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ### Release notes
 
-- This release candidate still needs owner checks with real accounts before publication. TikTok's live viewer fields, challenge selectors and cookie boundary remain unconfirmed. Automated browser tests use local stand-ins, including rotating TikTok sessions, rollback, worker recovery, migration and both wipe scopes.
+- This release candidate still needs owner checks with real accounts before publication. The owner observed TikTok's signed-in viewer field names and types; UID value constraints, avatar array contents, logout/challenge shapes and the cookie boundary remain unconfirmed. Automated browser tests use local stand-ins, including rotating TikTok sessions, rollback, worker recovery, migration and both wipe scopes.
 
 ## [0.1.2] - 2026-11-10
 
