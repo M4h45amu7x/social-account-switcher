@@ -78,7 +78,7 @@ for (const platform of ['facebook', 'instagram', 'youtube'] as const) {
       const row = popup.locator('[data-testid^="row-"]');
       await expect(row.locator('.nm')).toHaveText('Alice Profile');
       await expect(row.locator('.profile-details')).toContainText('@alice');
-      await expect(row.locator('.avatar > img')).toHaveAttribute('src', PNG);
+      await expect(row.locator('.avatar > img')).toHaveAttribute('src', /^data:image\/png;base64,/);
       await expect
         .poll(() =>
           row

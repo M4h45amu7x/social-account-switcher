@@ -24,63 +24,46 @@ export function profileText(value: unknown, max: number): string | undefined {
   return text || undefined;
 }
 
-/** MIME and dimensions come from the bytes, not from the claimed data URL type. */
+/** Stored avatars are complete canonical PNGs, never original page bytes.
+ * Browser decoding/re-encoding happens at capture; this check also protects legacy storage/rendering.
+ */
 export function safeAvatar(value: unknown): string | undefined {
   if (typeof value !== 'string' || value.length > Math.ceil(MAX_AVATAR_BYTES / 3) * 4 + 32) return;
-  const match = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
+  const match = /^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
   if (!match) return;
   try {
-    const bytes = atob(match[2] ?? '');
-    if (bytes.length > MAX_AVATAR_BYTES || btoa(bytes) !== match[2]) return;
+    const bytes = atob(match[1] ?? '');
+    if (bytes.length > MAX_AVATAR_BYTES || btoa(bytes) !== match[1]) return;
+    if (!bytes.startsWith('\x89PNG\r\n\x1a\n')) return;
     const byte = (i: number) => bytes.charCodeAt(i);
-    const be16 = (i: number) => byte(i) * 256 + byte(i + 1);
-    const be32 = (i: number) => be16(i) * 65536 + be16(i + 2);
-    const le24 = (i: number) => byte(i) + byte(i + 1) * 256 + byte(i + 2) * 65536;
-    let width = 0;
-    let height = 0;
-    if (
-      match[1] === 'png' &&
-      bytes.startsWith('\x89PNG\r\n\x1a\n') &&
-      bytes.slice(12, 16) === 'IHDR' &&
-      be32(8) === 13 &&
-      bytes.length >= 33
-    ) {
-      width = be32(16);
-      height = be32(20);
-    } else if (match[1] === 'jpeg' && bytes.startsWith('\xff\xd8') && bytes.endsWith('\xff\xd9')) {
-      let i = 2;
-      while (i + 8 < bytes.length && byte(i) === 255) {
-        const marker = byte(i + 1);
-        const length = be16(i + 2);
-        if (length < 2 || i + 2 + length > bytes.length) return;
-        if ([0xc0, 0xc1, 0xc2].includes(marker) && length >= 8) {
-          height = be16(i + 5);
-          width = be16(i + 7);
-          break;
-        }
-        i += 2 + length;
+    const be32 = (i: number) =>
+      byte(i) * 16777216 + byte(i + 1) * 65536 + byte(i + 2) * 256 + byte(i + 3);
+    let header = false;
+    let pixels = false;
+    for (let i = 8; i + 12 <= bytes.length; ) {
+      const length = be32(i);
+      const end = i + 8 + length;
+      if (end + 4 > bytes.length) return;
+      const kind = bytes.slice(i + 4, i + 8);
+      let crc = 0xffffffff;
+      for (let j = i + 4; j < end; j++) {
+        crc ^= byte(j);
+        for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
       }
-    } else if (
-      match[1] === 'webp' &&
-      bytes.startsWith('RIFF') &&
-      bytes.slice(8, 12) === 'WEBP' &&
-      bytes.length >= 30
-    ) {
-      const kind = bytes.slice(12, 16);
-      if (kind === 'VP8X') {
-        width = le24(24) + 1;
-        height = le24(27) + 1;
-      } else if (kind === 'VP8 ' && bytes.slice(23, 26) === '\x9d\x01\x2a') {
-        width = (byte(26) + byte(27) * 256) & 0x3fff;
-        height = (byte(28) + byte(29) * 256) & 0x3fff;
-      } else if (kind === 'VP8L' && byte(20) === 0x2f) {
-        width = 1 + (byte(21) | ((byte(22) & 0x3f) << 8));
-        height = 1 + ((byte(22) >> 6) | (byte(23) << 2) | ((byte(24) & 0xf) << 10));
-      }
+      if ((crc ^ 0xffffffff) >>> 0 !== be32(end)) return;
+      if (kind === 'IHDR' && !header && i === 8 && length === 13) {
+        const width = be32(i + 8);
+        const height = be32(i + 12);
+        if (width < 1 || height < 1 || width > MAX_AVATAR_SIDE || height > MAX_AVATAR_SIDE) return;
+        header = true;
+      } else if (kind === 'IDAT' && header && length > 0) pixels = true;
+      else if (kind === 'IEND' && header && pixels && length === 0)
+        return end + 4 === bytes.length ? value : undefined;
+      // Browser encoders may include a standard rendering intent; no arbitrary ancillary payloads.
+      else if (!(kind === 'sRGB' && header && !pixels && length === 1 && byte(i + 8) <= 3)) return;
+      i = end + 4;
     }
-    return width > 0 && height > 0 && width <= MAX_AVATAR_SIDE && height <= MAX_AVATAR_SIDE
-      ? value
-      : undefined;
+    return undefined;
   } catch {
     return undefined;
   }

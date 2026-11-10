@@ -2,6 +2,7 @@ import type { ScriptingApi, TabsApi, TabUpdatedListener } from '../lib/ports';
 import { type AccountProfile, sanitizeProfile } from '../lib/profile';
 import { platformOfUrl } from '../lib/sites';
 import type { Platform } from '../lib/store';
+import { canonicalAvatar } from './avatar';
 import { isTikTok } from './platforms/tiktok';
 import type { YouTubeSession } from './platforms/types';
 
@@ -279,6 +280,16 @@ export async function readProfile(
       if (!value || typeof value !== 'object') return;
       const v = value as { identity?: unknown; profile?: unknown };
       if (!matches(v.identity)) return;
+      const profile = sanitizeProfile(v.profile) ?? {};
+      // Never retain the original avatar, including one that passes the storage shape check.
+      delete profile.avatar;
+      const source =
+        v.profile && typeof v.profile === 'object'
+          ? (v.profile as Record<string, unknown>).avatar
+          : undefined;
+      const avatar = await canonicalAvatar(source);
+      if (avatar) profile.avatar = avatar;
+      if (finished || navigated) return;
       const current = await deps.currentIdentity();
       if (finished || navigated || !matches(current)) return;
       const after = await deps.tabs.get(tabId);
@@ -290,7 +301,7 @@ export async function readProfile(
         after.status === 'loading'
       )
         return;
-      return sanitizeProfile(v.profile);
+      return Object.keys(profile).length ? profile : undefined;
     };
     return await Promise.race([deadline, read()]);
   } catch {

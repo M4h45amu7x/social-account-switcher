@@ -12,6 +12,11 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ### Fixed
 
+- Re-encode captured avatars locally as PNG before saving; reject incomplete stored images and appended payloads. Invalid images keep the initials fallback.
+- Restore Facebook/Instagram Add from unrelated tabs using existing cookies without borrowing profile metadata.
+- Clarify that session wipe preserves custom names only for retained YouTube shortcuts.
+- Supply the scripting dependency to the TikTok browser-test worker so the composed build passes type checking.
+
 - Verified TikTok switches and recovery wait for every reloaded tab before saving the session, so a slower response cannot leave an older token in the vault. Other platforms keep their existing load behavior.
 
 ## [0.1.2] - 2026-11-10

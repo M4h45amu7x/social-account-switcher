@@ -1485,3 +1485,31 @@ test('startup tab id survives load, contextual probe-add and add', async () => {
   await wait(() => r.sent.some((m) => m.type === 'account.addCurrent'), 'save');
   expect(r.sent.find((m) => m.type === 'account.addCurrent')).toMatchObject({ tabId: 22 });
 });
+
+for (const platform of ['facebook', 'instagram'] as const) {
+  test(`${platform}: off-site Add saves the cookie session with no borrowed page metadata`, async () => {
+    const h = await startWorker();
+    await h.must({ type: 'vault.setup', password: PASSWORD });
+    await loginAs(h.chrome, platform, '1001');
+    h.chrome.tabs.tabs.push({ id: 22, url: 'https://unrelated.test/', active: true });
+    h.chrome.tabs.tabs.push({ id: 23, url: `https://www.${platform}.com/` });
+    h.chrome.scripting.pageResults.set(23, {
+      identity: '1001',
+      profile: { displayName: 'Do not borrow this profile' },
+    });
+    const r = rig(reply(h), { tabId: 22 });
+    await screen('empty');
+    r.onEffect({ type: 'probe-add', platform }, r.app);
+    await wait(() => r.app.state().adding !== null, 'off-site Add result');
+    expect(root.querySelector('[data-testid="add-input"]')).not.toBeNull();
+    r.onEffect({ type: 'add', platform, label: 'Saved off-site' }, r.app);
+    await wait(() => r.sent.some((m) => m.type === 'account.addCurrent'), 'save sent');
+    await wait(() => r.app.state().platforms[platform].accounts.length === 1, 'save completed');
+    const state = await h.must<import('../../src/background/router').PopupState>({
+      type: 'state.get',
+    });
+    expect(state.accounts).toHaveLength(1);
+    expect(state.accounts[0]).toMatchObject({ label: 'Saved off-site', platformUserId: '1001' });
+    expect(state.accounts[0]).not.toHaveProperty('profile');
+  });
+}

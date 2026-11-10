@@ -50,3 +50,18 @@ test('rows render page metadata as text and validated local avatar only', () => 
   renderPopup(root, s, createTranslator('th'));
   expect(root.querySelector('.avatar > img')).toBeNull();
 });
+
+test('forgot-password explanation limits retained names to YouTube shortcuts', () => {
+  const state = initialState();
+  state.page = 'locked';
+  state.lock.wipeConfirm = true;
+  const root = document.createElement('main');
+  renderPopup(root, state, createTranslator('en'));
+  expect(root.querySelector('[data-testid="wipe-confirm"] small')?.textContent).toBe(
+    'There is no password recovery (there is no server). Every saved session and its profile details are deleted, and you add those accounts again. YouTube shortcuts stay with the names you gave them; automatic names reset. Your accounts on the sites are fine.',
+  );
+  renderPopup(root, state, createTranslator('th'));
+  expect(root.querySelector('[data-testid="wipe-confirm"] small')?.textContent).toBe(
+    'กู้รหัสผ่านไม่ได้ (ไม่มี server) — session และข้อมูลโปรไฟล์ที่บันทึกไว้ทั้งหมดจะถูกลบ แล้วค่อยเพิ่มบัญชีเหล่านั้นใหม่ · ทางลัด YouTube ยังอยู่พร้อมชื่อที่คุณตั้งไว้ ส่วนชื่ออัตโนมัติจะถูกรีเซ็ต · บัญชีบนเว็บไม่เสียหาย',
+  );
+});

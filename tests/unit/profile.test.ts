@@ -53,12 +53,12 @@ describe('profile trust boundary', () => {
   });
 });
 
-test('JPEG/WebP magic and dimensions are validated independently of claimed MIME', () => {
-  // Header fixtures exercise byte validation. Browser decoding is separately verified by E2E.
+test('legacy header-only JPEG/WebP data cannot enter the PNG-only store', () => {
+  // Header-only representations must never be accepted as complete stored images.
   const encode = (kind: string, bytes: number[]) =>
     `data:image/${kind};base64,${btoa(String.fromCharCode(...bytes))}`;
   const jpeg = [255, 216, 255, 224, 0, 2, 255, 192, 0, 11, 8, 0, 1, 0, 1, 1, 1, 17, 0, 255, 217];
-  expect(sanitizeProfile({ avatar: encode('jpeg', jpeg) })).toHaveProperty('avatar');
+  expect(sanitizeProfile({ avatar: encode('jpeg', jpeg) })).toBeUndefined();
   const large = [...jpeg];
   large[14] = 65;
   expect(sanitizeProfile({ avatar: encode('jpeg', large) })).toBeUndefined();
@@ -82,11 +82,28 @@ test('JPEG/WebP magic and dimensions are validated independently of claimed MIME
       bytes[28] = 1;
     }
     if (kind === 'VP8L') bytes[20] = 47;
-    expect(sanitizeProfile({ avatar: encode('webp', bytes) })).toHaveProperty('avatar');
+    expect(sanitizeProfile({ avatar: encode('webp', bytes) })).toBeUndefined();
     expect(sanitizeProfile({ avatar: encode('png', bytes) })).toBeUndefined();
     if (kind === 'VP8X') bytes[24] = 64;
     if (kind === 'VP8 ') bytes[26] = 65;
     if (kind === 'VP8L') bytes[21] = 64;
     expect(sanitizeProfile({ avatar: encode('webp', bytes) })).toBeUndefined();
+  }
+});
+
+// Catches returning the original data URL after checking only IHDR dimensions.
+test('stored avatars reject appended HTML, header-only PNG, truncated chunks and bad checksums', () => {
+  const raw = atob(PNG.split(',')[1] ?? '');
+  const corrupt = raw.slice(0, 45) + String.fromCharCode(raw.charCodeAt(45) ^ 1) + raw.slice(46);
+  for (const bytes of [
+    raw + '<html><script>avatar_payload()</script></html>',
+    raw.slice(0, 33),
+    raw.slice(0, -4),
+    raw.slice(0, 50),
+    corrupt,
+  ]) {
+    expect(
+      sanitizeProfile({ displayName: 'Alice', avatar: `data:image/png;base64,${btoa(bytes)}` }),
+    ).toEqual({ displayName: 'Alice' });
   }
 });

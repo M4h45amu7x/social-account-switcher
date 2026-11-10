@@ -502,7 +502,7 @@
     "description": "Forgot-password wipe confirmation"
   },
   "wipe_detail": {
-    "message": "There is no password recovery (there is no server). Saved sessions and profile details are deleted. YouTube shortcuts and your custom labels stay; automatic names reset. Your accounts on the sites are fine.",
+    "message": "There is no password recovery (there is no server). Every saved session and its profile details are deleted, and you add those accounts again. YouTube shortcuts stay with the names you gave them; automatic names reset. Your accounts on the sites are fine.",
     "description": "Forgot-password wipe confirmation"
   },
   "wipe_ok": {
