@@ -62,7 +62,9 @@ describe('journal recovery (test 7)', () => {
     h.chrome.tabs.reload = () => new Promise(() => {}); // the worker is stopped here
     const stuck = h.send({ type: 'account.switch', accountId: ids['1001'] }); // never settles
     expect(stuck).toBeInstanceOf(Promise);
-    await new Promise((r) => setTimeout(r, 20));
+    // until the switch has put 1001's cookies in and stopped at the reload (no fixed sleep: busy hosts are slow)
+    for (let i = 0; i < 400 && whoIs(h.chrome, 'facebook') !== '1001'; i += 1)
+      await new Promise((r) => setTimeout(r, 5));
     expect(whoIs(h.chrome, 'facebook')).toBe('1001');
     expect(await readJournal(h.deps.session, 'facebook')).not.toBeNull();
     h.chrome.tabs.reload = reload; // the new worker's Chrome works again

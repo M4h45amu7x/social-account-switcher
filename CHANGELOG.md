@@ -4,6 +4,11 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ## [Unreleased]
 
+### Added
+
+- The popup opens on the platform of the page you are on. On a Facebook, Instagram or YouTube page it shows that platform's tab from the first frame, without sliding over from Facebook. On any other page it opens on the tab you picked last, or on Facebook the first time. No permission was added: Chrome gives the extension the address of the three sites only, and the popup uses it in memory without saving it.
+- On a supported site, the add button reads **Add the account on this tab** and the empty list no longer offers to open the site again. The saved account that the site is logged in to shows an **On this tab** badge.
+
 ### Changed
 
 - The tab bar and the Language and Theme controls in settings share one sliding indicator. It moves instantly when the system asks for reduced motion.

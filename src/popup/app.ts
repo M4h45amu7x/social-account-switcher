@@ -12,7 +12,8 @@ import {
 } from './i18n';
 import { circleReveal, runTransition } from './motion';
 import { syncSliders } from './slider';
-import { initialState, type PopupState } from './state';
+import { writePlatformCache } from './start';
+import { initialState, type Platform, type PopupState } from './state';
 import {
   applyTheme,
   readThemeCache,
@@ -34,6 +35,10 @@ export interface AppDeps {
   state?: PopupState;
   /** First page to draw when no `state` is given (`loading` until the worker has answered). */
   startPage?: PopupState['page'];
+  /** The platform tab to open on when no `state` is given (src/popup/start.ts picks it). */
+  platform?: Platform;
+  /** The platform whose site the browser tab under the popup shows, if any. */
+  here?: Platform | null;
   /** Called for each thing the background has to do. B5b sends them to the service worker. */
   onEffect?: (effect: Effect, app: App) => void;
 }
@@ -85,6 +90,10 @@ export function mountPopup(deps: AppDeps): App {
   }
   state = { ...state, settings: { ...state.settings, uiLanguage } };
   if (!deps.state && deps.startPage) state = { ...state, page: deps.startPage };
+  // chosen before the first draw, so the popup never slides from one tab to another on its own
+  if (!deps.state && deps.platform) state = { ...state, platform: deps.platform };
+  if (!deps.state && deps.here)
+    state = { ...state, here: { platform: deps.here, accountId: null } };
   reconcileTheme(html, cache, state.settings.theme);
   let tr = createTranslator(resolveLanguage(state.settings.language, deps.uiLanguage));
 
@@ -114,6 +123,10 @@ export function mountPopup(deps: AppDeps): App {
       const langChanged =
         state.settings.language !== prev.settings.language ||
         state.settings.uiLanguage !== prev.settings.uiLanguage;
+
+      // only a tab the person picked is remembered, never one picked for them
+      if (action.type === 'tab' && state.platform !== prev.platform)
+        writePlatformCache(cache, state.platform);
 
       const update = (): void => {
         if (themeChanged) {

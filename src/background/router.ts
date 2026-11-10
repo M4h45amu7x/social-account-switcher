@@ -223,18 +223,31 @@ async function dropSessions(deps: RouterDeps): Promise<void> {
 
 // --- accounts ---
 
-/** Who is logged in now. `tail` is the last four characters of the ID (YouTube: the Google account number). */
+/**
+ * Who is logged in now. `tail` is the last four characters of the ID (YouTube: the Google account
+ * number). `accountId` is the saved account that login belongs to, or null: the popup marks it "On
+ * this tab". Only what is already in the browser and the store is read; nothing is saved.
+ */
 async function probe(deps: RouterDeps, platform: Platform) {
+  const loaded = await readStore(deps);
+  const accounts = loaded.ok ? loaded.value.accounts.filter((a) => a.platform === platform) : [];
   if (platform === 'youtube') {
     const current = await deps.youtube.readCurrent();
-    if (!current.ok) return current.error === 'not_signed_in' ? ok({ tail: null }) : current;
+    if (!current.ok)
+      return current.error === 'not_signed_in' ? ok({ tail: null, accountId: null }) : current;
+    const { authuser, pageid } = current.value;
+    const mine = accounts.find(
+      (a) => a.youtube?.authuser === authuser && a.youtube.pageid === pageid,
+    );
     return ok({
-      tail: String(current.value.authuser + 1),
-      brand: current.value.pageid !== undefined,
+      tail: String(authuser + 1),
+      brand: pageid !== undefined,
+      accountId: mine?.id ?? null,
     });
   }
   const userId = await currentUserId(deps.cookies, deps.platforms[platform]);
-  return ok({ tail: userId === null ? null : userId.slice(-4) });
+  const mine = userId === null ? undefined : accounts.find((a) => a.platformUserId === userId);
+  return ok({ tail: userId === null ? null : userId.slice(-4), accountId: mine?.id ?? null });
 }
 
 async function addCurrent(deps: RouterDeps, platform: Platform, label: string) {

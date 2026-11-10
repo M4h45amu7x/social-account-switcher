@@ -792,5 +792,31 @@
   "err_timeoutPassword": {
     "message": "The extension didn't answer in time. Try again.",
     "description": "Popup: error message"
+  },
+  "add_here": {
+    "message": "Add the account on this tab",
+    "description": "Main add button when the browser tab under the popup is already on the platform's site"
+  },
+  "empty_hereStep1": {
+    "message": "In this tab, log in to the account you want to add",
+    "description": "Empty list, shown when the browser tab under the popup is already on the platform's site"
+  },
+  "empty_hereStep2": {
+    "message": "Press [[Add the account on this tab]]",
+    "description": "Empty list, shown when the browser tab under the popup is already on the platform's site. The bracketed text is the button label (add_here)."
+  },
+  "add_notLoggedInHere": {
+    "message": "No $PLATFORM$ login found in this tab. Log in here, then press Add again.",
+    "description": "Add account form, when the browser tab under the popup is already on the platform's site",
+    "placeholders": {
+      "platform": {
+        "content": "$1",
+        "example": "Facebook"
+      }
+    }
+  },
+  "chip_here": {
+    "message": "On this tab",
+    "description": "Small badge next to an account name: the browser tab under the popup is logged in to this account"
   }
 }

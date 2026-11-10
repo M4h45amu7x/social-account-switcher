@@ -193,13 +193,17 @@ function row(tr: Translator, s: PopupState, a: AccountView): Safe {
   } else {
     sub = html`<div class="sub">${subText(tr, a.sub)} · ${usedText(tr, a.used, active)}</div>`;
   }
+  // what the tab under the popup is logged in to wins over what the extension last switched to
+  const onTab = s.here?.platform === p && s.here.accountId === a.id;
   const chip = busy
     ? ''
-    : active
-      ? html`<span class="chip on">${tr.html('chip_active')}</span>`
-      : a.expired
-        ? html`<span class="chip bad">${tr.html('chip_relogin')}</span>`
-        : '';
+    : onTab
+      ? html`<span class="chip on here" data-testid="chip-here">${tr.html('chip_here')}</span>`
+      : active
+        ? html`<span class="chip on">${tr.html('chip_active')}</span>`
+        : a.expired
+          ? html`<span class="chip bad">${tr.html('chip_relogin')}</span>`
+          : '';
   const label = tr.text(active ? 'row_activeAria' : 'row_switchTo', { name: a.label });
   return html`<li class="row ${active ? 'active' : ''} ${busy ? 'busy' : ''}" data-id="${a.id}" data-testid="row-${a.id}">
     <button class="main" data-act="switch" data-id="${a.id}" ${active || s.switching || s.platforms[p].busy ? 'disabled' : ''} aria-label="${label}">
@@ -207,10 +211,17 @@ function row(tr: Translator, s: PopupState, a: AccountView): Safe {
     </button>${slot(tr, s, a, busy)}</li>`;
 }
 
+/** The tab under the popup is already on this platform's site: no need to send the person there. */
+const onSite = (s: PopupState): boolean => s.here?.platform === s.platform;
+
 function addView(tr: Translator, s: PopupState, adding: AddView): Safe {
   const p = s.platform;
   const info = PLATFORM_INFO[p];
   if (adding.kind === 'notLoggedIn') {
+    if (onSite(s)) {
+      return html`<div class="note warn" data-testid="add-not-logged-in">${ICON.alert}<span>${tr.html('add_notLoggedInHere', { platform: info.name })}</span></div>
+      <div class="btns"><button class="btn" data-act="add-cancel" data-testid="add-cancel">${tr.html('common_close')}</button></div>`;
+    }
     return html`<div class="note warn" data-testid="add-not-logged-in">${ICON.alert}<span>${tr.html('add_notLoggedIn', { platform: info.name, site: info.site })}</span></div>
       <div class="btns"><button class="btn" data-act="add-cancel" data-testid="add-cancel">${tr.html('common_close')}</button><button class="btn primary" data-act="open-site">${ICON[p]}${tr.html('add_open', { site: info.site })}</button></div>`;
   }
@@ -235,8 +246,23 @@ function addView(tr: Translator, s: PopupState, adding: AddView): Safe {
     </div></div>`;
 }
 
-function emptyView(tr: Translator, p: Platform): Safe {
+function emptyView(tr: Translator, s: PopupState): Safe {
+  const p = s.platform;
   const info = PLATFORM_INFO[p];
+  if (onSite(s)) {
+    // already on the site: log in right there, then one button, no "Open facebook.com"
+    return html`<div class="empty" data-testid="empty" data-here="1">
+    <div class="big">${bigIcon(p)}</div>
+    <h2>${tr.html('empty_title', { platform: info.name })}</h2>
+    <ol>
+      <li>${tr.html('empty_hereStep1')}</li>
+      <li>${tr.html('empty_hereStep2')}</li>
+    </ol>
+    <div class="note info">${tr.html('empty_note')}</div>
+    <div class="row-btns">
+      <button class="btn primary" data-act="add" data-testid="add-account">${tr.html('add_here')}</button>
+    </div></div>`;
+  }
   return html`<div class="empty" data-testid="empty">
     <div class="big">${bigIcon(p)}</div>
     <h2>${tr.html('empty_title', { platform: info.name })}</h2>
@@ -471,7 +497,7 @@ function mainBody(tr: Translator, s: PopupState): Safe {
   if (s.error) parts.push(errorNote(tr, s, s.error.id, s.error.code));
   if (s.notice) parts.push(noticeNote(tr, s.notice, s.stale));
   if (list.length === 0 && !s.adding) {
-    parts.push(emptyView(tr, p));
+    parts.push(emptyView(tr, s));
   } else {
     if (list.length) {
       // the active account goes first
@@ -486,7 +512,7 @@ function mainBody(tr: Translator, s: PopupState): Safe {
     parts.push(
       s.adding
         ? addView(tr, s, s.adding)
-        : html`<button class="add" data-act="add" data-testid="add-account" ${busy || view.busy ? 'disabled' : ''}>${ICON.plus}${tr.html('list_add')}</button>`,
+        : html`<button class="add" data-act="add" data-testid="add-account" ${busy || view.busy ? 'disabled' : ''}>${ICON.plus}${tr.html(onSite(s) ? 'add_here' : 'list_add')}</button>`,
     );
     if (p === 'youtube') parts.push(html`<div class="note info">${tr.html('youtube_note')}</div>`);
   }

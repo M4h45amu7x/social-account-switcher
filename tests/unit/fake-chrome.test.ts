@@ -224,16 +224,20 @@ describe('fake tabs and scripting', () => {
     chrome.tabs.onUpdated.addListener((id, info, tab) => {
       seen.push(`${id} ${JSON.stringify(info)} ${tab.url ?? '(hidden)'}`);
     });
-    const loaded = () => new Promise((r) => setTimeout(r, 5));
+    // until the fake has sent the events of the loads so far (a fixed sleep missed them on a busy host)
+    const loaded = async (events: number) => {
+      for (let i = 0; i < 400 && seen.length < events; i += 1)
+        await new Promise((r) => setTimeout(r, 5));
+    };
 
     // A 302 back to the same URL: the URL did not change, so no url.
     chrome.tabs.redirect = () => 'https://www.youtube.com/watch?v=1';
     await chrome.tabs.update(1, { url: 'https://www.youtube.com/signin?x', active: true });
-    await loaded();
+    await loaded(2);
     // To Google's login page: no permission for google.com, so hidden.
     chrome.tabs.redirect = () => 'https://accounts.google.com/signin';
     await chrome.tabs.update(1, { url: 'https://www.youtube.com/signin?x', active: true });
-    await loaded();
+    await loaded(4);
     expect((await chrome.tabs.get(1)).url).toBeUndefined();
     expect(await chrome.tabs.query({ url: ['*://*.youtube.com/*'] })).toEqual([]);
     // A visible change does carry the url; a new tab starts with an empty URL.
@@ -243,7 +247,7 @@ describe('fake tabs and scripting', () => {
       active: false,
     });
     expect(created).toMatchObject({ url: '', pendingUrl: 'https://www.youtube.com/feed' });
-    await loaded();
+    await loaded(6);
     expect(seen).toEqual([
       '1 {"status":"loading"} https://www.youtube.com/watch?v=1',
       '1 {"status":"complete"} https://www.youtube.com/watch?v=1',

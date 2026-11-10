@@ -71,6 +71,11 @@ export type AccountProblem = 'expired' | 'checkpoint' | 'wrong_account';
 export interface PopupState {
   page: Page;
   platform: Platform;
+  /**
+   * The platform whose site the browser tab under the popup shows, and the saved account logged in there
+   * (from account.probe), or null. Read once when the popup opens; the URL itself is never kept.
+   */
+  here: { platform: Platform; accountId: string | null } | null;
   platforms: Record<Platform, PlatformView>;
   /** One switch in progress. `step` is the index of the step being worked on. */
   switching: { id: string; step: number } | null;
@@ -129,6 +134,7 @@ export function initialState(): PopupState {
   return {
     page: 'main',
     platform: 'facebook',
+    here: null,
     platforms: {
       facebook: emptyPlatform(),
       instagram: emptyPlatform(),
