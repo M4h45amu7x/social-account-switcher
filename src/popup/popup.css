@@ -13,6 +13,7 @@
   --text-2: #5b6170;
   --line: #e3e5ea;
   /* the selected slot of a tab bar / segmented control: raised above its track (surface-2) */
+  --text-idle: #5b6170;
   --thumb: #ffffff;
   --thumb-line: #dcdfe5;
   --focus: #1a56d6;
@@ -54,6 +55,7 @@
     --text: #eceef2;
     --text-2: #9aa1ae;
     --line: #2b3039;
+    --text-idle: #a9b0bd;
     --thumb: #333a46;
     --thumb-line: #465062;
     --focus: #6d97ff;
@@ -85,6 +87,7 @@
   --text: #eceef2;
   --text-2: #9aa1ae;
   --line: #2b3039;
+  --text-idle: #a9b0bd;
   --thumb: #333a46;
   --thumb-line: #465062;
   --focus: #6d97ff;
@@ -250,7 +253,8 @@ button {
   justify-content: center;
   gap: 5px;
   font-size: 12.5px;
-  color: var(--text-2);
+  /* idle labels stay readable (4.5:1) on the track and on the thumb that is still under them while it slides */
+  color: var(--text-idle);
   min-width: 0;
 }
 .tab[aria-selected="true"] {
@@ -883,7 +887,7 @@ button {
   padding: 6px 4px;
   cursor: pointer;
   font-size: 12.5px;
-  color: var(--text-2);
+  color: var(--text-idle);
 }
 .seg button[aria-pressed="true"] {
   color: var(--text);

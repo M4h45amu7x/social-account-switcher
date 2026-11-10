@@ -1,6 +1,7 @@
 // Card t-591: the tab bar and the segmented controls slide one thumb behind their labels, and the panel
 // transition never shows the old and the new page at once. Animations are frozen at a chosen time
 // (document.getAnimations(), which also lists the ::view-transition ones) and the frame is inspected.
+import { appendFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 import { buildPopup, idle, open, popupTest as test } from './popup-build';
 
@@ -196,6 +197,99 @@ for (const theme of THEMES) {
         ).toBeGreaterThan(30);
       }
     });
+  });
+}
+
+/**
+ * Contrast of every label while the thumb slides: the colour the label has at that instant (a paused colour
+ * transition counts) against what is really under its text, the thumb where the two overlap and the track
+ * elsewhere. The worst of the two must stay at 4.5:1.
+ */
+async function slideContrast(page: Page, group: string): Promise<{ min: number; worst: string }> {
+  return page.evaluate((g) => {
+    const rgb = (c: string) => (c.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+    const lin = (c: number[]) => {
+      const [r = 0, gg = 0, b = 0] = c.map((v) => {
+        const x = v / 255;
+        return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * gg + 0.0722 * b;
+    };
+    const ratio = (a: number[], b: number[]) => {
+      const [hi = 0, lo = 0] = [lin(a), lin(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    const track = document.querySelector(`.slide[data-slide="${g}"]`) as HTMLElement;
+    const thumb = track.querySelector('.thumb') as HTMLElement;
+    const thumbBg = rgb(getComputedStyle(thumb).backgroundColor);
+    const trackBg = rgb(getComputedStyle(track).backgroundColor);
+    const tr = thumb.getBoundingClientRect();
+    let min = 99;
+    let worst = '';
+    const labels =
+      g === 'tabs'
+        ? [...track.querySelectorAll<HTMLElement>('.tab > span:not(.count)')]
+        : [...track.querySelectorAll<HTMLElement>('button')];
+    for (const el of labels) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const r = range.getBoundingClientRect();
+      const fg = rgb(getComputedStyle(el).color);
+      const overlap = Math.min(r.right, tr.right) - Math.max(r.left, tr.left);
+      const onThumb = overlap > 0;
+      const onTrack = r.width - Math.max(overlap, 0) > 0.5;
+      const rs = [
+        ...(onThumb ? [ratio(fg, thumbBg)] : []),
+        ...(onTrack ? [ratio(fg, trackBg)] : []),
+      ];
+      for (const x of rs)
+        if (x < min) {
+          min = x;
+          worst = `${(el.textContent ?? '').trim()} ${onThumb ? 'on-thumb' : 'on-track'}`;
+        }
+    }
+    return { min, worst };
+  }, group);
+}
+
+for (const theme of THEMES) {
+  test(`${theme}: label contrast stays at 4.5:1 while the thumb slides (tabs, Language, Theme)`, async ({
+    context,
+    extensionId,
+  }) => {
+    test.setTimeout(60000);
+    const page = await context.newPage();
+    await page.setViewportSize({ width: 360, height: 640 });
+    const rows: string[] = [];
+    const all: number[] = [];
+    const run = async (group: string, click: () => Promise<void>) => {
+      await armFreeze(page);
+      await click();
+      await expect.poll(() => frozenCount(page)).toBeGreaterThan(0);
+      for (const t of [0, 100, 210, 330, 400]) {
+        await at(page, t);
+        const { min, worst } = await slideContrast(page, group);
+        rows.push(`${theme} ${group} t=${t}ms min=${min.toFixed(3)} (${worst})`);
+        all.push(min);
+        expect(min, `${theme} ${group} t=${t}ms ${worst}`).toBeGreaterThanOrEqual(4.5);
+      }
+      await thaw(page);
+    };
+    await open(page, extensionId, { state: 'list', lang: 'en', theme });
+    await run('tabs', () => page.getByTestId('tab-instagram').click());
+    await run('tabs', () => page.getByTestId('tab-youtube').click());
+    await run('tabs', () => page.getByTestId('tab-facebook').click());
+    await open(page, extensionId, { state: 'settings', lang: 'en', theme });
+    for (const group of ['language', 'theme'] as const) {
+      const cells = page.locator(`.seg[data-slide="${group}"] button`);
+      const pick = async () =>
+        (await cells.last().getAttribute('aria-pressed')) === 'true' ? cells.first() : cells.last();
+      await run(group, async () => (await pick()).click());
+      await run(group, async () => (await pick()).click());
+    }
+    const log = process.env.E2E_CONTRAST_LOG;
+    if (log)
+      appendFileSync(log, `${rows.join('\n')}\n${theme} LOWEST ${Math.min(...all).toFixed(3)}\n`);
   });
 }
 

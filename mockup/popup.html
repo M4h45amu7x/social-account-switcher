@@ -29,7 +29,7 @@
   --bg: #eef0f3;
   --surface: #ffffff;
   --surface-2: #f5f6f8;
-  --thumb: #ffffff; --thumb-line: #dcdfe5;
+  --text-idle: #5b6170; --thumb: #ffffff; --thumb-line: #dcdfe5;
   --text: #16181d;
   --text-2: #5b6170;
   --line: #e3e5ea;
@@ -60,7 +60,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0e1013; --surface: #171a1f; --surface-2: #1f232a; --text: #eceef2; --text-2: #9aa1ae;
-    --line: #2b3039; --thumb: #333a46; --thumb-line: #465062; --focus: #6d97ff; --ok: #4cc391; --ok-bg: #12301f; --err: #ff7a66; --err-bg: #3a1714;
+    --line: #2b3039; --text-idle: #a9b0bd; --thumb: #333a46; --thumb-line: #465062; --focus: #6d97ff; --ok: #4cc391; --ok-bg: #12301f; --err: #ff7a66; --err-bg: #3a1714;
     --warn-bg: #352a10; --warn: #f2c35b; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.45);
     --fb: #4b95ff; --fb-soft: #16253d; --ig: #ff5ea0; --ig-soft: #3a1a2a; --yt: #ff5a4f; --yt-soft: #3a1918;
     color-scheme: dark;
@@ -69,7 +69,7 @@
 }
 :root[data-theme="dark"] {
   --bg: #0e1013; --surface: #171a1f; --surface-2: #1f232a; --text: #eceef2; --text-2: #9aa1ae;
-  --line: #2b3039; --thumb: #333a46; --thumb-line: #465062; --focus: #6d97ff; --ok: #4cc391; --ok-bg: #12301f; --err: #ff7a66; --err-bg: #3a1714;
+  --line: #2b3039; --text-idle: #a9b0bd; --thumb: #333a46; --thumb-line: #465062; --focus: #6d97ff; --ok: #4cc391; --ok-bg: #12301f; --err: #ff7a66; --err-bg: #3a1714;
   --warn-bg: #352a10; --warn: #f2c35b; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.45);
   --fb: #4b95ff; --fb-soft: #16253d; --ig: #ff5ea0; --ig-soft: #3a1a2a; --yt: #ff5a4f; --yt-soft: #3a1918;
   color-scheme: dark;
@@ -115,7 +115,7 @@ button { font: inherit; color: inherit; }
   box-shadow: 0 1px 2px rgba(0,0,0,.12), inset 0 0 0 1px var(--thumb-line); pointer-events: none; }
 .slide > :not(.thumb) { position: relative; z-index: 1; }
 .tab { border: 0; background: transparent; border-radius: 7px; padding: 7px 4px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 12.5px; color: var(--text-2); min-width: 0; }
+  display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 12.5px; color: var(--text-idle); min-width: 0; }
 .tab[aria-selected="true"] { color: var(--text); font-weight: 600; }
 .tab .mark { width: 16px; height: 16px; flex: none; }
 .tab .count { font-size: 10.5px; min-width: 16px; padding: 0 4px; border-radius: 9px; background: var(--line);
@@ -248,7 +248,7 @@ button { font: inherit; color: inherit; }
 .set-card h2 { font-size: 13px; margin: 0; }
 .set-card p { margin: 0; font-size: 12px; color: var(--text-2); overflow-wrap: anywhere; }
 .seg { --slide-pad: 3px; border-radius: 9px; }
-.seg button { min-width: 0; border: 0; background: transparent; border-radius: 7px; padding: 6px 4px; cursor: pointer; font-size: 12.5px; color: var(--text-2); }
+.seg button { min-width: 0; border: 0; background: transparent; border-radius: 7px; padding: 6px 4px; cursor: pointer; font-size: 12.5px; color: var(--text-idle); }
 .seg button[aria-pressed="true"] { color: var(--text); font-weight: 600; }
 .set-card.danger { border-color: var(--err); }
 .set-card.confirm { background: var(--err-bg); }
