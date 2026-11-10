@@ -24,14 +24,19 @@ const hydration = (user: string | null) => ({
       user:
         user === null
           ? null
-          : { uid: fixtureUid(user), uniqueId: user, nickname: `${user} Profile`, avatar: PNG },
+          : {
+              uid: fixtureUid(user),
+              uniqueId: user,
+              nickName: `${user} Profile`,
+              avatarUri: [`https://${TT}/__e2e/avatar.png`],
+            },
     },
     'webapp.video-detail': {
       author: {
         uid: '9999999999999999999',
         uniqueId: 'misleading.author',
-        nickname: 'Feed author',
-        avatar: PNG,
+        nickName: 'Feed author',
+        avatarUri: [`https://${TT}/__e2e/avatar.png`],
       },
       userInfo: { user: { uid: '8888888888888888888' } },
     },
@@ -86,6 +91,12 @@ export function fakeTikTok() {
         res.setHeader('content-type', 'text/html; charset=utf-8');
         if (url.hostname !== TT) {
           res.end('<h1>Unrelated news page</h1>');
+          return;
+        }
+        // A normal page image request; profile capture must reuse its decoded pixels.
+        if (url.pathname === '/__e2e/avatar.png') {
+          res.setHeader('content-type', 'image/png');
+          res.end(Buffer.from(PNG.slice(PNG.indexOf(',') + 1), 'base64'));
           return;
         }
         const cookies = new Map(
@@ -160,7 +171,7 @@ export function fakeTikTok() {
             ? '{broken'
             : JSON.stringify(hydration(mode === 'logout' ? null : chain.user));
         res.end(
-          `<!doctype html><meta charset="utf-8"><title>TikTok fixture</title><h1 id="who" data-user="${escapeHtml(chain.user)}" data-generation="${chain.generation}">${escapeHtml(chain.user)}</h1><a href="/video/next">Next</a>${mode === 'captcha' ? '<div id="captcha_container"></div>' : mode === 'checkpoint' ? '<div id="verifyEle"></div>' : ''}<p id="manual">${mode === 'captcha' ? 'Complete the captcha yourself' : mode === 'checkpoint' ? 'Verify your identity in this tab' : ''}</p><script type="application/json" id="feed">{"author":{"id":"impostor"},"profile":{"id":"impostor"},"viewerId":"impostor"}</script>${mode === 'missing' ? '' : `<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">${state}</script>`}`,
+          `<!doctype html><meta charset="utf-8"><title>TikTok fixture</title><img src="/__e2e/avatar.png" alt="Viewer avatar"><h1 id="who" data-user="${escapeHtml(chain.user)}" data-generation="${chain.generation}">${escapeHtml(chain.user)}</h1><a href="/video/next">Next</a>${mode === 'captcha' ? '<div id="captcha_container"></div>' : mode === 'checkpoint' ? '<div id="verifyEle"></div>' : ''}<p id="manual">${mode === 'captcha' ? 'Complete the captcha yourself' : mode === 'checkpoint' ? 'Verify your identity in this tab' : ''}</p><script type="application/json" id="feed">{"author":{"id":"impostor"},"profile":{"id":"impostor"},"viewerId":"impostor"}</script>${mode === 'missing' ? '' : `<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">${state}</script>`}`,
         );
       };
       const delay = fake.delays.get(url.pathname) ?? 0;
