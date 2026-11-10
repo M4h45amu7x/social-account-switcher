@@ -46,7 +46,10 @@ interface Rig {
   fireDeadlines(): void;
 }
 
-function rig(send: Send, opts: { ui?: string; tabs?: number } = {}): Rig {
+function rig(
+  send: Send,
+  opts: { ui?: string; tabs?: number; here?: 'facebook' | 'instagram' | 'youtube' } = {},
+): Rig {
   const sent: Request[] = [];
   const opened: string[] = [];
   const later: Rig['later'] = [];
@@ -69,6 +72,7 @@ function rig(send: Send, opts: { ui?: string; tabs?: number } = {}): Rig {
     cache: null,
     uiLanguage: opts.ui ?? 'en-US',
     startPage: 'loading',
+    ...(opts.here ? { platform: opts.here, here: opts.here } : {}),
     onEffect,
   });
   const r: Rig = {
@@ -129,6 +133,43 @@ const types = (r: Rig): string[] => r.sent.map((m) => m.type);
 const text = (id: string): string => q(id)?.textContent ?? '';
 
 describe('opening the popup', () => {
+  test('over a site: the account that tab is logged in to gets the badge, after the list', async () => {
+    const { h, ids } = await withAccounts();
+    const r = rig(reply(h), { here: 'facebook' });
+    await screen('list');
+    await wait(() => q('chip-here') !== null, 'the On this tab badge');
+    expect(types(r)).toEqual(['state.get', 'account.probe']);
+    expect(q(`row-${ids['1002']}`)?.querySelector('[data-testid="chip-here"]')).not.toBeNull();
+    expect(root.querySelectorAll('[data-testid="chip-here"]')).toHaveLength(1);
+  });
+
+  test('not over a site, or locked: no probe', async () => {
+    const { h } = await withAccounts();
+    const away = rig(reply(h));
+    await screen('list');
+    expect(types(away)).toEqual(['state.get']);
+    await h.must({ type: 'vault.lock' });
+    const locked = rig(reply(h), { here: 'facebook' });
+    await screen('locked');
+    expect(types(locked)).toEqual(['state.get']);
+  });
+
+  test('a probe that fails leaves the list as it is, with no notice', async () => {
+    const { h } = await withAccounts();
+    const r = rig(
+      (m) => (m.type === 'account.probe' ? Promise.reject(new Error('gone')) : h.send(m)),
+      {
+        here: 'facebook',
+      },
+    );
+    await screen('list');
+    await wait(() => types(r).includes('account.probe'), 'the probe');
+    await Promise.resolve();
+    expect(q('notice')).toBeNull();
+    expect(q('chip-here')).toBeNull();
+    expect(root.dataset.state).toBe('list');
+  });
+
   test('state.get first; a fresh install lands on the setup page', async () => {
     const h = await startWorker();
     const r = rig(reply(h));

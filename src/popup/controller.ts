@@ -80,7 +80,9 @@ export type ResultAction =
   | { type: 'settle' }
   | { type: 'unlock-result'; ok: boolean; code?: string }
   | { type: 'add-probed'; found: { idTail: string; defaultName: string; brand?: boolean } | null }
-  | { type: 'locked'; locked: boolean };
+  | { type: 'locked'; locked: boolean }
+  /** account.probe said which saved account the tab under the popup is logged in to (null: none of them). */
+  | { type: 'here-account'; platform: Platform; accountId: string | null };
 
 export type PopupAction = UserAction | ResultAction;
 
@@ -482,6 +484,11 @@ export function reduce(s: PopupState, a: PopupAction): Step {
         ...s,
         settings: { ...s.settings, theme: a.theme, language: a.language, uiLanguage: a.uiLanguage },
       });
+    case 'here-account': {
+      if (s.here?.platform !== a.platform || s.here.accountId === a.accountId)
+        return same(s, 'none', { render: false });
+      return same({ ...s, here: { platform: a.platform, accountId: a.accountId } }, 'status');
+    }
     case 'platform-loaded': {
       // the new list replaces the old one; an editor or form for it is done
       const changed = a.view.accounts.length !== s.platforms[a.platform].accounts.length;

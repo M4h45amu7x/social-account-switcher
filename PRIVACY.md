@@ -13,11 +13,16 @@ Social Account Switcher saves sessions so you can switch between your own Facebo
 | Facebook and Instagram saved session cookies, including values and cookie attributes | An encrypted vault in the local store | Restore a saved session. New vaults use PBKDF2-SHA-256 with 600,000 iterations and a random 16-byte salt to derive an AES-GCM-256 key. Vault writes use a fresh 12-byte IV. The salt, iteration count, IV and encrypted password-check value are stored with the ciphertext. |
 | Theme and language preferences; malformed or duplicate account records retained in `quarantine` | The local store, without encryption | Keep preferences and preserve records that fail validation rather than silently discarding them. |
 | A copy of the theme preference | The popup's `localStorage`, under `theme` | Paint the saved theme before the asynchronous store is read. It contains no session or account data. |
+| The platform tab you last picked in the popup (`facebook`, `instagram` or `youtube`) | The popup's `localStorage`, under `platform` | Open the popup on that tab when the page you are on is not one of the three sites. It holds no address, account or session data. |
 | The unlocked raw encryption key, encoded as base64 | `chrome.storage.session`, under `vaultKey` | Keep the vault unlocked across service worker restarts. Base64 is not encryption. Access is restricted to trusted extension contexts. A non-extractable working key is cached in worker memory. |
 | Per-platform switch journals: platform, source/target IDs, start time and an encrypted backup of the previous cookies | `chrome.storage.session`, under `journal.facebook` or `journal.instagram` | Attempt rollback after an interrupted switch. Cookie backups are encrypted with the vault key; journal metadata is not encrypted. |
 | Wrong-unlock attempt count and last-attempt time | `chrome.storage.session`, under `unlockFailures` | Delay further unlock attempts after repeated wrong passwords. |
 
 The master password is used to derive the key and is not saved in extension storage. Password inputs and decrypted cookies are used in popup and worker memory during operations. Account metadata and an unlocked key are not protected from someone who can inspect your running browser or extension context.
+
+### The page you are on
+
+When the popup opens, it asks Chrome for the address of the active tab in the current window. Chrome gives the extension that address only for Facebook, Instagram and YouTube pages, which the host permissions below already cover. For any other page the extension gets no address or title. The popup uses the address in memory to choose which platform tab to show. On a supported site it also asks the service worker which saved account is logged in there, using the same local read as adding an account. The address is not stored, logged or sent anywhere, and no new permission is requested for this.
 
 ### Retention and locking
 
@@ -36,8 +41,8 @@ Use a strong, unique master password. Someone who copies the encrypted vault can
 | `cookies` | Read, remove and restore Facebook and Instagram session cookies when adding, updating, switching or recovering a session. The host permissions bound the API's domain access. |
 | `storage` | Keep the local store and in-memory key, journals and unlock-attempt record described above. The extension does not use `chrome.storage.sync`. |
 | `scripting` | Execute a small reader in an open YouTube page's main world. It returns only `SESSION_INDEX` and `DELEGATED_SESSION_ID` from `ytcfg`. |
-| `*://*.facebook.com/*`, `*://*.instagram.com/*` | Access those sites' cookies and identify tabs to reload or check after a switch. |
-| `*://*.youtube.com/*` | Read the two sign-in coordinates and identify, navigate and reload YouTube tabs. |
+| `*://*.facebook.com/*`, `*://*.instagram.com/*` | Access those sites' cookies, identify tabs to reload or check after a switch, and open the popup on the platform of the page you are on. |
+| `*://*.youtube.com/*` | Read the two sign-in coordinates, identify, navigate and reload YouTube tabs, and open the popup on YouTube when you are on it. |
 
 No Google-domain host permission, all-sites permission, browsing-history permission or network-interception permission is requested. Incognito use is disabled.
 

@@ -166,26 +166,72 @@ describe('state and vault', () => {
 
   test('probe says who is logged in without saving anything', async () => {
     const h = await startWorker();
-    expect(await h.must({ type: 'account.probe', platform: 'facebook' })).toEqual({ tail: null });
+    expect(await h.must({ type: 'account.probe', platform: 'facebook' })).toEqual({
+      tail: null,
+      accountId: null,
+    });
     await loginAs(h.chrome, 'facebook', '1234567');
-    expect(await h.must({ type: 'account.probe', platform: 'facebook' })).toEqual({ tail: '4567' });
+    expect(await h.must({ type: 'account.probe', platform: 'facebook' })).toEqual({
+      tail: '4567',
+      accountId: null,
+    });
     expect((await state(h)).accounts).toEqual([]);
     h.youtube.current = { ok: true, value: { authuser: 2 } };
     expect(await h.must({ type: 'account.probe', platform: 'youtube' })).toEqual({
       tail: '3',
       brand: false,
+      accountId: null,
     });
     h.youtube.current = { ok: true, value: { authuser: 0, pageid: 'brand-9' } };
     expect(await h.must({ type: 'account.probe', platform: 'youtube' })).toEqual({
       tail: '1',
       brand: true,
+      accountId: null,
     });
     h.youtube.current = err('not_signed_in');
-    expect(await h.must({ type: 'account.probe', platform: 'youtube' })).toEqual({ tail: null });
+    expect(await h.must({ type: 'account.probe', platform: 'youtube' })).toEqual({
+      tail: null,
+      accountId: null,
+    });
     h.youtube.current = err('no_youtube_tab');
     expect(await h.send({ type: 'account.probe', platform: 'youtube' })).toEqual(
       err('no_youtube_tab'),
     );
+  });
+
+  test('probe names the saved account that is logged in, and only that one', async () => {
+    const { h, ids } = await withAccounts();
+    // the browser is Bob on Facebook (from withAccounts)
+    expect(await h.must({ type: 'account.probe', platform: 'facebook' })).toEqual({
+      tail: '1002',
+      accountId: ids['1002'],
+    });
+    await loginAs(h.chrome, 'facebook', '1001');
+    expect(await h.must({ type: 'account.probe', platform: 'facebook' })).toMatchObject({
+      accountId: ids['1001'],
+    });
+    // a login that is not saved, and an Instagram ID equal to nobody's
+    await loginAs(h.chrome, 'facebook', '9001002');
+    expect(await h.must({ type: 'account.probe', platform: 'facebook' })).toEqual({
+      tail: '1002',
+      accountId: null,
+    });
+    h.youtube.current = { ok: true, value: { authuser: 1, pageid: 'brand-7' } };
+    const brand = await h.must<{ id: string }>({
+      type: 'account.addCurrent',
+      platform: 'youtube',
+      label: 'Brand',
+    });
+    expect(await h.must({ type: 'account.probe', platform: 'youtube' })).toMatchObject({
+      accountId: brand.id,
+    });
+    // the same Google account without the brand page is another account
+    h.youtube.current = { ok: true, value: { authuser: 1 } };
+    expect(await h.must({ type: 'account.probe', platform: 'youtube' })).toMatchObject({
+      accountId: null,
+    });
+    // nothing was saved or changed by asking
+    expect((await state(h)).active.youtube).toBe(brand.id);
   });
 
   test('wipe also works when the store is unreadable', async () => {

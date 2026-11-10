@@ -3,6 +3,7 @@
 // unit tests drive it with a fake worker. Whatever happens (a dead port, an answer that makes no sense)
 // it ends by dispatching an action that releases the busy state: the popup is never left waiting.
 import type { Request } from '../lib/messages';
+import { hostPattern, SITES } from '../lib/sites';
 import { type Account, isAccount, type StoreV1 } from '../lib/store';
 import { READ_DEADLINE_MS, SWITCH_DEADLINE_MS, WRITE_DEADLINE_MS } from '../lib/timing';
 import type { App } from './app';
@@ -111,12 +112,11 @@ export function decodeState(raw: unknown, now: number): Omit<Loaded, 'openTabs'>
   };
 }
 
-const TAB_PATTERNS: Record<Platform, string> = {
-  facebook: '*://*.facebook.com/*',
-  instagram: '*://*.instagram.com/*',
-  youtube: '*://*.youtube.com/*',
+/** The tab pattern of a platform's site (src/lib/sites.ts), for counting its open tabs. */
+export const tabPattern = (p: Platform): string => {
+  const site = SITES.find((x) => x.platform === p);
+  return site ? hostPattern(site) : '';
 };
-export const tabPattern = (p: Platform): string => TAB_PATTERNS[p];
 
 export function createBridge(deps: BridgeDeps): (effect: Effect, app: App) => void {
   /** Runs `work`, giving up with `fallback` after `ms`. An answer that comes later is dropped, never applied. */
@@ -168,7 +168,23 @@ export function createBridge(deps: BridgeDeps): (effect: Effect, app: App) => vo
       data: { ...data, openTabs: openTabs as Loaded['openTabs'] },
       closeForms,
     });
+    void markHere(app);
     return { ok: true };
+  }
+
+  /**
+   * The popup opened over one of the sites: ask the worker (account.probe, which only reads the browser's
+   * own cookies or the open YouTube page) which saved account that tab is logged in to. Quiet on failure:
+   * the badge is a hint, never a reason for an error.
+   */
+  async function markHere(app: App): Promise<void> {
+    const s = app.state();
+    if (!s.here || s.page !== 'main' || s.platforms[s.here.platform].accounts.length === 0) return;
+    const { platform } = s.here;
+    const reply = await ask({ type: 'account.probe', platform });
+    if (!reply.ok) return;
+    const id = (reply.value as { accountId?: unknown } | null)?.accountId;
+    app.dispatch({ type: 'here-account', platform, accountId: typeof id === 'string' ? id : null });
   }
 
   async function load(app: App, closeForms = false): Promise<void> {
