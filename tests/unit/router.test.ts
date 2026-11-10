@@ -645,6 +645,7 @@ describe('YouTube through the real switcher (youtube.ts on the fake Chrome)', ()
     h.chrome.scripting.executeScript = (injection) =>
       new Promise((resolve, reject) => {
         release = () => {
+          h.chrome.scripting.executeScript = read;
           read(injection).then(resolve, reject);
         };
       });

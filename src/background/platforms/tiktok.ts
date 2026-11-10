@@ -51,7 +51,7 @@ export interface TikTokDeps {
   scripting: ScriptingApi;
 }
 
-const isTikTok = (url: string | undefined): boolean => {
+export const isTikTok = (url: string | undefined): boolean => {
   try {
     const u = new URL(url ?? '');
     return (

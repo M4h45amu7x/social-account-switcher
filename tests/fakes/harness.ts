@@ -141,6 +141,7 @@ export function makeDeps(chrome: FakeChrome, youtube: YoutubeSwitcher): RouterDe
     extensionId: chrome.runtime.id,
     cookies: chrome.cookies,
     tabs: chrome.tabs,
+    scripting: chrome.scripting,
     local: chrome.storage.local,
     session: chrome.storage.session,
     platforms: COOKIE_PLATFORMS,

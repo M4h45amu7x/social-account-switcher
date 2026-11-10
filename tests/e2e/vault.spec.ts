@@ -1,6 +1,7 @@
-// The real popup (dist/) talking to the real service worker, no fake site and no network (docs/design.md
+// The real popup (dist/) talking to the real service worker, no external network (docs/design.md
 // 8.3 tests 18 and 19, popup and worker part): master password, lock, settings, rename, remove, wipe.
-// Switching between two fake sites is card B6; here the browser only holds a plain c_user cookie.
+// Switching between fake sites is card B6; here a locally fulfilled blank Facebook page binds Add
+// to the captured active tab, and the browser holds a plain c_user cookie.
 import type { BrowserContext, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 
@@ -34,9 +35,36 @@ function watch(context: BrowserContext) {
   return { problems };
 }
 
-async function open(context: BrowserContext, extensionId: string): Promise<Page> {
+async function facebookPage(context: BrowserContext): Promise<void> {
+  // Setup only, before the request watcher: fulfill in memory, never contact Facebook.
+  await context.route('https://www.facebook.com/**', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: '<!doctype html><title>Fixture</title><link rel="icon" href="data:,">',
+    }),
+  );
+  const site = await context.newPage();
+  await site.goto('https://www.facebook.com/');
+}
+
+async function open(
+  context: BrowserContext,
+  extensionId: string,
+  overFacebook = false,
+): Promise<Page> {
   const page = await context.newPage();
   await page.goto(POPUP(extensionId));
+  if (overFacebook) {
+    await page.evaluate(async () => {
+      const [site] = await chrome.tabs.query({
+        url: 'https://www.facebook.com/*',
+        currentWindow: true,
+      });
+      if (site?.id === undefined) throw new Error('missing Facebook fixture tab');
+      await chrome.tabs.update(site.id, { active: true });
+    });
+    await page.reload();
+  }
   return page;
 }
 
@@ -181,9 +209,10 @@ test('add, rename and remove an account; a duplicate is explained', async ({
   context,
   extensionId,
 }) => {
+  await facebookPage(context);
   const { problems } = watch(context);
   await login(context, '100012345678');
-  const page = await open(context, extensionId);
+  const page = await open(context, extensionId, true);
   await setUp(page);
 
   await page.getByTestId('add-account').click();
@@ -233,9 +262,10 @@ test('wipe all data from Settings, and the forgot-password wipe, both return to 
   context,
   extensionId,
 }) => {
+  await facebookPage(context);
   const { problems } = watch(context);
   await login(context, '100012345678');
-  const page = await open(context, extensionId);
+  const page = await open(context, extensionId, true);
   await setUp(page);
   await page.getByTestId('add-account').click();
   await page.getByTestId('add-save').click();
@@ -261,8 +291,9 @@ test('a worker stuck on chrome.cookies.getAll: the popup says it timed out in ti
   context,
   extensionId,
 }) => {
+  await facebookPage(context);
   const { problems } = watch(context);
-  const page = await open(context, extensionId);
+  const page = await open(context, extensionId, true);
   await setUp(page);
   const worker = context.serviceWorkers().find((w) => w.url().includes(extensionId));
   if (!worker) throw new Error('no service worker');

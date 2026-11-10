@@ -15,9 +15,26 @@ for (const lang of ['en', 'th'] as const) {
   for (const theme of ['light', 'dark'] as const) {
     test(`wired popup ${lang} ${theme}`, async ({ context, extensionId }) => {
       mkdirSync(out, { recursive: true });
+      await context.route('https://www.facebook.com/**', (route) =>
+        route.fulfill({
+          contentType: 'text/html',
+          body: '<!doctype html><title>Fixture</title><link rel="icon" href="data:,">',
+        }),
+      );
+      const site = await context.newPage();
+      await site.goto('https://www.facebook.com/');
       const page = await context.newPage();
       await page.setViewportSize({ width: 360, height: 520 });
       await page.goto(`chrome-extension://${extensionId}/popup/index.html`);
+      await page.evaluate(async () => {
+        const [site] = await chrome.tabs.query({
+          url: 'https://www.facebook.com/*',
+          currentWindow: true,
+        });
+        if (site?.id === undefined) throw new Error('missing Facebook fixture tab');
+        await chrome.tabs.update(site.id, { active: true });
+      });
+      await page.reload();
       const popup = page.getByTestId('popup');
       const shot = (name: string) =>
         page.screenshot({ path: resolve(out, `${name}.${lang}.${theme}.png`) });
@@ -62,10 +79,10 @@ for (const lang of ['en', 'th'] as const) {
       await settle(page);
       await shot('list');
 
-      // YouTube cannot be reached until its worker code lands (B4b): the notice says so in words
+      // The captured Facebook tab is not a YouTube session; show the sign-in hint.
       await page.getByTestId('tab-youtube').click();
       await page.getByTestId('add-account').click();
-      await expect(page.getByTestId('notice')).toBeVisible();
+      await expect(page.getByTestId('add-not-logged-in')).toBeVisible();
       await settle(page);
       await shot('youtube-error');
 

@@ -2,15 +2,18 @@
 // and shape first, and every answer is a Result: nothing is thrown back across the message channel.
 
 import { type ErrorCode, isTrustedSender, parseRequest, type Request } from '../lib/messages';
-import type { MessageSender } from '../lib/ports';
+import type { MessageSender, ScriptingApi } from '../lib/ports';
+import { type AccountProfile, profileText } from '../lib/profile';
 import { err, ok, type Result } from '../lib/result';
 import { platformOfUrl } from '../lib/sites';
 import {
   type Account,
   addAccount,
+  defaultLabel,
   findAccount,
   loadStore,
   type Platform,
+  refreshProfile,
   removeAccount,
   renameAccount,
   STORE_KEY,
@@ -27,11 +30,13 @@ import { getKey, lock, storeKey } from './keyring';
 import { isCookiePlatform } from './platforms';
 import { captureSession, readIdentity } from './platforms/identity';
 import type { CookiePlatformId, YouTubeSession, YoutubeSwitcher } from './platforms/types';
+import { readProfile } from './profile';
 import { editStore, patchStore, readStore } from './store-access';
 import { type SwitchDeps, switchAccount } from './switcher';
 
 export interface RouterDeps extends SwitchDeps {
   extensionId: string;
+  scripting: ScriptingApi;
   youtube: YoutubeSwitcher;
   newId(): string;
 }
@@ -112,7 +117,7 @@ function dispatch(
     case 'account.probe':
       return probe(deps, request.platform, request.tabId);
     case 'account.addCurrent':
-      return addCurrent(deps, request.platform, request.label, request.tabId);
+      return addCurrent(deps, request.platform, request.label, request.tabId, request.autoLabel);
     case 'account.updateSession':
       return updateSession(deps, request.accountId, request.tabId);
     case 'account.rename':
@@ -214,11 +219,16 @@ async function dropSessions(deps: RouterDeps): Promise<void> {
   const loaded = await loadStore(deps.local);
   // An unreadable store can't be edited safely, so it is wiped whole (the user asked to start over).
   if (!loaded.ok) return deps.local.remove(STORE_KEY);
-  const store = loaded.value;
+  const { quarantine: _quarantine, ...store } = loaded.value;
   await saveStore(deps.local, {
     ...store,
     vault: null,
-    accounts: store.accounts.filter((a) => a.platform === 'youtube'),
+    accounts: store.accounts
+      .filter((a) => a.platform === 'youtube')
+      .map((a) => {
+        const { labelSource: _source, ...clean } = refreshProfile(a, undefined);
+        return clean;
+      }),
     active: { facebook: null, instagram: null, youtube: store.active.youtube, tiktok: null },
   });
 }
@@ -253,7 +263,9 @@ async function probe(deps: RouterDeps, platform: Platform, tabId?: number) {
     const mine = accounts.find(
       (a) => a.youtube?.authuser === authuser && a.youtube.pageid === pageid,
     );
+    const profile = await readProfile(deps, platform, current.value, tabId);
     return ok({
+      ...(profile ? { profile } : {}),
       tail: String(authuser + 1),
       brand: pageid !== undefined,
       accountId: mine?.id ?? null,
@@ -266,29 +278,43 @@ async function probe(deps: RouterDeps, platform: Platform, tabId?: number) {
   if (!current.ok) return current;
   const mine =
     current.value === null ? undefined : accounts.find((a) => a.platformUserId === current.value);
+  const profile =
+    current.value === null ? undefined : await readProfile(deps, platform, current.value, tabId);
   return ok({
+    ...(profile ? { profile } : {}),
     tail: current.value === null ? null : current.value.slice(-4),
     accountId: mine?.id ?? null,
   });
 }
 
-async function addCurrent(deps: RouterDeps, platform: Platform, label: string, tabId?: number) {
+async function addCurrent(
+  deps: RouterDeps,
+  platform: Platform,
+  label: string,
+  tabId?: number,
+  autoLabel = false,
+) {
   // Held like a switch, so what is read here can't change half-way through.
   if (platform === 'youtube')
-    return holdPlatform(deps.busy, platform, () => addYoutube(deps, label, tabId));
+    return holdPlatform(deps.busy, platform, () => addYoutube(deps, label, tabId, autoLabel));
   return holdPlatform(deps.busy, platform, async () =>
     platform === 'tiktok' || (await matchesTab(deps, platform, tabId))
-      ? addCookieAccount(deps, platform, label, tabId)
+      ? addCookieAccount(deps, platform, label, tabId, autoLabel)
       : err('not_logged_in'),
   );
 }
 
-async function addYoutube(deps: RouterDeps, label: string, tabId?: number) {
+async function addYoutube(deps: RouterDeps, label: string, tabId?: number, autoLabel = false) {
   const current = await deps.youtube.readCurrent(tabId);
   if (!current.ok) return current.error === 'no_youtube_tab' ? err('not_logged_in') : current;
+  const profile = await readProfile(deps, 'youtube', current.value, tabId);
   return editStore(deps, async (store) => {
     const youtube = copySession(current.value);
-    const added = addAccount(store, { platform: 'youtube', label, youtube }, ids(deps));
+    const added = addAccount(
+      store,
+      { platform: 'youtube', ...profileInput('youtube', label, autoLabel, profile), youtube },
+      ids(deps),
+    );
     if (!added.ok) return added;
     const active = setActive(added.value.store, 'youtube', added.value.account.id);
     return ok({
@@ -307,6 +333,7 @@ async function addCookieAccount(
   platform: CookiePlatformId,
   label: string,
   tabId?: number,
+  autoLabel = false,
 ) {
   if (platform === 'tiktok' && tabId === undefined) return err('no_tiktok_tab');
   const p = deps.platforms[platform];
@@ -315,11 +342,16 @@ async function addCookieAccount(
   if (!captured.ok) return captured;
   const { identity: userId, cookies } = captured.value;
   if (userId === null) return err('not_logged_in');
+  const profile = await readProfile(deps, platform, userId, tabId);
   const now = deps.now();
   return editStore(deps, async (store) => {
     if (!store.vault) return err('no_vault');
     if (!key) return err('locked');
-    const added = addAccount(store, { platform, label, platformUserId: userId }, ids(deps));
+    const added = addAccount(
+      store,
+      { platform, ...profileInput(platform, label, autoLabel, profile), platformUserId: userId },
+      ids(deps),
+    );
     if (!added.ok) return added;
     const id = added.value.account.id;
     const sessions = await readVault(key, store.vault);
@@ -334,6 +366,20 @@ async function addCookieAccount(
     };
     return ok({ store: next, value: account });
   });
+}
+
+// Never accept metadata from the popup or reuse a prefill after the page identity has changed.
+function profileInput(
+  platform: Platform,
+  label: string,
+  autoLabel: boolean,
+  profile?: AccountProfile,
+) {
+  return {
+    label: autoLabel ? (profileText(profile?.displayName, 40) ?? defaultLabel(platform)) : label,
+    ...(autoLabel ? { labelSource: 'profile' as const } : {}),
+    ...(profile ? { profile } : {}),
+  };
 }
 
 const ids = (deps: RouterDeps) => ({ id: deps.newId(), now: deps.now() });
@@ -370,6 +416,7 @@ async function updateCookieSession(
   const { identity: userId, cookies } = captured.value;
   if (userId === null) return err('not_logged_in');
   if (userId !== account.platformUserId) return err('wrong_account');
+  const profile = await readProfile(deps, account.platform, userId, tabId);
   const now = deps.now();
   return editStore(deps, async (store) => {
     if (!store.vault || !findAccount(store, accountId)) return err('not_found');
@@ -380,20 +427,31 @@ async function updateCookieSession(
       status: 'ok',
       sessionCapturedAt: now,
     });
-    return updated.ok ? ok({ store: updated.value, value: undefined }) : updated;
+    return updated.ok
+      ? ok({
+          store: {
+            ...updated.value,
+            accounts: updated.value.accounts.map((a) =>
+              a.id === accountId ? refreshProfile(a, profile) : a,
+            ),
+          },
+          value: undefined,
+        })
+      : updated;
   });
 }
 
 async function updateYoutube(deps: RouterDeps, accountId: string, tabId?: number) {
   const current = await deps.youtube.readCurrent(tabId);
   if (!current.ok) return current;
+  const profile = await readProfile(deps, 'youtube', current.value, tabId);
   return patchStore(deps, (store) => {
     if (!findAccount(store, accountId)) return err('not_found');
     const youtube = copySession(current.value);
     return ok({
       ...store,
       accounts: store.accounts.map((a) =>
-        a.id === accountId ? { ...a, youtube, status: 'ok' as const } : a,
+        a.id === accountId ? { ...refreshProfile(a, profile), youtube, status: 'ok' as const } : a,
       ),
     });
   });

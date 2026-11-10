@@ -1070,3 +1070,36 @@ button {
     transition: none;
   }
 }
+
+/* Optional local profile metadata shares the platform avatar and theme colours. */
+.avatar > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+.profile-details {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-2);
+  max-width: 100%;
+}
+.profile-details:empty {
+  display: none;
+}
+.profile-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+.profile-preview[hidden] {
+  display: none;
+}
+.profile-preview .profile-details {
+  min-width: 0;
+}

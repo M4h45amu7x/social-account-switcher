@@ -2,7 +2,9 @@
 // answers into popup actions. It talks through functions it is given, so it holds no `chrome` and the
 // unit tests drive it with a fake worker. Whatever happens (a dead port, an answer that makes no sense)
 // it ends by dispatching an action that releases the busy state: the popup is never left waiting.
+
 import type { Request } from '../lib/messages';
+import { profileText, sanitizeProfile } from '../lib/profile';
 import { hostPattern, SITES } from '../lib/sites';
 import { type Account, isAccount, type StoreV1 } from '../lib/store';
 import { READ_DEADLINE_MS, SWITCH_DEADLINE_MS, WRITE_DEADLINE_MS } from '../lib/timing';
@@ -70,7 +72,9 @@ function usedLine(a: Account, now: number): UsedLine {
 
 /** One saved account in the shape the popup draws. */
 export function toAccountView(a: Account, now: number): AccountView {
+  const profile = sanitizeProfile(a.profile);
   return {
+    ...(profile ? { profile } : {}),
     id: a.id,
     label: a.label,
     initials: a.initials,
@@ -121,11 +125,8 @@ export const tabPattern = (p: Platform): string => {
 };
 
 export function createBridge(deps: BridgeDeps): (effect: Effect, app: App) => void {
-  // Cookie accounts outside the contextual flow are profile-wide. YouTube is always page-specific.
-  const tabTarget = (app: App, platform: Platform) =>
-    deps.tabId !== undefined && (platform === 'youtube' || app.state().here?.platform === platform)
-      ? { tabId: deps.tabId }
-      : {};
+  // Every probe uses the tab captured from this popup window. Never search another window.
+  const tabTarget = () => (deps.tabId !== undefined ? { tabId: deps.tabId } : {});
   /** Runs `work`, giving up with `fallback` after `ms`. An answer that comes later is dropped, never applied. */
   const withDeadline = <T>(work: Promise<T>, ms: number, fallback: T): Promise<T> =>
     new Promise<T>((resolve) => {
@@ -188,7 +189,7 @@ export function createBridge(deps: BridgeDeps): (effect: Effect, app: App) => vo
     const s = app.state();
     if (!s.here || s.page !== 'main' || s.platforms[s.here.platform].accounts.length === 0) return;
     const { platform } = s.here;
-    const reply = await ask({ type: 'account.probe', platform, ...tabTarget(app, platform) });
+    const reply = await ask({ type: 'account.probe', platform, ...tabTarget() });
     if (!reply.ok) return;
     const id = (reply.value as { accountId?: unknown } | null)?.accountId;
     app.dispatch({ type: 'here-account', platform, accountId: typeof id === 'string' ? id : null });
@@ -316,21 +317,31 @@ export function createBridge(deps: BridgeDeps): (effect: Effect, app: App) => vo
         const reply = await ask({
           type: 'account.probe',
           platform: effect.platform,
-          ...tabTarget(app, effect.platform),
+          ...tabTarget(),
         });
         if (!reply.ok) return failAndReload(app, reply.error, { retry: effect });
-        const found = reply.value as { tail?: unknown; brand?: unknown } | null;
+        const found = reply.value as { tail?: unknown; brand?: unknown; profile?: unknown } | null;
         const tail = found?.tail;
         if (tail === null) return app.dispatch({ type: 'add-probed', found: null });
         if (typeof tail !== 'string') return failAndReload(app, 'unknown', { retry: effect });
         const view = app.state().platforms[effect.platform];
-        const defaultName = app.translator().text('add_defaultName', {
-          platform: PLATFORM_INFO[effect.platform].name,
-          n: view.accounts.length + 1,
-        });
+        const profile = sanitizeProfile(found?.profile);
+        const profileName = profileText(profile?.displayName, 40);
+        const defaultName =
+          profileName ??
+          app.translator().text('add_defaultName', {
+            platform: PLATFORM_INFO[effect.platform].name,
+            n: view.accounts.length + 1,
+          });
         return app.dispatch({
           type: 'add-probed',
-          found: { idTail: tail, defaultName, ...(found?.brand === true ? { brand: true } : {}) },
+          found: {
+            idTail: tail,
+            defaultName,
+            ...(profile ? { profile } : {}),
+            ...(profileName ? { autoLabel: true } : {}),
+            ...(found?.brand === true ? { brand: true } : {}),
+          },
         });
       }
       case 'add': {
@@ -339,9 +350,10 @@ export function createBridge(deps: BridgeDeps): (effect: Effect, app: App) => vo
         try {
           const reply = await ask({
             type: 'account.addCurrent',
-            ...tabTarget(app, effect.platform),
+            ...tabTarget(),
             platform: effect.platform,
             label: effect.label,
+            ...(effect.autoLabel ? { autoLabel: true } : {}),
           });
           if (reply.ok) return await load(app, true);
           if (reply.error === 'not_logged_in')
