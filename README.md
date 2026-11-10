@@ -4,7 +4,7 @@ Switch between your own Facebook, Instagram and YouTube accounts from a Chrome e
 
 ![Popup with fictional saved accounts](docs/images/popup.png)
 
-The screenshot uses fictional accounts. Version 0.1.0 is prepared for GitHub distribution; live account checks remain part of the manual handoff below.
+The screenshot uses fictional accounts. Version 0.1.1 is prepared for GitHub distribution; live account checks remain part of the manual handoff below.
 
 Facebook and Instagram sessions are encrypted on this device with a master password. YouTube uses Google's multi-account sign-in with a saved account index and optional channel ID; it does not replace Google cookies. There is no extension server, analytics or remote code. Account labels and identifiers are stored locally without encryption. See [PRIVACY.md](PRIVACY.md) for the privacy policy and [SECURITY.md](SECURITY.md) for reporting a vulnerability.
 

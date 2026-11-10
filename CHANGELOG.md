@@ -4,6 +4,8 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-10
+
 ### Added
 
 - The popup opens on the platform of the page you are on. On a Facebook, Instagram or YouTube page it shows that platform's tab from the first frame, without sliding over from Facebook. On any other page it opens on the tab you picked last, or on Facebook the first time. No permission was added: Chrome gives the extension the address of the three sites only, and the popup uses it in memory without saving it.
@@ -15,6 +17,7 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ### Fixed
 
+- Read and add accounts from the active tab in the popup's window, so separate YouTube windows use the account shown in that window.
 - Keep release ZIP timestamps and checksums identical across UTC and Asia/Bangkok build environments.
 - Keep the selected tab's name, icon and count visible while the tab bar animates. The indicator is no longer drawn in the view-transition layer on top of the label; it now slides behind the buttons.
 - Show the selected tab and the selected Language and Theme option on a thumb that stands out from its track in the dark theme, with text contrast of at least 4.5:1 in both themes.
@@ -41,5 +44,6 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 - Document local data handling, the two wipe scopes, switch deadlines and known issues. Keep live-account and installation checks in the manual handoff checklist.
 
-[Unreleased]: https://github.com/M4h45amu7x/social-account-switcher/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/M4h45amu7x/social-account-switcher/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/M4h45amu7x/social-account-switcher/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/M4h45amu7x/social-account-switcher/releases/tag/v0.1.0

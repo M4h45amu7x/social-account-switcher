@@ -1,6 +1,6 @@
 {
   "name": "social-account-switcher",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Chrome extension (MV3) to switch between your own Facebook, Instagram and YouTube accounts \u2014 all data stays on your device.",
   "license": "MIT",

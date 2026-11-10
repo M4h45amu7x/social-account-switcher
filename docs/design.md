@@ -1,6 +1,6 @@
-# Social Account Switcher — v0.1.0 implementation design
+# Social Account Switcher — v0.1.1 implementation design
 
-> Status: v0.1.0 implementation specification with a proposed v0.2.0 TikTok design in section 13, 2026-11-10. Live account checks remain manual; this document does not claim publication or checkpoint-free operation.
+> Status: v0.1.1 implementation specification with a proposed v0.2.0 TikTok design in section 13, 2026-11-10. Live account checks remain manual; this document does not claim publication or checkpoint-free operation.
 > Clickable reference: `mockup/popup.html`; runner: `mockup/e2e/popup.e2e.mjs`; instructions: `mockup/README.md`. Generated captures and run logs are not versioned. Small current popup images are in `docs/images/`.
 > Repository prose is English. English and Thai are supported UI languages.
 
@@ -252,7 +252,7 @@ System follows `prefers-color-scheme`; explicit Light/Dark sets `data-theme`. Pr
 
 ## 13. TikTok proposal for v0.2.0
 
-This section is a design proposal, not shipped TikTok support. Sections 1–12 describe v0.1.0 unless noted. No TikTok source, host permission, catalog entry or brand asset is added by this design card. The implementation cards below must update those sections and the privacy inventory together. Public-source checks and an anonymous browser visit were made on 2026-11-10; no real account was logged in, and no existing browser profile or another person's cookies were used.
+This section is a design proposal, not shipped TikTok support. Sections 1–12 describe v0.1.1 unless noted. No TikTok source, host permission, catalog entry or brand asset is added by this design card. The implementation cards below must update those sections and the privacy inventory together. Public-source checks and an anonymous browser visit were made on 2026-11-10; no real account was logged in, and no existing browser profile or another person's cookies were used.
 
 ### 13.1 Switching method and decision
 
