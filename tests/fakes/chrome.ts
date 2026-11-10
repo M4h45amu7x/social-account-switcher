@@ -66,6 +66,7 @@ export const MANIFEST_HOSTS = [
   '*://*.facebook.com/*',
   '*://*.instagram.com/*',
   '*://*.youtube.com/*',
+  'https://*.tiktok.com/*',
 ];
 
 export interface FakeCookies extends CookiesApi {

@@ -6,6 +6,7 @@ export const ALLOWED_HOST_PERMISSIONS = [
   '*://*.facebook.com/*',
   '*://*.instagram.com/*',
   '*://*.youtube.com/*',
+  'https://*.tiktok.com/*',
 ] as const;
 
 interface Manifest {

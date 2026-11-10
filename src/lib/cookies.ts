@@ -36,15 +36,27 @@ function belongsTo(domain: string, platformDomain: string): boolean {
 }
 
 /** The URL Chrome needs to address a cookie: scheme from `secure`, then host and path. */
-export function cookieUrl(cookie: Pick<StoredCookie, 'secure' | 'domain' | 'path'>): string {
-  return `${cookie.secure ? 'https' : 'http'}://${bareDomain(cookie.domain)}${cookie.path}`;
+export function cookieUrl(
+  cookie: Pick<StoredCookie, 'secure' | 'domain' | 'path'>,
+  httpsOnly = false,
+): string {
+  return `${cookie.secure || httpsOnly ? 'https' : 'http'}://${bareDomain(cookie.domain)}${cookie.path}`;
 }
 
 /** Every cookie of the platform's domain in every partition, minus the device cookies. */
 async function sessionCookies(api: CookiesApi, p: CookiePlatform): Promise<BrowserCookie[]> {
   // `partitionKey: {}` asks for all partitions at once; without it CHIPS cookies are left out.
   const all = await api.getAll({ domain: p.cookieDomain, partitionKey: {} });
-  return all.filter((c) => belongsTo(c.domain, p.cookieDomain) && !p.deviceCookies.has(c.name));
+  return all.filter((c) => isSessionCookie(c, p));
+}
+
+/** Platform-scoped rule used for reads and optional scoped restore, including journal backups. */
+export function isSessionCookie(c: StoredCookie, p: CookiePlatform): boolean {
+  return (
+    belongsTo(c.domain, p.cookieDomain) &&
+    !p.deviceCookies.has(c.name) &&
+    (!p.httpsOnly || /^[.]?[a-z0-9-]+(?:\.[a-z0-9-]+)*$/i.test(c.domain))
+  );
 }
 
 function toStored(c: BrowserCookie): StoredCookie {
@@ -74,7 +86,10 @@ export async function snapshot(api: CookiesApi, p: CookiePlatform): Promise<Stor
 export async function clear(api: CookiesApi, p: CookiePlatform): Promise<number> {
   const before = await sessionCookies(api, p);
   for (const c of before) {
-    const details: Parameters<CookiesApi['remove']>[0] = { url: cookieUrl(c), name: c.name };
+    const details: Parameters<CookiesApi['remove']>[0] = {
+      url: cookieUrl(c, p.httpsOnly),
+      name: c.name,
+    };
     // Without the partitionKey Chrome resolves but leaves a partitioned cookie in place.
     if (c.partitionKey) details.partitionKey = c.partitionKey;
     // A rejected call is caught here and shows up as a cookie that is still there.
@@ -86,9 +101,9 @@ export async function clear(api: CookiesApi, p: CookiePlatform): Promise<number>
 export const isExpired = (c: StoredCookie, now: number): boolean =>
   c.expirationDate !== undefined && c.expirationDate * 1000 <= now;
 
-function toSetDetails(c: StoredCookie): CookieSetDetails {
+function toSetDetails(c: StoredCookie, httpsOnly = false): CookieSetDetails {
   const details: CookieSetDetails = {
-    url: cookieUrl(c),
+    url: cookieUrl(c, httpsOnly),
     name: c.name,
     value: c.value,
     path: c.path,
@@ -112,12 +127,14 @@ export async function restore(
   api: CookiesApi,
   cookies: StoredCookie[],
   now: number,
-): Promise<Result<number, 'all_expired'>> {
+  platform?: CookiePlatform,
+): Promise<Result<number, 'all_expired' | 'invalid_session'>> {
+  if (platform && cookies.some((c) => !isSessionCookie(c, platform))) return err('invalid_session');
   const live = cookies.filter((c) => !isExpired(c, now));
   if (cookies.length > 0 && live.length === 0) return err('all_expired');
   let set = 0;
   for (const c of live) {
-    if (await api.set(toSetDetails(c)).catch(() => null)) set += 1;
+    if (await api.set(toSetDetails(c, platform?.httpsOnly)).catch(() => null)) set += 1;
   }
   return ok(set);
 }

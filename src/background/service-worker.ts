@@ -14,6 +14,7 @@ import {
   tabsApi,
 } from './chrome-adapter';
 import { COOKIE_PLATFORMS } from './platforms';
+import { createTikTokPlatform } from './platforms/tiktok';
 import { createYoutubeSwitcher } from './platforms/youtube';
 import { createRouter, type RouterDeps } from './router';
 
@@ -42,7 +43,10 @@ export function workerDeps(): RouterDeps {
     tabs: tabsApi,
     local: localStorageApi,
     session: sessionStorageApi,
-    platforms: COOKIE_PLATFORMS,
+    platforms: {
+      ...COOKIE_PLATFORMS,
+      tiktok: createTikTokPlatform({ tabs: tabsApi, scripting: scriptingApi }),
+    },
     storeMutex: createMutex(),
     busy: new Set<Platform>(),
     now: () => Date.now(),

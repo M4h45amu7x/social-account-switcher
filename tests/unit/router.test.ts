@@ -56,7 +56,7 @@ describe('state and vault', () => {
     const h = await startWorker();
     expect(await state(h)).toEqual({
       accounts: [],
-      active: { facebook: null, instagram: null, youtube: null },
+      active: { facebook: null, instagram: null, youtube: null, tiktok: null },
       settings: { theme: 'system', language: 'auto' },
       hasVault: false,
       locked: true,
@@ -151,7 +151,7 @@ describe('state and vault', () => {
     const after = await state(h);
     expect(after).toMatchObject({ hasVault: false, locked: true });
     expect(after.accounts.map((a) => a.id)).toEqual([yt.id]);
-    expect(after.active).toEqual({ facebook: null, instagram: null, youtube: yt.id });
+    expect(after.active).toEqual({ facebook: null, instagram: null, youtube: yt.id, tiktok: null });
     expect(h.chrome.storage.session.dump()).toEqual({});
     // and the user can set a new password straight away
     await h.must({ type: 'vault.setup', password: PASSWORD });
@@ -265,6 +265,7 @@ describe('accounts', () => {
       facebook: ids['1002'] ?? '',
       instagram: ids['2002'] ?? '',
       youtube: null,
+      tiktok: null,
     });
     const vault = await vaultOf(h);
     expect(vault[ids['1001'] ?? '']?.cookies.find((c) => c.name === 'xs')?.value).toBe(

@@ -1,7 +1,7 @@
 // What the popup knows how to draw. The view only reads these types; the background worker
 // (src/lib/messages.ts) has its own wire types, and B5b maps one onto the other.
 import type { ErrorCode } from '../lib/messages';
-import type { Platform } from '../lib/store';
+import type { PopupPlatform as Platform } from '../lib/store';
 import type { Effect } from './controller';
 import type { Language, LanguagePref } from './i18n';
 import type { ThemePref } from './theme';

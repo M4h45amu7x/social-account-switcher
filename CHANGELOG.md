@@ -4,6 +4,10 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ## [Unreleased]
 
+### Added
+
+- Experimental TikTok session backend with a centralized cookie deny-list, read-only fixture viewer probe, verified rollback and recovery, and session wipe support. It stays disabled and hidden from the popup until the live-site contract is confirmed. The manifest now requests the `https://*.tiktok.com/*` host permission for it.
+
 ## [0.1.1] - 2026-11-10
 
 ### Added

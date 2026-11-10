@@ -206,7 +206,12 @@ describe('migrate (test 9)', () => {
       active: { facebook: 'a1', instagram: 7 },
     });
     expect(odd.ok && odd.value.settings).toEqual({ theme: 'system', language: 'th' });
-    expect(odd.ok && odd.value.active).toEqual({ facebook: 'a1', instagram: null, youtube: null });
+    expect(odd.ok && odd.value.active).toEqual({
+      facebook: 'a1',
+      instagram: null,
+      youtube: null,
+      tiktok: null,
+    });
     expect(migrate({ ...store, active: 'junk', vault: null })).toMatchObject({
       ok: true,
       value: { active: { facebook: null }, vault: null },
@@ -248,13 +253,18 @@ describe('migrate (test 9)', () => {
     const raw = {
       ...store,
       accounts: [...good, ...bad],
-      active: { facebook: 'a1', instagram: 'x1', youtube: 'gone' },
+      active: { facebook: 'a1', instagram: 'x1', youtube: 'gone', tiktok: null },
     };
     const loaded = migrate(raw);
     if (!loaded.ok) throw new Error(loaded.error);
     expect(loaded.value.accounts).toEqual(good);
     expect(loaded.value.quarantine).toEqual(bad);
-    expect(loaded.value.active).toEqual({ facebook: 'a1', instagram: null, youtube: null });
+    expect(loaded.value.active).toEqual({
+      facebook: 'a1',
+      instagram: null,
+      youtube: null,
+      tiktok: null,
+    });
 
     // Saving and loading again keeps the quarantined entries, and does not quarantine them twice.
     const local = fakeStorageArea();

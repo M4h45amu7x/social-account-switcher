@@ -1,7 +1,7 @@
-// The site of each platform, in one list. The manifest's host permissions, the tab patterns and the
-// popup's "which site is this tab on" all follow it (tests/unit/sites.test.ts keeps them in step), so a
-// new platform is one more entry here plus its adapter. Pure: no chrome, no DOM.
-import type { Platform } from './store';
+// Popup-visible platforms and their website matcher. The disabled TikTok backend reserves a host
+// permission separately; it is intentionally absent here until its popup integration is enabled.
+// Pure: no browser globals or DOM.
+import type { PopupPlatform as Platform } from './store';
 
 export interface Site {
   readonly platform: Platform;
