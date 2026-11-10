@@ -1,6 +1,6 @@
 # Social Account Switcher v0.2.0 implementation design
 
-> Status: v0.2.0 release candidate, 2026-11-10. T1 through T3 are implemented and TikTok is enabled in the four-platform popup. Live TikTok account checks remain required before release; preparing this candidate does not publish it or establish checkpoint-free operation.
+> Status: v0.2.0, approved for release by the owner on 2026-11-10 after testing with real accounts. TikTok is enabled in the four-platform popup. Individual checklist results were not recorded; the live-site assumptions below remain unconfirmed, and switching may still require security checks.
 > Clickable reference: `mockup/popup.html`; runner: `mockup/e2e/popup.e2e.mjs`; instructions: `mockup/README.md`. Generated captures and run logs are not versioned. Small current popup images are in `docs/images/`.
 > Repository prose is English. English and Thai are supported UI languages.
 
@@ -256,7 +256,7 @@ System follows `prefers-color-scheme`; explicit Light/Dark sets `data-theme`. Pr
 
 ## 13. TikTok implementation for v0.2.0
 
-T1 provides the implemented cookie backend and TikTok host permission, T2 supplies local rotating-session browser tests, and T3 enables TikTok in the four-platform popup with a candidate hydration reader. T4 prepares the v0.2.0 release candidate. Owner real-account checks remain required before release; fixture results do not establish live TikTok compatibility. Public-source checks and an anonymous browser visit were made on 2026-11-10; no real account was logged in, and no existing browser profile or another person's cookies were used.
+T1 provides the implemented cookie backend and TikTok host permission, T2 supplies local rotating-session browser tests, and T3 enables TikTok in the four-platform popup with a candidate hydration reader. T4 provides the v0.2.0 release documentation and packaging. The owner approved release on 2026-11-10 after testing with real accounts, without supplying individual checklist results. Automated fixtures cover a local model. The earlier public-source checks and anonymous browser visit on 2026-11-10 used no real account, existing browser profile or another person's cookies.
 
 The 360 px popup gives the selected platform enough width for its full name; inactive tabs show their logo and account count. Hiding inactive names as whole words avoids the truncated names rejected by the owner while preserving all four platform choices. Every tab keeps its full tooltip and accessible name. The shared indicator follows the selected button's geometry, and arrow keys, Home and End select tabs. Reduced motion moves the indicator immediately.
 
@@ -358,7 +358,7 @@ All six keys have no placeholders. The approved existing keys `extDescription`, 
 
 ### 13.9 Implementation cards and dependencies
 
-T1, T2 and T3 are implemented in this candidate. T4 prepares release documentation and packaging; owner live-account validation remains required before publication. The table preserves the original card scopes and acceptance criteria. T1 originally kept the backend disabled; T3 subsequently enabled it in the popup.
+T1, T2 and T3 are implemented in v0.2.0. T4 provides release documentation and packaging. The owner approved release on 2026-11-10 after testing with real accounts; individual checklist results were not recorded. The table preserves the original card scopes and acceptance criteria. T1 originally kept the backend disabled; T3 subsequently enabled it in the popup.
 
 | Card | Single deliverable | Acceptance and dependency |
 |---|---|---|
@@ -367,4 +367,4 @@ T1, T2 and T3 are implemented in this candidate. T4 prepares release documentati
 | T3: TikTok popup and reviewed language/assets | Enable the fourth platform, approved catalogs and unchanged sourced logos. | Depends on T1 + T2; the ten catalog values have kru-thai approval. Wire new error results and permission guidance, add source hashes/trademark notices, check four-platform keyboard/Thai/theme layouts with screenshots and E2E. No live credentials in screenshots. |
 | T4: v0.2.0 release documentation and verification | Reconcile documentation with the composed implementation. | Depends on T1 through T3. Record outstanding owner manual-account/upgrade checks. Re-audit PRIVACY against code, refresh README/known issues/design/CHANGELOG, record unsupported cases and exact version. Full CI/E2E/outdated gates and equal UTC/Bangkok package hashes; prepare GitHub zip/checksum. Tag/push/publication need separate authorization. |
 
-The source/permission/privacy contract was implemented through T1 and T3; T4 audits the final composition. The v0.2.0 candidate enables TikTok against the strictly validated candidate reader. The owner has confirmed the signed-in field names and types listed in §13.3. Validation of the remaining UID/handle constraints, avatar array contents, logout/challenge shapes and cookie policy remains a release requirement, alongside real-account switching checks. Fixture success alone does not satisfy live-account validation.
+The source/permission/privacy contract was implemented through T1 and T3; T4 audits the final composition. Version 0.2.0 enables TikTok with the strictly validated hydration reader. The owner has confirmed the signed-in field names and types listed in §13.3. The remaining UID/handle constraints, avatar array contents, logout/challenge shapes and cookie policy still lack recorded live-site confirmation. These limits remain in [known issues](known-issues.md) after the owner's release approval; automated fixtures cover the implementation against a model.

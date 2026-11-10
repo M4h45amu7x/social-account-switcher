@@ -1,5 +1,5 @@
 // Four real platform tabs: a visible name must fit in full; inactive names are hidden as a whole.
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildPopup, idle, open, popupTest as test } from './popup-build';
 
@@ -29,8 +29,9 @@ for (const lang of ['en', 'th'])
         await page.locator('.tab .count').evaluateAll((counts) => {
           for (const c of counts) c.textContent = '99';
         });
-        const errors = await page.evaluate(() => {
+        const layout = await page.evaluate(() => {
           const out: string[] = [];
+          const gaps: { tab: string; from: string; to: string; gap: number }[] = [];
           for (const tab of document.querySelectorAll<HTMLElement>('.tab')) {
             const box = tab.getBoundingClientRect();
             const label = tab.querySelector<HTMLElement>('.label');
@@ -45,6 +46,24 @@ for (const lang of ['en', 'th'])
             )
               out.push('missing full name');
             const visible = getComputedStyle(label).display !== 'none';
+            const labelBox = label.getBoundingClientRect();
+            const countBox = count.getBoundingClientRect();
+            const pairs = visible
+              ? [
+                  { from: 'icon', to: 'label', gap: labelBox.left - mark.right },
+                  { from: 'label', to: 'count', gap: countBox.left - labelBox.right },
+                ]
+              : [{ from: 'icon', to: 'count', gap: countBox.left - mark.right }];
+            for (const pair of pairs) {
+              gaps.push({ tab: tab.dataset.tab ?? '', ...pair });
+              if (pair.gap < 5)
+                out.push(`${tab.dataset.tab}: ${pair.from}→${pair.to} gap=${pair.gap}px <5px`);
+            }
+            if (Math.abs((mark.left + countBox.right) / 2 - (box.left + box.right) / 2) > 1)
+              out.push('contents not centered');
+            for (const r of [mark, countBox, ...(visible ? [labelBox] : [])])
+              if (Math.abs((r.top + r.bottom) / 2 - (box.top + box.bottom) / 2) > 1)
+                out.push('contents not vertically centered');
             if (visible) {
               if (label.scrollWidth > label.clientWidth + 1) out.push('name clipped');
               if (label.getBoundingClientRect().right > count.getBoundingClientRect().left)
@@ -77,9 +96,8 @@ for (const lang of ['en', 'th'])
             Math.abs(selected.width - thumb.width) > 1
           )
             out.push('thumb misplaced');
-          return out;
+          return { errors: out, gaps };
         });
-        expect(errors).toEqual([]);
         const shots = process.env.E2E_TAB_SHOTS;
         if (shots) {
           mkdirSync(shots, { recursive: true });
@@ -87,7 +105,12 @@ for (const lang of ['en', 'th'])
             path: resolve(shots, `tabs-${lang}-${theme}-${platform}.png`),
             fullPage: true,
           });
+          writeFileSync(
+            resolve(shots, `tabs-${lang}-${theme}-${platform}.json`),
+            JSON.stringify(layout, null, 2),
+          );
         }
+        expect.soft(layout.errors).toEqual([]);
       }
       await page.getByTestId('tab-tiktok').focus();
       await page.keyboard.press('Home');

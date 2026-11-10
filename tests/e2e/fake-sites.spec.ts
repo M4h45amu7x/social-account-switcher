@@ -7,6 +7,7 @@ import type { BrowserContext, CDPSession, Locator, Page } from '@playwright/test
 import { FB, fakeSocial, IG, OTHER, SOCIAL_HOSTS } from './fake-social';
 import { expect, test } from './fixtures';
 import { callSite, type HttpsSites, launchWithSites } from './https-sites';
+import { waitForPopupMotion } from './popup-ready';
 
 const PASSWORD = 'orange cat naps by the canal';
 const PEOPLE = {
@@ -285,8 +286,10 @@ test('17: every tab of the site reloads, another site is not touched, FB and IG 
 test('18: lock, a wrong password, unlock and switch; a stopped worker does not ask again', async () => {
   test.setTimeout(120_000);
   await popup.getByTestId('settings-btn').click();
+  await waitForPopupMotion(popup);
   await popup.getByTestId('lock-now').click();
   await expect(popup.getByTestId('popup')).toHaveAttribute('data-state', 'locked');
+  await waitForPopupMotion(popup);
 
   await popup.getByTestId('pw-input').fill('not the password at all');
   await popup.getByTestId('unlock').click();

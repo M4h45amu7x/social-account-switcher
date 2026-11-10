@@ -4,7 +4,7 @@ Switch between your own Facebook, Instagram, YouTube and TikTok accounts from a 
 
 ![Popup with fictional saved accounts](docs/images/popup.png)
 
-The screenshot uses fictional accounts. This is the v0.2.0 release candidate. TikTok is enabled, but its current-account reader and switching compatibility still need owner checks with real accounts before publication.
+The screenshot uses fictional accounts. The owner approved v0.2.0 for release on 2026-11-10 after testing with real accounts. Individual checklist results were not recorded; the remaining live-site assumptions are listed in [known issues](docs/known-issues.md).
 
 Facebook, Instagram and TikTok sessions are encrypted on this device with a master password. YouTube uses Google's multi-account sign-in with a saved account index and optional channel ID; it does not replace Google cookies. There is no extension server, analytics or remote code. Account labels, identifiers and captured profile metadata, including names, handles, email and sanitized avatars, are stored locally without encryption. See [PRIVACY.md](PRIVACY.md) for the privacy policy and [SECURITY.md](SECURITY.md) for reporting a vulnerability.
 
@@ -20,7 +20,7 @@ To try the development version, follow the build steps below and load `dist/` in
 
 ### Upgrade from v0.1.x
 
-Keep the existing extension folder and browser profile. Extract the v0.2.0 candidate ZIP over that same folder, then open `chrome://extensions` and choose **Reload** for Social Account Switcher. Open the popup and check the version in its footer or Settings to confirm which build is loaded. Do not remove the extension to upgrade: removing it deletes its saved data.
+Keep the existing extension folder and browser profile. Extract the v0.2.0 ZIP over that same folder, then open `chrome://extensions` and choose **Reload** for Social Account Switcher. Open the popup and check the version in its footer to confirm which build is loaded. Do not remove the extension to upgrade: removing it deletes its saved data.
 
 Open the extension's **Details** and check **Site access** for TikTok. Chrome may show a permission prompt or disable the extension after new host access; the exact behavior needs an owner check on the installed Chrome version. Confirm TikTok access before trying to save or switch a TikTok session. If access is missing, the popup shows guidance and leaves saved sessions unchanged. Verify that your existing accounts and custom labels remain after upgrading.
 

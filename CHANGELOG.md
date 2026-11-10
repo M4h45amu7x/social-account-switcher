@@ -8,7 +8,7 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ### Added
 
-- Show the installed extension version in the popup footer and Settings.
+- Show the installed extension version in the popup footer.
 - Save, update, switch, rename and remove TikTok sessions, with current-tab account badges and guidance when Chrome has not granted TikTok access. Switching affects all TikTok tabs in the browser profile and may require login or a manual security check.
 - Capture matched profile names, handles and email when available on Facebook, Instagram, YouTube or TikTok. Use the display name for automatic labels on Add and Update session; keep labels you have renamed yourself. Show a small local avatar when the captured image can be validated; otherwise show initials.
 - Add English and Thai TikTok messages and sourced TikTok logos. The manifest requests access to `https://*.tiktok.com/*`.
@@ -20,13 +20,14 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ### Fixed
 
+- Keep at least 5 px between platform logos, names and account counts in the four-tab popup.
 - Wait for all reloaded TikTok tabs before saving a switched or recovered session, so delayed responses cannot leave an older session token in the vault.
 - Keep unknown TikTok page states separate from expired sessions. Verify a bounded candidate viewer record instead of using content-author or profile-page identities.
 - Keep adding Facebook or Instagram accounts from unrelated tabs through existing cookies, without borrowing another tab's profile information.
 
 ### Release notes
 
-- This release candidate still needs owner checks with real accounts before publication. The owner observed TikTok's signed-in viewer field names and types; UID value constraints, avatar array contents, logout/challenge shapes and the cookie boundary remain unconfirmed. Automated browser tests use local stand-ins, including rotating TikTok sessions, rollback, worker recovery, migration and both wipe scopes.
+- The owner approved v0.2.0 for release on 2026-11-10 after testing with real accounts. Individual checklist results were not recorded. The owner confirmed TikTok's signed-in viewer field names and types; UID value constraints, avatar array contents, logout/challenge shapes and the cookie boundary remain unconfirmed. Automated browser tests use local stand-ins, including rotating TikTok sessions, rollback, worker recovery, migration and both wipe scopes.
 
 ## [0.1.2] - 2026-11-10
 

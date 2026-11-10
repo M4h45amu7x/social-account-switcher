@@ -3,7 +3,9 @@
 // Switching between fake sites is card B6; here a locally fulfilled blank Facebook page binds Add
 // to the captured active tab, and the browser holds a plain c_user cookie.
 import type { BrowserContext, Page } from '@playwright/test';
+import { READ_DEADLINE_MS, WRITE_DEADLINE_MS } from '../../src/lib/timing';
 import { expect, test } from './fixtures';
+import { waitForPopupMotion } from './popup-ready';
 
 const PASSWORD = 'orange cat naps by the canal';
 const POPUP = (id: string) => `chrome-extension://${id}/popup/index.html`;
@@ -50,11 +52,12 @@ async function facebookPage(context: BrowserContext): Promise<void> {
 async function open(
   context: BrowserContext,
   extensionId: string,
-  overFacebook = false,
+  options: { overFacebook?: boolean; clock?: boolean } = {},
 ): Promise<Page> {
   const page = await context.newPage();
+  if (options.clock) await page.clock.install();
   await page.goto(POPUP(extensionId));
-  if (overFacebook) {
+  if (options.overFacebook) {
     await page.evaluate(async () => {
       const [site] = await chrome.tabs.query({
         url: 'https://www.facebook.com/*',
@@ -79,8 +82,10 @@ async function setUp(page: Page): Promise<void> {
 
 async function lockNow(page: Page): Promise<void> {
   await page.getByTestId('settings-btn').click();
+  await waitForPopupMotion(page);
   await page.getByTestId('lock-now').click();
   await expect(screen(page)).toHaveAttribute('data-state', 'locked');
+  await waitForPopupMotion(page);
 }
 
 async function login(context: BrowserContext, user: string): Promise<void> {
@@ -212,7 +217,7 @@ test('add, rename and remove an account; a duplicate is explained', async ({
   await facebookPage(context);
   const { problems } = watch(context);
   await login(context, '100012345678');
-  const page = await open(context, extensionId, true);
+  const page = await open(context, extensionId, { overFacebook: true });
   await setUp(page);
 
   await page.getByTestId('add-account').click();
@@ -265,7 +270,7 @@ test('wipe all data from Settings, and the forgot-password wipe, both return to 
   await facebookPage(context);
   const { problems } = watch(context);
   await login(context, '100012345678');
-  const page = await open(context, extensionId, true);
+  const page = await open(context, extensionId, { overFacebook: true });
   await setUp(page);
   await page.getByTestId('add-account').click();
   await page.getByTestId('add-save').click();
@@ -293,7 +298,7 @@ test('a worker stuck on chrome.cookies.getAll: the popup says it timed out in ti
 }) => {
   await facebookPage(context);
   const { problems } = watch(context);
-  const page = await open(context, extensionId, true);
+  const page = await open(context, extensionId, { overFacebook: true });
   await setUp(page);
   const worker = context.serviceWorkers().find((w) => w.url().includes(extensionId));
   if (!worker) throw new Error('no service worker');
@@ -325,14 +330,20 @@ test('a worker stuck on chrome.cookies.getAll: the popup says it timed out in ti
 
 /** The popup's messages reach the worker, but the answer to one kind never comes back (the QC harness of t-558). */
 async function loseAnswers(page: Page, kind: string, doWork = true): Promise<void> {
+  await waitForPopupMotion(page);
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
   await page.evaluate(
     ([lostKind, work]) => {
       const w = window as unknown as {
         __hangReads: boolean;
+        __workResult: string;
+        __passwordLength: number;
         __sent: string[];
         chrome: { runtime: { sendMessage: (...a: unknown[]) => Promise<unknown> } };
       };
       w.__hangReads = false;
+      w.__workResult = 'pending';
+      w.__passwordLength = -1;
       w.__sent = [];
       const rt = w.chrome.runtime;
       const original = rt.sendMessage.bind(rt);
@@ -340,7 +351,17 @@ async function loseAnswers(page: Page, kind: string, doWork = true): Promise<voi
         const type = (m as { type: string }).type;
         w.__sent.push(type);
         if (type === lostKind) {
-          if (work) void original(m, ...rest); // the worker does the work (or never hears of it)
+          w.__passwordLength = (m as { password: string }).password.length;
+          if (work) {
+            void original(m, ...rest).then(
+              (reply) => {
+                w.__workResult = (reply as { ok: boolean }).ok ? 'ok' : 'worker refused';
+              },
+              (error: unknown) => {
+                w.__workResult = String(error);
+              },
+            );
+          } else w.__workResult = 'ok'; // the worker never hears of it
           w.__hangReads = true;
           return new Promise(() => {}); // the answer never arrives
         }
@@ -359,16 +380,29 @@ async function loseAnswers(page: Page, kind: string, doWork = true): Promise<voi
 const sentTypes = (page: Page): Promise<string[]> =>
   page.evaluate(() => (window as unknown as { __sent: string[] }).__sent);
 
+/** The worker uses real crypto/storage. Wait for it before advancing only the popup's deadline. */
+async function expireLostAnswer(page: Page): Promise<void> {
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __workResult: string }).__workResult))
+    .toBe('ok');
+  expect(
+    await page.evaluate(() => (window as unknown as { __passwordLength: number }).__passwordLength),
+  ).toBe(PASSWORD.length);
+  await page.clock.fastForward(WRITE_DEADLINE_MS);
+  await page.clock.resume();
+}
+
 test('setup done by the worker but its answer lost: the popup reads the state and leaves the setup page', async ({
   context,
   extensionId,
 }) => {
   const { problems } = watch(context);
-  const page = await open(context, extensionId);
+  const page = await open(context, extensionId, { clock: true });
   await expect(screen(page)).toHaveAttribute('data-state', 'setup');
   await loseAnswers(page, 'vault.setup');
   await page.getByTestId('pw-input').fill(PASSWORD);
   await page.getByTestId('setup-create').click();
+  await expireLostAnswer(page);
   // the real list is drawn (no password field), with the notice on top
   await expect(page.getByTestId('notice')).toHaveAttribute('data-code', 'timeout', {
     timeout: 20000,
@@ -387,12 +421,13 @@ test('unlock done by the worker but its answer lost: the popup reads the state a
   extensionId,
 }) => {
   const { problems } = watch(context);
-  const page = await open(context, extensionId);
+  const page = await open(context, extensionId, { clock: true });
   await setUp(page);
   await lockNow(page);
   await loseAnswers(page, 'vault.unlock');
   await page.getByTestId('pw-input').fill(PASSWORD);
   await page.getByTestId('unlock').click();
+  await expireLostAnswer(page);
   // the real list is drawn (no password field), with the notice on top
   await expect(page.getByTestId('notice')).toHaveAttribute('data-code', 'timeout', {
     timeout: 20000,
@@ -411,7 +446,7 @@ test('the answer is lost and the state cannot be read either: stale notice, writ
   extensionId,
 }) => {
   const { problems } = watch(context);
-  const page = await open(context, extensionId);
+  const page = await open(context, extensionId, { clock: true });
   await setUp(page);
   await lockNow(page);
   await loseAnswers(page, 'vault.unlock');
@@ -420,6 +455,9 @@ test('the answer is lost and the state cannot be read either: stale notice, writ
   });
   await page.getByTestId('pw-input').fill(PASSWORD);
   await page.getByTestId('unlock').click();
+  await expireLostAnswer(page);
+  await expect.poll(() => sentTypes(page)).toContain('state.get');
+  await page.clock.fastForward(READ_DEADLINE_MS);
   await expect(page.getByTestId('pw-hint')).toContainText("current state couldn't be loaded", {
     timeout: 25000,
   });
@@ -442,12 +480,13 @@ test('a password page that is still a password page after the reconcile: the wor
   extensionId,
 }) => {
   const { problems } = watch(context);
-  const page = await open(context, extensionId);
+  const page = await open(context, extensionId, { clock: true });
   await setUp(page);
   await lockNow(page);
   await loseAnswers(page, 'vault.unlock', false); // the worker never gets the unlock
   await page.getByTestId('pw-input').fill(PASSWORD);
   await page.getByTestId('unlock').click();
+  await expireLostAnswer(page);
   await expect(page.getByTestId('pw-hint')).toHaveText(
     "The extension didn't answer in time. Try again.",
     { timeout: 20000 },
@@ -488,5 +527,65 @@ test('the master password is never in the page markup: typing, redraws, sending 
   await page.getByTestId('unlock').click();
   await expect(screen(page)).toHaveAttribute('data-state', 'empty');
   expect(await markup()).not.toContain(PASSWORD);
+  expect(problems).toEqual([]);
+});
+test('a late post-lock read redraws the same password page without losing input or selection', async ({
+  context,
+  extensionId,
+}) => {
+  const { problems } = watch(context);
+  const page = await open(context, extensionId);
+  await setUp(page);
+  await page.evaluate(() => {
+    const w = window as unknown as { __readHeld: boolean; __releaseRead: () => void };
+    const rt = chrome.runtime;
+    const original = rt.sendMessage.bind(rt);
+    let locked = false;
+    w.__readHeld = false;
+    rt.sendMessage = (async (message: { type: string }) => {
+      if (message.type === 'vault.lock') {
+        const reply = await original(message);
+        locked = true;
+        return reply;
+      }
+      if (message.type === 'state.get' && locked && !w.__readHeld) {
+        w.__readHeld = true;
+        await new Promise<void>((resolve) => {
+          w.__releaseRead = resolve;
+        });
+      }
+      return original(message);
+    }) as typeof rt.sendMessage;
+  });
+  await lockNow(page);
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __readHeld: boolean }).__readHeld))
+    .toBe(true);
+  await page.getByTestId('pw-input').fill(PASSWORD);
+  await page.getByTestId('pw-input').evaluate((element: HTMLInputElement) => {
+    element.setSelectionRange(3, 7, 'backward');
+  });
+  // A real preference change forces the delayed read to redraw, even though the page stays locked.
+  expect(
+    await page.evaluate(() => chrome.runtime.sendMessage({ type: 'settings.set', language: 'th' })),
+  ).toMatchObject({ ok: true });
+  await page.evaluate(() => (window as unknown as { __releaseRead: () => void }).__releaseRead());
+  await expect(page.locator('html')).toHaveAttribute('lang', 'th');
+  await waitForPopupMotion(page);
+  await expect(screen(page)).toHaveAttribute('data-state', 'locked');
+  await expect(page.getByTestId('pw-input')).toHaveValue(PASSWORD);
+  expect(
+    await page
+      .getByTestId('pw-input')
+      .evaluate((element: HTMLInputElement) => [
+        document.activeElement === element,
+        element.selectionStart,
+        element.selectionEnd,
+        element.selectionDirection,
+      ]),
+  ).toEqual([true, 3, 7, 'backward']);
+  expect(await page.content()).not.toContain(PASSWORD);
+  await page.getByTestId('unlock').click();
+  await expect(screen(page)).toHaveAttribute('data-state', 'empty');
   expect(problems).toEqual([]);
 });
