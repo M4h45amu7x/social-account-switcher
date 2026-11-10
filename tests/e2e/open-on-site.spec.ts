@@ -8,11 +8,15 @@ import { mkdirSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join, resolve } from 'node:path';
 import type { BrowserContext, Page, Worker } from '@playwright/test';
+import en from '../../public/_locales/en/messages.json' with { type: 'json' };
+import th from '../../public/_locales/th/messages.json' with { type: 'json' };
 import { FB, fakeSocial, IG, OTHER, SOCIAL_HOSTS } from './fake-social';
 import { expect, launchExtension, test } from './fixtures';
 import { type HttpsSites, type SiteHandler, startHttpsSites } from './https-sites';
 
 const YT = 'www.youtube.com';
+const locale = process.env.E2E_LOCALE === 'th' ? 'th' : 'en';
+const messages = locale === 'th' ? th : en;
 const PASSWORD = 'orange cat naps by the canal';
 const shots =
   process.env.E2E_SHOTS ?? resolve(import.meta.dirname, '..', '..', 'test-results', 'open-on-site');
@@ -48,6 +52,7 @@ test.beforeAll(async () => {
   sites = await startHttpsSites([...SOCIAL_HOSTS, YT], handler);
   devtools = await freePort();
   const launched = await launchExtension({
+    locale,
     extraArgs: [...sites.args, `--remote-debugging-port=${devtools}`],
   });
   context = launched.context;
@@ -194,6 +199,28 @@ async function shoot(page: Page, name: string) {
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
     await page.waitForTimeout(100);
+    expect(await page.locator('html').getAttribute('lang')).toBe(locale);
+    const overflow = await page.evaluate(() => {
+      const app = document.getElementById('app');
+      if (!app) return ['missing app'];
+      const box = app.getBoundingClientRect();
+      return [...app.querySelectorAll<HTMLElement>('*')].flatMap((el) => {
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) return [];
+        // The platform badge extends 3px beyond the avatar; visible overflow also
+        // contributes to ancestor scroll sizes. Check their child text boxes instead.
+        const decorated = el.matches('.avatar') || el.querySelector('.avatar') !== null;
+        return r.right > box.right + 1 ||
+          r.left < box.left - 1 ||
+          (!decorated && el.scrollWidth > el.clientWidth + 1) ||
+          (!decorated && el.scrollHeight > el.clientHeight + 1)
+          ? [
+              `${el.tagName}.${el.className} bounds=${r.left},${r.right}; client=${el.clientWidth}x${el.clientHeight}; scroll=${el.scrollWidth}x${el.scrollHeight}`,
+            ]
+          : [];
+      });
+    });
+    expect(overflow).toEqual([]);
     await page.screenshot({ path: join(shots, `${name}-${scheme}.png`), fullPage: true });
   }
 }
@@ -263,7 +290,7 @@ test('on Facebook with no account saved: the main button adds the account on thi
   await expect(page.getByTestId('popup')).toHaveAttribute('data-platform', 'facebook');
   await expect(page.getByTestId('empty')).toHaveAttribute('data-here', '1');
   await expect(page.getByTestId('open-site')).toHaveCount(0);
-  await expect(page.getByTestId('add-account')).toHaveText('Add the account on this tab');
+  await expect(page.getByTestId('add-account')).toHaveText(messages.add_here.message);
   await shoot(page, '3-on-site-empty');
 
   // setup: log in on the site itself, then add from the popup in place
@@ -278,8 +305,8 @@ test('on Facebook with no account saved: the main button adds the account on thi
   // a new popup over the same tab marks the account that tab is logged in to
   const again = await popupOver(tabs.facebook);
   const alice = again.locator('[data-testid^="row-"]').filter({ hasText: 'Alice' });
-  await expect(alice.getByTestId('chip-here')).toHaveText('On this tab');
-  await expect(again.getByTestId('add-account')).toContainText('Add the account on this tab');
+  await expect(alice.getByTestId('chip-here')).toHaveText(messages.chip_here.message);
+  await expect(again.getByTestId('add-account')).toContainText(messages.add_here.message);
   await shoot(again, '4-on-site-list');
   await again.close();
 });

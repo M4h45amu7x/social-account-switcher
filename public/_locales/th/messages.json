@@ -794,19 +794,19 @@
     "description": "Popup: error message"
   },
   "add_here": {
-    "message": "Add the account on this tab",
+    "message": "เพิ่มบัญชีในแท็บนี้",
     "description": "Main add button when the browser tab under the popup is already on the platform's site"
   },
   "empty_hereStep1": {
-    "message": "In this tab, log in to the account you want to add",
+    "message": "login บัญชีที่ต้องการเพิ่มในแท็บนี้",
     "description": "Empty list, shown when the browser tab under the popup is already on the platform's site"
   },
   "empty_hereStep2": {
-    "message": "Press [[Add the account on this tab]]",
+    "message": "กด [[เพิ่มบัญชีในแท็บนี้]]",
     "description": "Empty list, shown when the browser tab under the popup is already on the platform's site. The bracketed text is the button label (add_here)."
   },
   "add_notLoggedInHere": {
-    "message": "No $PLATFORM$ login found in this tab. Log in here, then press Add again.",
+    "message": "ยังไม่พบบัญชีที่ login ใน $PLATFORM$ ในแท็บนี้ — login ในแท็บนี้ก่อน จากนั้นกดเพิ่มอีกครั้ง",
     "description": "Add account form, when the browser tab under the popup is already on the platform's site",
     "placeholders": {
       "platform": {
@@ -816,7 +816,7 @@
     }
   },
   "chip_here": {
-    "message": "On this tab",
+    "message": "ในแท็บนี้",
     "description": "Small badge next to an account name: the browser tab under the popup is logged in to this account"
   }
 }
