@@ -6,7 +6,12 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ### Added
 
+- Local TikTok browser tests rotate server-validated sessions on every authenticated page load. They cover repeated switches, rollback and worker recovery, checkpoint handling, migration and both wipe scopes. TikTok remains disabled in production.
 - Experimental TikTok session backend with a centralized cookie deny-list, read-only fixture viewer probe, verified rollback and recovery, and session wipe support. It stays disabled and hidden from the popup until the live-site contract is confirmed. The manifest now requests the `https://*.tiktok.com/*` host permission for it.
+
+### Fixed
+
+- Verified TikTok switches and recovery wait for every reloaded tab before saving the session, so a slower response cannot leave an older token in the vault. Other platforms keep their existing load behavior.
 
 ## [0.1.1] - 2026-11-10
 

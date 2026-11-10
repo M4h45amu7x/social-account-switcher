@@ -5,13 +5,23 @@ type LoadDeps = { tabs: TabsApi; loadTimeoutMs: number; requireComplete?: boolea
 /**
  * Reloads every tab of the platform. `firstLoaded` resolves with the first tab (the active one if
  * there is one) once it has finished loading, or null when there is no tab or it takes too long.
+ * Verified cookie probes require every queried tab to complete before taking the final snapshot: a
+ * later response can rotate the shared session again. Legacy callers still wait only for one tab.
  */
 export async function reloadTabs(deps: LoadDeps, p: CookiePlatform) {
   const tabs = (await deps.tabs.query({ url: p.tabPatterns })).filter(
     (t): t is BrowserTab & { id: number } => t.id !== undefined,
   );
   const watched = tabs.find((t) => t.active) ?? tabs[0];
-  const firstLoaded = watched ? waitForLoad(deps, watched.id) : Promise.resolve(null);
+  const firstLoaded = deps.requireComplete
+    ? Promise.all(tabs.map((tab) => waitForLoad(deps, tab.id))).then((loaded) =>
+        loaded.every((tab) => tab !== null)
+          ? (loaded.find((tab) => tab?.id === watched?.id) ?? null)
+          : null,
+      )
+    : watched
+      ? waitForLoad(deps, watched.id)
+      : Promise.resolve(null);
   let reloaded = 0;
   for (const tab of tabs) {
     if (
