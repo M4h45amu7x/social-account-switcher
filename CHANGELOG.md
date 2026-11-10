@@ -4,6 +4,16 @@ Notable changes are recorded here using Keep a Changelog and semantic versioning
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep the selected tab's name, icon and count visible while the tab bar animates. The indicator is no longer drawn in the view-transition layer on top of the label; it now slides behind the buttons.
+- Show the selected tab and the selected Language and Theme option on a thumb that stands out from its track in the dark theme, with text contrast of at least 4.5:1 in both themes.
+- Stop the old and the new page from showing text at the same time when you change tab or open settings. The new page now appears after the old one has faded out.
+
+### Changed
+
+- The tab bar and the Language and Theme controls in settings share one sliding indicator. It moves instantly when the system asks for reduced motion.
+
 ## [0.1.0] - 2026-11-10
 
 ### Added

@@ -11,6 +11,7 @@ import {
   type Translator,
 } from './i18n';
 import { circleReveal, runTransition } from './motion';
+import { syncSliders } from './slider';
 import { initialState, type PopupState } from './state';
 import {
   applyTheme,
@@ -95,6 +96,7 @@ export function mountPopup(deps: AppDeps): App {
     html.dataset.lang = tr.lang;
     doc.title = tr.text('popupTitle');
     renderPopup(root, state, tr);
+    syncSliders(root);
     if (returnFocusTo) {
       root.querySelector<HTMLElement>(returnFocusTo)?.focus();
       returnFocusTo = null;

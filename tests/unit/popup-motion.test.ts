@@ -88,8 +88,7 @@ describe('runTransition', () => {
   });
 
   test('sets data-vt, the direction and the names, runs update in the callback, then cleans up', async () => {
-    document.body.innerHTML =
-      '<button class="tab"><span class="pill"></span></button><section data-panel></section>';
+    document.body.innerHTML = '<button class="tab"></button><section data-panel></section>';
     const root = document.documentElement;
     let ran = 0;
     const t = runTransition('tab', () => ran++, { dir: -1 });
@@ -97,7 +96,6 @@ describe('runTransition', () => {
     expect(root.dataset.vt).toBe('tab');
     expect(root.dataset.vtBusy).toBe('1');
     expect(root.style.getPropertyValue('--vt-dir')).toBe('-1');
-    expect(document.querySelector<HTMLElement>('.pill')?.style.viewTransitionName).toBe('pill');
     expect(document.querySelector<HTMLElement>('[data-panel]')?.style.viewTransitionName).toBe(
       'panel',
     );
@@ -208,20 +206,12 @@ describe('a skipped transition', () => {
 describe('applyNames', () => {
   test('every named element gets its own stable name in the mode that uses it', () => {
     document.body.innerHTML = `<li class="row" data-id="a"></li><span class="slot" data-id="a"></span>
-      <button class="tab"><span class="pill"></span></button><section data-panel></section>
+      <button class="tab"></button><section data-panel></section>
       <div data-card="theme"></div><button data-sbtn></button><div class="toast"></div>`;
     const names = (mode: Parameters<typeof applyNames>[0]): Record<string, string> => {
       applyNames(mode);
       const out: Record<string, string> = {};
-      for (const sel of [
-        '.row',
-        '.slot',
-        '.pill',
-        '[data-panel]',
-        '[data-card]',
-        '[data-sbtn]',
-        '.toast',
-      ]) {
+      for (const sel of ['.row', '.slot', '[data-panel]', '[data-card]', '[data-sbtn]', '.toast']) {
         out[sel] = document.querySelector<HTMLElement>(sel)?.style.viewTransitionName ?? '';
       }
       return out;
@@ -229,11 +219,10 @@ describe('applyNames', () => {
     expect(names('list')).toMatchObject({
       '.row': 'row-a',
       '.slot': 'slot-a',
-      '.pill': '',
       '.toast': 'toast',
     });
-    expect(names('tab')).toMatchObject({ '.pill': 'pill', '[data-panel]': 'panel', '.row': '' });
-    expect(names('page')).toMatchObject({ '[data-panel]': 'panel', '.pill': '' });
+    expect(names('tab')).toMatchObject({ '[data-panel]': 'panel', '.row': '' });
+    expect(names('page')).toMatchObject({ '[data-panel]': 'panel' });
     expect(names('expand')).toMatchObject({ '[data-card]': 'card-theme', '.row': 'row-a' });
     expect(names('status')).toMatchObject({ '[data-sbtn]': 'sbtn', '.slot': 'slot-a' });
     expect(names('toast')).toMatchObject({ '.toast': 'toast', '.row': '' });
