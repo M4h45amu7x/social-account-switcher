@@ -18,7 +18,7 @@ The popup advances its step labels on a timer while the worker runs. They are no
 
 ## Simulated websites do not prove live-platform compatibility
 
-The Facebook and Instagram E2E sites are local models. They exercise cookie changes, revoked sessions, checkpoints, tab reloads and rollback, but do not reproduce Meta's servers or account-risk decisions. A passing test does not guarantee that a real switch will avoid a checkpoint or remain compatible after a website change. Use your own test accounts for the manual checks before relying on the extension.
+The Facebook and Instagram E2E sites are local models. They issue session cookies at login and do not rotate them during normal page loads or reloads. They exercise explicit session revocation, checkpoints, tab reloads and rollback, but do not reproduce Meta's servers or account-risk decisions. These tests do not establish compatibility with session rotation or invalidation on the real websites. A passing test does not guarantee that a real switch will avoid a checkpoint or remain compatible after a website change. Use your own test accounts for the manual checks before relying on the extension.
 
 ## Security hardening: password field while a request is pending
 

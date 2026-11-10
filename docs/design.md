@@ -216,7 +216,7 @@ Biome and `scripts/check-chrome-access.ts` enforce browser-global restrictions a
 
 ### 9.7 GitHub release zip
 
-`scripts/zip.ts` verifies the permission allow-list and privacy permission table, manifest/package version match, required locales and safe local production assets. It rejects source maps, remote code and forbidden direct network APIs. It sorts archive entries and fixes timestamps, producing `release/social-account-switcher-v<version>.zip` and its SHA-256 file with the manifest at archive root. Two unchanged builds must produce the same checksum.
+`scripts/zip.ts` checks the manifest permission allow-list, the permission table in `PRIVACY.md` and the manifest/package version match. It rejects source maps and code matching its forbidden patterns for remote scripts/imports, dynamic evaluation and direct network APIs. It does not check that required locale files exist. It sorts archive entries and fixes timestamps, producing `release/social-account-switcher-v<version>.zip` and its SHA-256 file with the manifest at archive root. Two unchanged builds must produce the same checksum.
 
 ### 9.8 Workflows
 
